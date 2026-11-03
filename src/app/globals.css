@@ -1,0 +1,173 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    /* Token Warna Anti-Slop (PRD & DESIGN.md) */
+    --paper: #F7F3EB;
+    --paper-surface: #FFFFFF;
+    --ink: #1A1D21;
+    --ink-muted: #5B6166;
+    --ink-faint: #8C9399;
+    --border-color: #D8D2C4;
+    --sidebar-dark: #1E2429;
+    --sidebar-light: #F0EBDD;
+
+    /* Status Cap / Stempel */
+    --stamp-red: #B42318;
+    --stamp-red-bg: #FEF3F2;
+    --stamp-amber: #9A6700;
+    --stamp-amber-bg: #FEFBE8;
+    --stamp-green: #1F5C55;
+    --stamp-green-bg: #E8F5E9;
+    --stamp-paid: #276749;
+    --stamp-inactive: #475467;
+  }
+}
+
+body {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Stempel / Stamp Badge Utilitas */
+.stamp-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-width: 1.5px;
+  border-style: solid;
+}
+
+.stamp-badge-amber {
+  border-color: #9A6700;
+  color: #9A6700;
+  background-color: #FEFBE8;
+}
+
+.stamp-badge-green {
+  border-color: #1F5C55;
+  color: #1F5C55;
+  background-color: #E8F5E9;
+}
+
+.stamp-badge-red {
+  border-color: #B42318;
+  color: #B42318;
+  background-color: #FEF3F2;
+}
+
+.stamp-badge-gray {
+  border-color: #5B6166;
+  color: #5B6166;
+  background-color: #F0EBDD;
+}
+
+/* Celestial Orrery Styles (Hanya Orbit Bulat Sempurna & Planet) */
+.hero-orrery-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: radial-gradient(circle at center, #0F2A4A 0%, #081528 70%, #040B16 100%);
+}
+
+.orrery-field {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 520px;
+  height: 520px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.orbit {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px dashed rgba(56, 189, 248, 0.22);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: orrery-spin linear infinite;
+}
+
+.orbit-1 {
+  width: 140px;
+  height: 140px;
+  animation-duration: 16s;
+}
+
+.orbit-2 {
+  width: 250px;
+  height: 250px;
+  animation-duration: 28s;
+  animation-direction: reverse;
+  border-color: rgba(125, 211, 252, 0.25);
+}
+
+.orbit-3 {
+  width: 370px;
+  height: 370px;
+  animation-duration: 44s;
+  border-color: rgba(56, 189, 248, 0.18);
+}
+
+.orbit-4 {
+  width: 480px;
+  height: 480px;
+  animation-duration: 60s;
+  animation-direction: reverse;
+  border-color: rgba(186, 230, 253, 0.15);
+}
+
+.orbit .planet {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #38BDF8;
+  box-shadow: 0 0 12px #38BDF8, 0 0 24px rgba(56, 189, 248, 0.5);
+}
+
+.orbit-1 .planet {
+  width: 9px;
+  height: 9px;
+  background: #BAE6FD;
+}
+
+.orbit-2 .planet {
+  width: 12px;
+  height: 12px;
+  background: #38BDF8;
+}
+
+.orbit-3 .planet {
+  width: 8px;
+  height: 8px;
+  background: #7DD3FC;
+}
+
+.orbit-4 .planet {
+  width: 11px;
+  height: 11px;
+  background: #60A5FA;
+}
+
+@keyframes orrery-spin {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
