@@ -164,6 +164,7 @@ Berikut adalah tabel rekam jejak (*logbook*) kegiatan teknis yang telah diselesa
 | 13 | 04 Nov 2026 | **Penyusunan Slogan Zigzag dan Efek Fokus** | Penataan 6 butir slogan kearsipan dinas dengan bingkai sudut HUD dinamis dan pergeseran fokus bersiklus zigzag. | Selesai |
 | 14 | 04 Nov 2026 | **Penyelarasan Ruang Bebas Vertikal Footer** | Penyesuaian ketinggian slogan nomor 05 dan 06 serta pengurangan jarak padding border footer agar terbebas dari tabrakan garis. | Selesai |
 | 15 | 04 Nov 2026 | **Penskalaan Responsif Multi-Resolusi Layar** | Implementasi ResizeObserver dinamis 0.48x hingga 1.4x serta media query penyembunyian slogan samping pada layar ponsel sempit. | Selesai |
+| 16 | 05 Nov 2026 | **Fitur Toggle Intip Sandi dengan Hashing Simbolik** | Penambahan tombol interaktif ikon mata dengan masking hashing unik (kombinasi angka & simbol acak 1:1) tanpa membocorkan teks mentah. | Selesai |
 
 ---
 
