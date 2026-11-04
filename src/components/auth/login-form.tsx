@@ -4,12 +4,27 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { FileText, ShieldAlert, ArrowRight, Loader2, CheckCircle2, Building2 } from 'lucide-react'
+import { FileText, ShieldAlert, ArrowRight, Loader2, CheckCircle2, Building2, Eye, EyeOff } from 'lucide-react'
+import ArchiveAnimation from '@/app/ArchiveAnimation'
+
+// Representasi hashing acak (angka & simbol unik) dengan panjang pas 1:1 (8 - 15 digit)
+function getScrambledHash(pass: string): string {
+  if (!pass) return ''
+  const symbols = ['#', '$', '%', '&', '*', '!', '@', '^', '9', '7', '3', '4', '8', '2', '5', 'x', 'z', 'k', 'q']
+  let res = ''
+  for (let i = 0; i < pass.length; i++) {
+    const code = pass.charCodeAt(i)
+    const idx = (code * 31 + i * 17 + 7) % symbols.length
+    res += symbols[idx]
+  }
+  return res
+}
 
 export default function LoginForm() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
   const [loading, setLoading] = useState(false)
@@ -139,11 +154,11 @@ export default function LoginForm() {
   }
 
   return (
-    <section className="min-h-screen bg-[#F0F5FA] p-3 text-[#1A232E] antialiased">
-      <div className="grid min-h-[calc(100vh-1.5rem)] gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+    <section className="min-h-screen bg-[#F0F5FA] p-3 sm:p-4 md:p-6 text-[#1A232E] antialiased">
+      <div className="grid min-h-[calc(100vh-1.5rem)] gap-4 sm:gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         
         {/* Kolom Kiri: Formulir Masuk Berarsitektur Split Panel (Mobile: order-2, Desktop: order-1) */}
-        <div className="order-2 lg:order-1 flex items-center rounded-xl border border-[#CBD7E3] bg-white px-6 py-10 sm:px-10 lg:px-12 lg:py-14 shadow-xs">
+        <div className="order-2 lg:order-1 flex items-center rounded-xl border border-[#CBD7E3] bg-white px-5 py-8 sm:px-10 lg:px-12 lg:py-14 shadow-xs">
           <div className="mx-auto w-full max-w-[560px]">
             
             {/* Header Form */}
@@ -214,15 +229,42 @@ export default function LoginForm() {
                     Lupa Kata Sandi?
                   </button>
                 </div>
-                <input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full h-12 px-4 text-sm bg-[#F8FAFC] border border-[#CBD7E3] rounded-lg focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F] text-[#111827] placeholder-[#94A3B8] transition-all"
-                />
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={8}
+                    maxLength={15}
+                    value={showPassword ? getScrambledHash(password) : password}
+                    onChange={(e) => {
+                      if (!showPassword) setPassword(e.target.value.slice(0, 15))
+                    }}
+                    onClick={() => {
+                      if (showPassword) setShowPassword(false)
+                    }}
+                    placeholder="••••••••"
+                    className={`w-full h-12 pl-4 pr-11 text-sm bg-[#F8FAFC] border border-[#CBD7E3] rounded-lg focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F] transition-all ${
+                      showPassword
+                        ? 'font-mono text-sm text-[#0284C7] bg-[#F0F7FF] select-all tracking-widest cursor-pointer'
+                        : 'text-[#111827] placeholder-[#94A3B8]'
+                    }`}
+                    title={showPassword ? 'Klik kolom untuk kembali mengedit kata sandi' : undefined}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#4B5E76] hover:text-[#1E3A5F] p-1 transition-colors cursor-pointer"
+                    aria-label={showPassword ? 'Kembali ke mode sembunyi' : 'Lihat representasi hashing angka & simbol unik'}
+                    title={showPassword ? 'Kembali ke mode sembunyi' : 'Lihat representasi hashing angka & simbol unik'}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4 text-[#0284C7]" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div className="pt-2">
@@ -262,25 +304,18 @@ export default function LoginForm() {
         </div>
 
         {/* Kolom Kanan: Panel Kartu Brand / Identitas Arsip Instansi (Mobile: order-1 di atas, Desktop: order-2 di kanan) */}
-        <div className="order-1 lg:order-2 relative flex flex-col justify-between overflow-hidden rounded-xl bg-[#081528] p-8 text-white sm:p-12 border border-[#1E3A5F] shadow-lg min-h-[360px] lg:min-h-0">
-          {/* Background Celestial Orrery (Hanya Orbit Bulat & Planet) */}
-          <div className="hero-orrery-container pointer-events-none">
-            <div className="orrery-field">
-              <div className="orbit orbit-1"><div className="planet" /></div>
-              <div className="orbit orbit-2"><div className="planet" /></div>
-              <div className="orbit orbit-3"><div className="planet" /></div>
-              <div className="orbit orbit-4"><div className="planet" /></div>
-            </div>
-          </div>
+        <div className="order-1 lg:order-2 relative flex flex-col justify-between overflow-hidden rounded-xl bg-[#081528] p-5 sm:p-8 lg:p-12 text-white border border-[#1E3A5F] shadow-lg min-h-[360px] sm:min-h-[440px] lg:min-h-0">
+          {/* Background Animasi Arsip Dokumen Interaktif */}
+          <ArchiveAnimation />
 
-          <div className="relative z-10 space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/40 bg-[#0F2A4A]/70 px-3.5 py-1 text-xs font-mono tracking-wide text-[#BAE6FD] backdrop-blur-md">
+          <div className="relative z-10 space-y-4 sm:space-y-6">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/40 bg-[#0F2A4A]/70 px-3 py-1 sm:px-3.5 text-[11px] sm:text-xs font-mono tracking-wide text-[#BAE6FD] backdrop-blur-md">
               <Building2 className="w-3.5 h-3.5 text-[#38BDF8]" />
               ARSIP DIGITAL TERINTEGRASI
             </div>
 
-            <div className="min-h-[110px] sm:min-h-[120px]">
-              <h2 className="text-2xl sm:text-3xl lg:text-[34px] font-serif font-bold tracking-tight leading-snug">
+            <div className="min-h-[75px] sm:min-h-[100px] lg:min-h-[120px]">
+              <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-[34px] font-serif font-bold tracking-tight leading-snug">
                 <span className="text-white">{typedPart1}</span>
                 <span className="text-[#38BDF8]">{typedPart2}</span>
                 <span className="inline-block w-[3px] h-[1em] bg-[#38BDF8] ml-1.5 align-middle animate-pulse" />
@@ -288,7 +323,7 @@ export default function LoginForm() {
             </div>
           </div>
 
-          <div className="relative z-10 pt-10 border-t border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#94A3B8] font-mono">
+          <div className="relative z-10 pt-4 border-t border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 text-[11px] sm:text-xs text-[#94A3B8] font-mono">
             <span>SISTEM INFORMASI ARSIP DINAS</span>
             <span>VERSI 1.0 • BERLISENSI INSTANSI</span>
           </div>
