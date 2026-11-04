@@ -1,4 +1,4 @@
-# Sistem Informasi Tata Kelola Dokumen & Arsip Instansi Terintegrasi
+# Archiva — Sistem Informasi Tata Kelola Dokumen & Arsip Instansi Terintegrasi
 
 [![Lisensi](https://img.shields.io/badge/Lisensi-MIT-blue.svg)](LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-16.4-black.svg?logo=next.js)](https://nextjs.org/)
@@ -168,6 +168,7 @@ Berikut adalah tabel rekam jejak (*logbook*) kegiatan teknis yang telah diselesa
 | 17 | 05 Nov 2026 | **Validasi Panjang Kata Sandi Ketat** | Penegakan atribut minLength 8 dan maxLength 15 serta penyesuaian generator kata sandi KBBI agar selalu tepat 8-15 karakter. | Selesai |
 | 18 | 05 Nov 2026 | **Pemasangan Pustaka Bcryptjs & Aset Logo** | Instalasi dependensi bcryptjs, integrasi aset grafis logo1 dan logo gabungan Archiva pada folder pic dan public/pic. | Selesai |
 | 19 | 05 Nov 2026 | **Migrasi Konvensi Perutean Proxy Next.js 16** | Refaktorisasi middleware.ts menjadi src/proxy.ts sesuai spesifikasi Next.js 16 terkini guna menghilangkan pesan peringatan usang. | Selesai |
+| 20 | 05 Nov 2026 | **Penyempurnaan Akhir & Rilis Stabil Versi 1.1** | Pembersihan tooltip berlebih, perbaikan tipografi lisensi kedinasan, dan verifikasi kelulusan kompilasi Turbopack 100%. | Selesai |
 
 ---
 
