@@ -167,6 +167,7 @@ Berikut adalah tabel rekam jejak (*logbook*) kegiatan teknis yang telah diselesa
 | 16 | 05 Nov 2026 | **Fitur Toggle Intip Sandi dengan Hashing Simbolik** | Penambahan tombol interaktif ikon mata dengan masking hashing unik (kombinasi angka & simbol acak 1:1) tanpa membocorkan teks mentah. | Selesai |
 | 17 | 05 Nov 2026 | **Validasi Panjang Kata Sandi Ketat** | Penegakan atribut minLength 8 dan maxLength 15 serta penyesuaian generator kata sandi KBBI agar selalu tepat 8-15 karakter. | Selesai |
 | 18 | 05 Nov 2026 | **Pemasangan Pustaka Bcryptjs & Aset Logo** | Instalasi dependensi bcryptjs, integrasi aset grafis logo1 dan logo gabungan Archiva pada folder pic dan public/pic. | Selesai |
+| 19 | 05 Nov 2026 | **Migrasi Konvensi Perutean Proxy Next.js 16** | Refaktorisasi middleware.ts menjadi src/proxy.ts sesuai spesifikasi Next.js 16 terkini guna menghilangkan pesan peringatan usang. | Selesai |
 
 ---
 
