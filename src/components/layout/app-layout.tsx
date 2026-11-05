@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { 
   FileText, 
@@ -55,18 +56,18 @@ export function AppLayout({ children, currentRole = 'pic_arsip' }: AppLayoutProp
       <aside className="w-full md:w-64 bg-[#1E2429] text-[#F7F3EB] flex flex-col shrink-0 border-r border-[#D8D2C4]">
         {/* Brand Header */}
         <div className="p-4 border-b border-[#2D353C] flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 bg-[#F7F3EB] text-[#1E2429]">
-              <FileText className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="font-serif text-lg font-bold tracking-tight block leading-tight">
-                ARSIP RESMI
-              </span>
-              <span className="font-mono text-[10px] text-[#8C9399] tracking-wider uppercase">
-                v1.0 • Standar 3 Thn
-              </span>
-            </div>
+          <div className="flex flex-col gap-1">
+            <Image
+              src="/pic/Logo-gabungan1.png"
+              alt="Archiva"
+              width={865}
+              height={288}
+              priority
+              className="h-10 w-auto -ml-1.5"
+            />
+            <span className="font-mono text-[10px] text-[#8C9399] tracking-wider uppercase">
+              v1.0 • Standar 3 Thn
+            </span>
           </div>
         </div>
 
