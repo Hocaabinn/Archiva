@@ -176,7 +176,7 @@ export default function RegisterForm() {
       <div className="grid gap-3 sm:gap-4 md:gap-6 lg:min-h-[calc(100dvh-3rem)] lg:grid-cols-[1.1fr_0.9fr]">
         
         {/* Kolom Kiri: Formulir Register Berarsitektur Split Panel (Mobile: order-2, Desktop: order-1) */}
-        <div className="order-2 lg:order-1 flex items-center rounded-xl border border-[#CBD7E3] bg-white px-5 py-8 sm:px-10 lg:px-12 lg:py-14 shadow-xs">
+        <div className="order-2 lg:order-1 flex items-center rounded-xl border border-[#CBD7E3] bg-white px-5 py-7 sm:px-10 sm:py-10 lg:px-12 lg:py-14 shadow-xs">
           <div className="mx-auto w-full max-w-[560px]">
             
             {/* Header Form */}
@@ -294,7 +294,7 @@ export default function RegisterForm() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nama@instansi.go.id"
+                  placeholder="nama@example.com"
                   className="w-full h-12 px-4 text-sm bg-[#F8FAFC] border border-[#CBD7E3] rounded-lg focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F] text-[#111827] placeholder-[#94A3B8] transition-all"
                 />
               </div>
