@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
-import { FileText, ShieldAlert, ArrowRight, Loader2, CheckCircle2, Info, Building2, Sparkles, Eye, EyeOff } from 'lucide-react'
+import { ShieldAlert, ArrowRight, Loader2, CheckCircle2, Info, Sparkles, Eye, EyeOff } from 'lucide-react'
 import ArchiveAnimation from '@/app/ArchiveAnimation'
 
 // Representasi hashing acak (angka & simbol unik) dengan panjang pas 1:1 (8 - 15 digit)
@@ -180,11 +181,15 @@ export default function RegisterForm() {
             
             {/* Header Form */}
             <div className="border-b border-[#CBD7E3] pb-5 mb-7">
-              <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-[#E8F1F8] border border-[#CBD7E3] rounded-md text-xs font-mono font-medium text-[#1E3A5F] mb-3">
-                <FileText className="w-3.5 h-3.5" />
-                PORTAL RESMI ARSIP INSTANSI
-              </div>
-              <h1 className="text-3xl font-serif font-bold tracking-tight text-[#111827] sm:text-4xl">
+              <Image
+                src="/pic/Logo-gabungan-gelap.png"
+                alt="Archiva"
+                width={838}
+                height={132}
+                priority
+                className="h-7 sm:h-8 lg:h-9 w-auto mb-5 sm:mb-6"
+              />
+              <h1 className="text-2xl font-serif font-bold tracking-tight text-[#111827] sm:text-3xl lg:text-4xl">
                 Pendaftaran Akun
               </h1>
               <p className="mt-2 text-sm text-[#4B5E76]">
@@ -401,14 +406,17 @@ export default function RegisterForm() {
           {/* Background Animasi Arsip Dokumen Interaktif */}
           <ArchiveAnimation />
 
-          <div className="relative z-10 space-y-4 sm:space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/40 bg-[#0F2A4A]/70 px-3 py-1 sm:px-3.5 text-[11px] sm:text-xs font-mono tracking-wide text-[#BAE6FD] backdrop-blur-md">
-              <Building2 className="w-3.5 h-3.5 text-[#38BDF8]" />
-              ARSIP DIGITAL TERINTEGRASI
-            </div>
-
-            <div className="min-h-[75px] sm:min-h-[100px] lg:min-h-[120px]">
-              <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-[34px] font-serif font-bold tracking-tight leading-snug">
+          <div className="relative z-10 space-y-3 sm:space-y-4">
+            <Image
+              src="/pic/Logo.png"
+              alt="Logo Archiva"
+              width={502}
+              height={484}
+              priority
+              className="h-9 sm:h-11 lg:h-14 w-auto -mt-1 sm:-mt-3 lg:-mt-6"
+            />
+            <div className="min-h-[52px] sm:min-h-[60px] lg:min-h-[68px] max-w-[20rem] sm:max-w-sm">
+              <h2 className="text-base sm:text-lg lg:text-[22px] font-serif font-bold tracking-tight leading-snug drop-shadow-[0_2px_6px_rgba(8,21,40,0.9)]">
                 <span className="text-white">{typedPart1}</span>
                 <span className="text-[#38BDF8]">{typedPart2}</span>
                 <span className="inline-block w-[3px] h-[1em] bg-[#38BDF8] ml-1.5 align-middle animate-pulse" />
