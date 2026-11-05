@@ -155,8 +155,8 @@ export default function LoginForm() {
   }
 
   return (
-    <section className="min-h-screen bg-[#F0F5FA] p-3 sm:p-4 md:p-6 text-[#1A232E] antialiased">
-      <div className="grid min-h-[calc(100vh-1.5rem)] gap-4 sm:gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+    <section className="min-h-dvh bg-[#F0F5FA] p-3 sm:p-4 md:p-6 text-[#1A232E] antialiased">
+      <div className="grid gap-3 sm:gap-4 md:gap-6 lg:min-h-[calc(100dvh-3rem)] lg:grid-cols-[1.1fr_0.9fr]">
         
         {/* Kolom Kiri: Formulir Masuk Berarsitektur Split Panel (Mobile: order-2, Desktop: order-1) */}
         <div className="order-2 lg:order-1 flex items-center rounded-xl border border-[#CBD7E3] bg-white px-5 py-8 sm:px-10 lg:px-12 lg:py-14 shadow-xs">
@@ -309,7 +309,7 @@ export default function LoginForm() {
         </div>
 
         {/* Kolom Kanan: Panel Kartu Brand / Identitas Arsip Instansi (Mobile: order-1 di atas, Desktop: order-2 di kanan) */}
-        <div className="order-1 lg:order-2 relative flex flex-col justify-between overflow-hidden rounded-xl bg-[#081528] p-5 sm:p-8 lg:p-12 text-white border border-[#1E3A5F] shadow-lg min-h-[360px] sm:min-h-[440px] lg:min-h-0">
+        <div className="order-1 lg:order-2 relative flex flex-col justify-between overflow-hidden rounded-xl bg-[#081528] gap-6 p-5 sm:p-8 lg:p-12 text-white border border-[#1E3A5F] shadow-lg min-h-[220px] sm:min-h-[300px] lg:min-h-0">
           {/* Background Animasi Arsip Dokumen Interaktif */}
           <ArchiveAnimation />
 
@@ -325,7 +325,7 @@ export default function LoginForm() {
             <div className="min-h-[52px] sm:min-h-[60px] lg:min-h-[68px] max-w-[20rem] sm:max-w-sm">
               <h2 className="text-base sm:text-lg lg:text-[22px] font-serif font-bold tracking-tight leading-snug drop-shadow-[0_2px_6px_rgba(8,21,40,0.9)]">
                 <span className="text-white">{typedPart1}</span>
-                <span className="text-[#38BDF8]">{typedPart2}</span>
+                <span className="text-[#38BDF8] sm:block">{typedPart2}</span>
                 <span className="inline-block w-[3px] h-[1em] bg-[#38BDF8] ml-1.5 align-middle animate-pulse" />
               </h2>
             </div>
