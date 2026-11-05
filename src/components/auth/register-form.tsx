@@ -187,7 +187,7 @@ export default function RegisterForm() {
                 width={1019}
                 height={245}
                 priority
-                className="h-8 sm:h-9 lg:h-10 w-auto mb-5 sm:mb-6"
+                className="h-14 sm:h-16 lg:h-20 w-auto mb-6 sm:mb-7"
               />
               <h1 className="text-2xl font-serif font-bold tracking-tight text-[#111827] sm:text-3xl lg:text-4xl">
                 Pendaftaran Akun
