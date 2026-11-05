@@ -1,6 +1,9 @@
 -- Skema Supabase untuk Aplikasi Arsip Dokumen
 -- Sesuai dengan PRD.md dan DESIGN.md
 
+-- Skrip ini aman dijalankan ulang (idempotent): tabel, fungsi, trigger,
+-- dan policy dibuat ulang tanpa error "already exists".
+
 -- 1. Ekstensi
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -198,15 +201,15 @@ FOR EACH ROW
 EXECUTE FUNCTION public.generate_kode_arsip();
 
 -- 11. Trigger Auto Profile saat Register Supabase Auth
+-- Role SELALU 'user' untuk pendaftaran. Nilai 'role' dari metadata client
+-- sengaja diabaikan (PRD FR-01) — role lain hanya diberikan oleh Admin
+-- atau lewat SQL Editor.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
--- Role SELALU 'user' untuk pendaftaran. Nilai 'role' dari metadata client
--- sengaja diabaikan (PRD FR-01) — role lain hanya diberikan oleh Admin
--- atau lewat SQL Editor.
     INSERT INTO public.profiles (id, email, nama_lengkap, nip_nik, jabatan, role)
     VALUES (
         NEW.id,
@@ -237,9 +240,132 @@ ALTER TABLE public.log_aktivitas ENABLE ROW LEVEL SECURITY;
 
 -- Helper Function Role Check
 CREATE OR REPLACE FUNCTION public.get_auth_role()
-RETURNS user_role AS $$
+RETURNS user_role
+LANGUAGE sql STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
     SELECT role FROM public.profiles WHERE id = auth.uid();
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+$$;
+
+-- Pengaman kolom profiles: hanya Admin yang boleh mengubah role / email.
+-- auth.uid() NULL = dijalankan dari SQL Editor / service role (tetap boleh,
+-- dipakai untuk menetapkan role akun demo).
+CREATE OR REPLACE FUNCTION public.guard_profiles_update()
+RETURNS TRIGGER
+SET search_path = public
+AS $$
+BEGIN
+    IF auth.uid() IS NOT NULL AND public.get_auth_role() IS DISTINCT FROM 'admin' THEN
+        IF NEW.role IS DISTINCT FROM OLD.role THEN
+            RAISE EXCEPTION 'Hanya Admin yang boleh mengubah role pengguna';
+        END IF;
+        IF NEW.email IS DISTINCT FROM OLD.email THEN
+            RAISE EXCEPTION 'Email profil tidak boleh diubah langsung';
+        END IF;
+    END IF;
+    NEW.updated_at := NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER trg_guard_profiles_update
+BEFORE UPDATE ON public.profiles
+FOR EACH ROW
+EXECUTE FUNCTION public.guard_profiles_update();
+
+-- Pengaman kolom dokumen (PRD §8 "Aturan emas"):
+-- - kode_arsip tidak boleh diubah oleh siapa pun setelah dibuat.
+-- - Selain admin / pic_arsip / atasan, client tidak boleh menentukan atau
+--   mengubah status, masa aktif, bucket, pemegang, lokasi, dan data approval.
+CREATE OR REPLACE FUNCTION public.guard_dokumen_insert()
+RETURNS TRIGGER
+SET search_path = public
+AS $$
+BEGIN
+    IF auth.uid() IS NOT NULL
+       AND COALESCE(public.get_auth_role()::text, '') NOT IN ('admin', 'pic_arsip', 'atasan') THEN
+        NEW.kode_arsip           := NULL;  -- selalu digenerate trigger
+        NEW.status               := 'menunggu_persetujuan';
+        NEW.bucket               := 'arsip-aktif';
+        NEW.pemilik_id           := auth.uid();
+        NEW.pemegang_saat_ini    := auth.uid();
+        NEW.lokasi_saat_ini      := 'Meja Pengaju';
+        NEW.qr_code_path         := NULL;
+        NEW.tanggal_diajukan     := NOW();
+        NEW.tanggal_disetujui    := NULL;
+        NEW.tanggal_kadaluarsa   := NULL;
+        NEW.verifikasi_pic_oleh  := NULL;
+        NEW.verifikasi_pic_at    := NULL;
+        NEW.catatan_pic          := NULL;
+        NEW.approval_atasan_oleh := NULL;
+        NEW.approval_atasan_at   := NULL;
+        NEW.catatan_atasan       := NULL;
+        NEW.alasan_penolakan     := NULL;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Nama diawali "trg_dokumen_guard" agar berjalan SEBELUM
+-- trg_generate_kode_arsip (trigger dieksekusi urut abjad).
+CREATE OR REPLACE TRIGGER trg_dokumen_guard_insert
+BEFORE INSERT ON public.dokumen
+FOR EACH ROW
+EXECUTE FUNCTION public.guard_dokumen_insert();
+
+CREATE OR REPLACE FUNCTION public.guard_dokumen_update()
+RETURNS TRIGGER
+SET search_path = public
+AS $$
+BEGIN
+    IF NEW.kode_arsip IS DISTINCT FROM OLD.kode_arsip THEN
+        RAISE EXCEPTION 'kode_arsip tidak boleh diubah';
+    END IF;
+
+    IF auth.uid() IS NOT NULL
+       AND COALESCE(public.get_auth_role()::text, '') NOT IN ('admin', 'pic_arsip', 'atasan') THEN
+        IF NEW.status               IS DISTINCT FROM OLD.status
+        OR NEW.bucket               IS DISTINCT FROM OLD.bucket
+        OR NEW.file_path            IS DISTINCT FROM OLD.file_path
+        OR NEW.pemilik_id           IS DISTINCT FROM OLD.pemilik_id
+        OR NEW.pemegang_saat_ini    IS DISTINCT FROM OLD.pemegang_saat_ini
+        OR NEW.lokasi_saat_ini      IS DISTINCT FROM OLD.lokasi_saat_ini
+        OR NEW.qr_code_path         IS DISTINCT FROM OLD.qr_code_path
+        OR NEW.tanggal_diajukan     IS DISTINCT FROM OLD.tanggal_diajukan
+        OR NEW.tanggal_disetujui    IS DISTINCT FROM OLD.tanggal_disetujui
+        OR NEW.tanggal_kadaluarsa   IS DISTINCT FROM OLD.tanggal_kadaluarsa
+        OR NEW.verifikasi_pic_oleh  IS DISTINCT FROM OLD.verifikasi_pic_oleh
+        OR NEW.verifikasi_pic_at    IS DISTINCT FROM OLD.verifikasi_pic_at
+        OR NEW.catatan_pic          IS DISTINCT FROM OLD.catatan_pic
+        OR NEW.approval_atasan_oleh IS DISTINCT FROM OLD.approval_atasan_oleh
+        OR NEW.approval_atasan_at   IS DISTINCT FROM OLD.approval_atasan_at
+        OR NEW.catatan_atasan       IS DISTINCT FROM OLD.catatan_atasan
+        OR NEW.alasan_penolakan     IS DISTINCT FROM OLD.alasan_penolakan THEN
+            RAISE EXCEPTION 'Pengaju hanya boleh mengubah metadata dokumen (judul, nomor, kategori, deskripsi, tanggal dokumen)';
+        END IF;
+    END IF;
+
+    NEW.updated_at := NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER trg_dokumen_guard_update
+BEFORE UPDATE ON public.dokumen
+FOR EACH ROW
+EXECUTE FUNCTION public.guard_dokumen_update();
+
+-- Hapus policy lama agar skrip bisa dijalankan ulang
+DROP POLICY IF EXISTS "Profiles readable by authenticated users" ON public.profiles;
+DROP POLICY IF EXISTS "Profiles updatable by admin or self" ON public.profiles;
+DROP POLICY IF EXISTS "Kategori readable by all authenticated" ON public.kategori_dokumen;
+DROP POLICY IF EXISTS "Kategori manageable by admin" ON public.kategori_dokumen;
+DROP POLICY IF EXISTS "Paket readable by all authenticated" ON public.paket_pembayaran;
+DROP POLICY IF EXISTS "Paket manageable by admin" ON public.paket_pembayaran;
+DROP POLICY IF EXISTS "Dokumen visible to authorized roles" ON public.dokumen;
+DROP POLICY IF EXISTS "User can insert own document with pending status" ON public.dokumen;
+DROP POLICY IF EXISTS "Dokumen update restricted by role" ON public.dokumen;
 
 -- Profiles Policies
 CREATE POLICY "Profiles readable by authenticated users"
@@ -298,6 +424,10 @@ CREATE POLICY "Dokumen update restricted by role"
     USING (
         public.get_auth_role() IN ('admin', 'pic_arsip', 'atasan')
         OR (pemilik_id = auth.uid() AND status = 'menunggu_persetujuan')
+    )
+    WITH CHECK (
+        public.get_auth_role() IN ('admin', 'pic_arsip', 'atasan')
+        OR (pemilik_id = auth.uid() AND status = 'menunggu_persetujuan')
     );
 
 -- Storage Buckets Creation (Script)
@@ -306,7 +436,3 @@ CREATE POLICY "Dokumen update restricted by role"
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('arsip-inaktif', 'arsip-inaktif', false) ON CONFLICT DO NOTHING;
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('bukti-pembayaran', 'bukti-pembayaran', false) ON CONFLICT DO NOTHING;
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('barcode', 'barcode', false) ON CONFLICT DO NOTHING;
-    )
-    WITH CHECK (
-        public.get_auth_role() IN ('admin', 'pic_arsip', 'atasan')
-        OR (pemilik_id = auth.uid() AND status = 'menunggu_persetujuan')
