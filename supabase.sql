@@ -199,18 +199,27 @@ EXECUTE FUNCTION public.generate_kode_arsip();
 
 -- 11. Trigger Auto Profile saat Register Supabase Auth
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
-    INSERT INTO public.profiles (id, email, nama_lengkap, role)
+-- Role SELALU 'user' untuk pendaftaran. Nilai 'role' dari metadata client
+-- sengaja diabaikan (PRD FR-01) — role lain hanya diberikan oleh Admin
+-- atau lewat SQL Editor.
+    INSERT INTO public.profiles (id, email, nama_lengkap, nip_nik, jabatan, role)
     VALUES (
         NEW.id,
         NEW.email,
-        COALESCE(NEW.raw_user_meta_data->>'nama_lengkap', split_part(NEW.email, '@', 1)),
-        COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'user')
-    );
+        COALESCE(NULLIF(NEW.raw_user_meta_data->>'nama_lengkap', ''), split_part(NEW.email, '@', 1)),
+        NULLIF(NEW.raw_user_meta_data->>'nip_nik', ''),
+        NULLIF(NEW.raw_user_meta_data->>'jabatan', ''),
+        'user'
+    )
+    ON CONFLICT (id) DO NOTHING;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
