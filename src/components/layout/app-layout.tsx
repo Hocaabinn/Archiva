@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
@@ -23,11 +23,48 @@ interface AppLayoutProps {
   currentRole?: UserRole
 }
 
-export function AppLayout({ children, currentRole = 'pic_arsip' }: AppLayoutProps) {
+export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
+
+  const [currentRole, setCurrentRole] = useState<UserRole>(initialRole || 'user')
+  const [userName, setUserName] = useState<string>('Memuat...')
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  useEffect(() => {
+    if (initialRole) {
+      setCurrentRole(initialRole)
+    }
+
+    async function loadUser() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('nama_lengkap, role')
+            .eq('id', user.id)
+            .single()
+
+          if (profile) {
+            if (!initialRole) {
+              setCurrentRole((profile.role as UserRole) || 'user')
+            }
+            setUserName(profile.nama_lengkap || user.email?.split('@')[0] || 'Pengguna')
+          } else {
+            setUserName(user.email?.split('@')[0] || 'Pengguna')
+          }
+        } else {
+          setUserName('Tamu')
+        }
+      } catch (err) {
+        console.error('Error fetching user profile:', err)
+      }
+    }
+
+    loadUser()
+  }, [initialRole, supabase])
 
   const handleLogout = async () => {
     if (isLoggingOut) return
@@ -87,13 +124,13 @@ export function AppLayout({ children, currentRole = 'pic_arsip' }: AppLayoutProp
         <div className="p-3.5 bg-[#171C20] border-b border-[#2D353C] text-xs">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[#8C9399] font-mono text-[10px] uppercase">Akses Peran:</span>
-            <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-none uppercase ${roleLabels[currentRole].color}`}>
-              {roleLabels[currentRole].title}
+            <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-none uppercase ${roleLabels[currentRole]?.color || 'bg-stone-600 text-white'}`}>
+              {roleLabels[currentRole]?.title || currentRole}
             </span>
           </div>
           <div className="flex items-center gap-2 text-stone-200 mt-1">
             <UserCheck className="w-3.5 h-3.5 text-[#8C9399]" />
-            <span className="truncate font-medium">Bambang S., S.ST</span>
+            <span className="truncate font-medium">{userName}</span>
           </div>
         </div>
 
