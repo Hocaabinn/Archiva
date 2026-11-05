@@ -250,7 +250,8 @@ CREATE POLICY "Profiles readable by authenticated users"
 CREATE POLICY "Profiles updatable by admin or self"
     ON public.profiles FOR UPDATE
     TO authenticated
-    USING (id = auth.uid() OR public.get_auth_role() = 'admin');
+    USING (id = auth.uid() OR public.get_auth_role() = 'admin')
+    WITH CHECK (id = auth.uid() OR public.get_auth_role() = 'admin');
 
 -- Kategori & Paket Policies
 CREATE POLICY "Kategori readable by all authenticated"
@@ -305,3 +306,7 @@ CREATE POLICY "Dokumen update restricted by role"
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('arsip-inaktif', 'arsip-inaktif', false) ON CONFLICT DO NOTHING;
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('bukti-pembayaran', 'bukti-pembayaran', false) ON CONFLICT DO NOTHING;
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('barcode', 'barcode', false) ON CONFLICT DO NOTHING;
+    )
+    WITH CHECK (
+        public.get_auth_role() IN ('admin', 'pic_arsip', 'atasan')
+        OR (pemilik_id = auth.uid() AND status = 'menunggu_persetujuan')
