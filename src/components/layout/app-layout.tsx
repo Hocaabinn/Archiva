@@ -107,12 +107,12 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
         <div className="p-4 border-b border-[#2D353C] flex items-center justify-between">
           <div className="flex flex-col gap-1">
             <Image
-              src="/pic/Logo-gabungan1.png"
+              src="/pic/logo_gabungan.png"
               alt="Archiva"
-              width={865}
-              height={288}
+              width={1019}
+              height={245}
               priority
-              className="h-10 w-auto -ml-1.5"
+              className="h-13 sm:h-14 w-auto -ml-1 object-contain"
             />
             <span className="font-mono text-[10px] text-[#8C9399] tracking-wider uppercase">
               v1.0 • Standar 3 Thn
