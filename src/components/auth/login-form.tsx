@@ -176,7 +176,7 @@ export default function LoginForm() {
                 Masuk ke Sistem
               </h1>
               <p className="mt-2 text-sm text-[#4B5E76]">
-                Akses pengelolaan arsip dinas, verifikasi dokumen, dan buku ekspedisi terverifikasi.
+                Memudahkan pengelolaan arsip dokumen secara terpusat dan terstruktur melalui proses penyimpanan serta verifikasi yang efektif.
               </p>
             </div>
 
@@ -332,8 +332,8 @@ export default function LoginForm() {
           </div>
 
           <div className="relative z-10 pt-4 border-t border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 text-[11px] sm:text-xs text-[#94A3B8] font-mono">
-            <span>SISTEM INFORMASI ARSIP DINAS</span>
-            <span>VERSI 1.0 • BERLISENSI INSTANSI</span>
+            <span>SISTEM INFORMASI ARSIP DOKUMEN</span>
+            <span>© 2026 COPYRIGHT BY ARCHIVA</span>
           </div>
         </div>
 
