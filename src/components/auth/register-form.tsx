@@ -182,12 +182,12 @@ export default function RegisterForm() {
             {/* Header Form */}
             <div className="border-b border-[#CBD7E3] pb-5 mb-7">
               <Image
-                src="/pic/Logo-gabungan-gelap.png"
+                src="/pic/logo_gabungan.png"
                 alt="Archiva"
-                width={838}
-                height={132}
+                width={1019}
+                height={245}
                 priority
-                className="h-7 sm:h-8 lg:h-9 w-auto mb-5 sm:mb-6"
+                className="h-8 sm:h-9 lg:h-10 w-auto mb-5 sm:mb-6"
               />
               <h1 className="text-2xl font-serif font-bold tracking-tight text-[#111827] sm:text-3xl lg:text-4xl">
                 Pendaftaran Akun
