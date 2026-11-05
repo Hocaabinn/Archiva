@@ -193,7 +193,7 @@ export default function RegisterForm() {
                 Pendaftaran Akun
               </h1>
               <p className="mt-2 text-sm text-[#4B5E76]">
-                Daftarkan akun pegawai Anda untuk mengelola pengajuan dokumen dinas & arsip terverifikasi.
+                Daftarkan akun pegawai Anda untuk mengelola pengajuan dokumen resmi & arsip terverifikasi.
               </p>
             </div>
 
