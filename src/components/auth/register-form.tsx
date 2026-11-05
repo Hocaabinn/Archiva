@@ -425,8 +425,8 @@ export default function RegisterForm() {
           </div>
 
           <div className="relative z-10 pt-4 border-t border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 text-[11px] sm:text-xs text-[#94A3B8] font-mono">
-            <span>SISTEM INFORMASI ARSIP DINAS</span>
-            <span>VERSI 1.0 • BERLISENSI INSTANSI</span>
+            <span>SISTEM INFORMASI ARSIP DOKUMEN</span>
+            <span>© 2026 COPYRIGHT BY ARCHIVA</span>
           </div>
         </div>
 
