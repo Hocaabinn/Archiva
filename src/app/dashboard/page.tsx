@@ -66,10 +66,10 @@ const sampleDocuments = [
 
 function DashboardContent() {
   const searchParams = useSearchParams()
-  const roleParam = (searchParams.get('demo_role') as UserRole) || 'pic_arsip'
+  const roleParam = searchParams.get('demo_role') as UserRole | null
 
   return (
-    <AppLayout currentRole={roleParam}>
+    <AppLayout currentRole={roleParam || undefined}>
       <div className="space-y-6 max-w-7xl mx-auto">
         {/* Header Meja Kerja */}
         <div className="border-b border-[#D8D2C4] pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
