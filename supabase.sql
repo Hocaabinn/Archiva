@@ -175,8 +175,10 @@ CREATE INDEX IF NOT EXISTS idx_log_user ON public.log_aktivitas(user_id);
 -- 10. Sequence Generator Kode Arsip (ARS-YYYY-XXXX)
 CREATE SEQUENCE IF NOT EXISTS arsip_seq_2026 START 1;
 
-CREATE OR REPLACE FUNCTION generate_kode_arsip()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION public.generate_kode_arsip()
+RETURNS TRIGGER
+SET search_path = public
+AS $$
 DECLARE
     current_yr TEXT := TO_CHAR(CURRENT_DATE, 'YYYY');
     seq_val INT;
@@ -193,7 +195,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE TRIGGER trg_generate_kode_arsip
 BEFORE INSERT ON public.dokumen
 FOR EACH ROW
-EXECUTE FUNCTION generate_kode_arsip();
+EXECUTE FUNCTION public.generate_kode_arsip();
 
 -- 11. Trigger Auto Profile saat Register Supabase Auth
 CREATE OR REPLACE FUNCTION public.handle_new_user()
