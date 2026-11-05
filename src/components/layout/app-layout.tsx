@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
@@ -15,6 +16,7 @@ import {
   UserCheck
 } from 'lucide-react'
 import { UserRole } from '@/types'
+import { createClient } from '@/lib/supabase/client'
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -24,9 +26,19 @@ interface AppLayoutProps {
 export function AppLayout({ children, currentRole = 'pic_arsip' }: AppLayoutProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const supabase = createClient()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
-  const handleLogout = () => {
-    router.push('/login')
+  const handleLogout = async () => {
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
+    try {
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.error('Logout error:', err)
+    } finally {
+      window.location.href = '/login'
+    }
   }
 
   const roleLabels: Record<UserRole, { title: string; color: string }> = {
@@ -111,10 +123,11 @@ export function AppLayout({ children, currentRole = 'pic_arsip' }: AppLayoutProp
         <div className="p-3 border-t border-[#2D353C] text-xs">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-3 py-2 text-stone-400 hover:text-white hover:bg-[#2D353C] text-left transition-colors font-medium"
+            disabled={isLoggingOut}
+            className="w-full flex items-center gap-2 px-3 py-2 text-stone-400 hover:text-white hover:bg-[#2D353C] text-left transition-colors font-medium disabled:opacity-50"
           >
             <LogOut className="w-4 h-4" />
-            <span>Keluar Sesi</span>
+            <span>{isLoggingOut ? 'Mengakhiri Sesi...' : 'Keluar Sesi'}</span>
           </button>
         </div>
       </aside>
