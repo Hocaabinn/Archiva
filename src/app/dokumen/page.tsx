@@ -557,6 +557,23 @@ function DaftarDokumenContent() {
     }
   }
 
+  // ---------------- EKSPOR CSV ----------------
+  const exportCsv = () => {
+    const header = ['Kode Arsip', 'Nomor Dokumen', 'Judul', 'Kategori', 'Status', 'Lokasi', 'Tanggal Dokumen', 'Kedaluwarsa']
+    const rows = filteredDocs.map((d) => [
+      d.kode_arsip, d.nomor_dokumen, d.judul, d.kategori, statusPill[d.status].label,
+      d.lokasi_saat_ini, d.tanggal_dokumen, d.tanggal_kadaluarsa || '',
+    ])
+    const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `daftar-dokumen-${todayISO()}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    setExportOpen(false)
+  }
+
   // ---------------- RENDER HELPERS ----------------
   const RetensiCell = ({ doc }: { doc: DocRow }) => {
     const sisa = sisaHari(doc.tanggal_kadaluarsa)
@@ -576,6 +593,9 @@ function DaftarDokumenContent() {
 
   const ActionButtons = ({ doc }: { doc: DocRow }) => (
     <div className="flex items-center justify-end gap-1">
+      <button type="button" onClick={() => setQrDoc(doc)} title="Label QR" className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]">
+        <QrCode className="h-4 w-4" />
+      </button>
       <Link href={`/dokumen/${doc.id}`} title="Lihat detail" className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]">
         <Eye className="h-4 w-4" />
       </Link>
@@ -604,6 +624,34 @@ function DaftarDokumenContent() {
             <p className="mt-1 text-sm text-[#4B5163]">Kelola, telusuri, dan perbarui seluruh arsip dokumen Anda</p>
           </div>
           <div className="flex items-center gap-3">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setExportOpen((v) => !v)}
+                className="flex items-center gap-2 rounded-lg border border-[#1F2333] bg-white px-4 py-2 text-sm font-medium text-[#1F2333] transition-colors hover:bg-[#F7F8FC]"
+              >
+                <Download className="h-4 w-4" />
+                Ekspor
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              {exportOpen && (
+                <div className="absolute right-0 z-30 mt-2 w-52 rounded-lg border border-[#ECEEF5] bg-white p-1.5 shadow-lg">
+                  <button type="button" onClick={exportCsv} className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-[#4B5163] hover:bg-[#EEF7FD]">
+                    <FileText className="h-4 w-4" /> Unduh CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExportOpen(false)
+                      window.print()
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-[#4B5163] hover:bg-[#EEF7FD]"
+                  >
+                    <Printer className="h-4 w-4" /> Cetak Daftar
+                  </button>
+                </div>
+              )}
+            </div>
             {canCreate && (
               <button
                 type="button"
@@ -1031,6 +1079,32 @@ function DaftarDokumenContent() {
             >
               {isDeleting && <Loader2 className="h-4 w-4 animate-spin" />}
               Ya, Hapus
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ================= MODAL QR ================= */}
+      {qrDoc && (
+        <Modal title="Label QR Dokumen" subtitle={`#${qrDoc.kode_arsip}`} onClose={() => setQrDoc(null)} maxWidth="max-w-sm">
+          <div className="px-6 py-5 text-center">
+            <div className="mx-auto flex h-44 w-44 items-center justify-center rounded-xl border border-[#ECEEF5] bg-white shadow-sm">
+              <QrCode className="h-36 w-36 text-[#1F2333]" />
+            </div>
+            <p className="mt-4 font-semibold tracking-wider text-[#1F2333]">{qrDoc.kode_arsip}</p>
+            <p className="mt-1 line-clamp-2 text-sm text-[#6B7185]">{qrDoc.judul}</p>
+            <p className="mt-1 text-xs text-[#8A90A2]">{qrDoc.lokasi_saat_ini}</p>
+          </div>
+          <div className="flex items-center justify-end gap-3 border-t border-[#ECEEF5] px-6 py-4">
+            <button type="button" onClick={() => setQrDoc(null)} className="rounded-lg border border-[#E3E6F0] px-4 py-2 text-sm font-medium text-[#4B5163] hover:bg-[#F4F5FA]">
+              Tutup
+            </button>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="flex items-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-medium text-white hover:bg-[#2A92D6]"
+            >
+              <Printer className="h-4 w-4" /> Cetak Label
             </button>
           </div>
         </Modal>
