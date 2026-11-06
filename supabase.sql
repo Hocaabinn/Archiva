@@ -366,6 +366,7 @@ DROP POLICY IF EXISTS "Paket manageable by admin" ON public.paket_pembayaran;
 DROP POLICY IF EXISTS "Dokumen visible to authorized roles" ON public.dokumen;
 DROP POLICY IF EXISTS "User can insert own document with pending status" ON public.dokumen;
 DROP POLICY IF EXISTS "Dokumen update restricted by role" ON public.dokumen;
+DROP POLICY IF EXISTS "Dokumen delete restricted by role" ON public.dokumen;
 
 -- Profiles Policies
 CREATE POLICY "Profiles readable by authenticated users"
@@ -427,6 +428,15 @@ CREATE POLICY "Dokumen update restricted by role"
     )
     WITH CHECK (
         public.get_auth_role() IN ('admin', 'pic_arsip', 'atasan')
+        OR (pemilik_id = auth.uid() AND status = 'menunggu_persetujuan')
+    );
+
+-- Hapus dokumen: Admin & PIC Arsip, atau pemilik selama masih menunggu persetujuan
+CREATE POLICY "Dokumen delete restricted by role"
+    ON public.dokumen FOR DELETE
+    TO authenticated
+    USING (
+        public.get_auth_role() IN ('admin', 'pic_arsip')
         OR (pemilik_id = auth.uid() AND status = 'menunggu_persetujuan')
     );
 
