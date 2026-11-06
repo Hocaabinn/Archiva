@@ -525,6 +525,38 @@ function DaftarDokumenContent() {
     }
   }
 
+  // ---------------- DELETE ----------------
+  const handleDelete = async () => {
+    if (!deleting) return
+    setIsDeleting(true)
+
+    if (isDemo) {
+      setDocuments((prev) => prev.filter((d) => d.id !== deleting.id))
+      showToast('success', `Dokumen ${deleting.kode_arsip} dihapus (mode demo).`)
+      setIsDeleting(false)
+      setDeleting(null)
+      return
+    }
+
+    try {
+      const { data, error } = await supabase.from('dokumen').delete().eq('id', deleting.id).select('id')
+      if (error) throw error
+      if (!data || data.length === 0) {
+        throw new Error('Penghapusan ditolak: Anda tidak memiliki izin, atau policy DELETE belum dipasang di Supabase.')
+      }
+      if (deleting.file_path) {
+        await supabase.storage.from(deleting.bucket).remove([deleting.file_path])
+      }
+      showToast('success', `Dokumen ${deleting.kode_arsip} berhasil dihapus.`)
+      await loadDocuments()
+      setDeleting(null)
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : 'Gagal menghapus dokumen.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   // ---------------- RENDER HELPERS ----------------
   const RetensiCell = ({ doc }: { doc: DocRow }) => {
     const sisa = sisaHari(doc.tanggal_kadaluarsa)
@@ -550,6 +582,11 @@ function DaftarDokumenContent() {
       {canEdit(doc) && (
         <button type="button" onClick={() => openEdit(doc)} title="Ubah" className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]">
           <Pencil className="h-4 w-4" />
+        </button>
+      )}
+      {canDelete(doc) && (
+        <button type="button" onClick={() => setDeleting(doc)} title="Hapus" className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#FDECEC] hover:text-[#D64545]">
+          <Trash2 className="h-4 w-4" />
         </button>
       )}
     </div>
@@ -960,6 +997,42 @@ function DaftarDokumenContent() {
               </button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* ================= MODAL HAPUS ================= */}
+      {deleting && (
+        <Modal title="Hapus Dokumen?" onClose={() => !isDeleting && setDeleting(null)} maxWidth="max-w-md">
+          <div className="space-y-3 px-6 py-5 text-sm text-[#4B5163]">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FDECEC] text-[#D64545]">
+                <Trash2 className="h-5 w-5" />
+              </span>
+              <p>
+                Dokumen <span className="font-semibold text-[#1F2333]">{deleting.judul}</span> (#{deleting.kode_arsip}) beserta berkasnya akan dihapus
+                permanen. Tindakan ini tidak dapat dibatalkan.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-3 border-t border-[#ECEEF5] px-6 py-4">
+            <button
+              type="button"
+              onClick={() => setDeleting(null)}
+              disabled={isDeleting}
+              className="rounded-lg border border-[#E3E6F0] px-4 py-2 text-sm font-medium text-[#4B5163] hover:bg-[#F4F5FA] disabled:opacity-50"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="flex items-center gap-2 rounded-lg bg-[#D64545] px-4 py-2 text-sm font-medium text-white hover:bg-[#C03535] disabled:opacity-60"
+            >
+              {isDeleting && <Loader2 className="h-4 w-4 animate-spin" />}
+              Ya, Hapus
+            </button>
+          </div>
         </Modal>
       )}
 
