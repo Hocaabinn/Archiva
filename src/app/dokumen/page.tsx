@@ -1,754 +1,987 @@
 'use client'
 
-import { useState, useMemo, useEffect, Suspense } from 'react'
+import { useState, useMemo, useEffect, useCallback, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
-import { StampBadge } from '@/components/ui/stamp-badge'
-import { UserRole } from '@/types'
-import { 
-  FolderArchive, 
-  Search, 
-  Filter, 
-  QrCode, 
-  FileText, 
-  ArrowUpRight, 
-  Download, 
-  Eye, 
-  Clock, 
-  AlertTriangle, 
-  CheckCircle2, 
-  X, 
-  FileDown, 
-  FileSpreadsheet, 
-  Calendar,
-  Grid,
+import { UserRole, DokumenStatus } from '@/types'
+import {
+  Search,
+  X,
+  Plus,
+  Pencil,
+  Trash2,
+  Eye,
+  QrCode,
+  FileText,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
   List,
-  SlidersHorizontal,
-  Plus
+  Download,
+  Printer,
+  AlertTriangle,
+  Loader2,
+  UploadCloud,
+  CheckCircle2,
+  Info,
+  MapPin,
+  FolderOpen,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
-interface DocumentItem {
+// ============================================================
+// TIPE & DATA
+// ============================================================
+interface DocRow {
   id: string
   kode_arsip: string
   nomor_dokumen: string
   judul: string
+  kategori_id: string
   kategori: string
-  status: 'aktif' | 'menunggu_persetujuan' | 'nonaktif' | 'ditolak'
-  pemegang: string
+  deskripsi: string
+  status: DokumenStatus
   lokasi_saat_ini: string
-  tanggal_dokumen: string
-  tanggal_kadaluarsa: string | null
-  sisa_hari: number | null
-  file_size: string
-  mime_type: string
-  tingkat_sensitif: 'Biasa' | 'Rahasia' | 'Sangat Rahasia'
+  tanggal_dokumen: string // yyyy-mm-dd
+  tanggal_kadaluarsa: string | null // yyyy-mm-dd
+  file_size: number | null
+  file_path: string
+  bucket: string
+  pemilik_id: string
 }
 
-const defaultDocuments: DocumentItem[] = [
+interface Kategori {
+  id: string
+  nama: string
+}
+
+interface FormState {
+  judul: string
+  nomor_dokumen: string
+  kategori_id: string
+  tanggal_dokumen: string
+  lokasi_saat_ini: string
+  deskripsi: string
+  status: DokumenStatus
+  file: File | null
+}
+
+const PRIVILEGED: UserRole[] = ['admin', 'pic_arsip', 'atasan']
+const PAGE_SIZE = 8
+
+const fallbackKategori: Kategori[] = [
+  { id: 'k-lgl', nama: 'Kontrak & Legal' },
+  { id: 'k-keu', nama: 'Keuangan' },
+  { id: 'k-sdm', nama: 'SDM & Kepegawaian' },
+  { id: 'k-ops', nama: 'Operasional & Logistik' },
+]
+
+const demoDocuments: DocRow[] = [
   {
-    id: '1',
-    kode_arsip: 'ARS-2026-0001',
-    nomor_dokumen: '042/LEG-KTR/PL/I/2026',
-    judul: 'Kontrak Kerja Sama Vendor PT Prima Logistik 2026',
-    kategori: 'Kontrak & Legal',
-    status: 'aktif',
-    pemegang: 'Bambang S. (PIC Arsip)',
-    lokasi_saat_ini: 'Ruang Arsip Aktif - Rak A1',
-    tanggal_dokumen: '03 Jan 2026',
-    tanggal_kadaluarsa: '03 Nov 2029',
-    sisa_hari: 1095,
-    file_size: '4.8 MB',
-    mime_type: 'application/pdf',
-    tingkat_sensitif: 'Biasa',
+    id: '1', kode_arsip: 'ARS-2026-0001', nomor_dokumen: '042/LEG-KTR/PL/I/2026',
+    judul: 'Kontrak Kerja Sama Vendor PT Prima Logistik 2026', kategori_id: 'k-lgl', kategori: 'Kontrak & Legal',
+    deskripsi: '', status: 'aktif', lokasi_saat_ini: 'Ruang Arsip Aktif - Rak A1',
+    tanggal_dokumen: '2026-01-03', tanggal_kadaluarsa: '2029-11-03', file_size: 4_800_000,
+    file_path: '', bucket: 'arsip-aktif', pemilik_id: 'demo',
   },
   {
-    id: '2',
-    kode_arsip: 'ARS-2026-0002',
-    nomor_dokumen: '118/KEU-AUD/X/2026',
-    judul: 'Laporan Keuangan & Audit Neraca Kas Triwulan III 2026',
-    kategori: 'Keuangan',
-    status: 'menunggu_persetujuan',
-    pemegang: 'Siti Aminah (Pengaju)',
-    lokasi_saat_ini: 'Meja Verifikasi PIC',
-    tanggal_dokumen: '18 Okt 2026',
-    tanggal_kadaluarsa: null,
-    sisa_hari: null,
-    file_size: '12.3 MB',
-    mime_type: 'application/pdf',
-    tingkat_sensitif: 'Rahasia',
+    id: '2', kode_arsip: 'ARS-2026-0002', nomor_dokumen: '118/KEU-AUD/X/2026',
+    judul: 'Laporan Keuangan & Audit Neraca Kas Triwulan III 2026', kategori_id: 'k-keu', kategori: 'Keuangan',
+    deskripsi: '', status: 'menunggu_persetujuan', lokasi_saat_ini: 'Meja Verifikasi PIC',
+    tanggal_dokumen: '2026-10-18', tanggal_kadaluarsa: null, file_size: 12_300_000,
+    file_path: '', bucket: 'arsip-aktif', pemilik_id: 'demo',
   },
   {
-    id: '3',
-    kode_arsip: 'ARS-2026-0003',
-    nomor_dokumen: '007/SK-DIR/SDM/2026',
-    judul: 'Surat Keputusan Direksi Tentang Kebijakan Mutasi & Promosi 2026',
-    kategori: 'SDM & Kepegawaian',
-    status: 'aktif',
-    pemegang: 'Drs. Hendra M.',
-    lokasi_saat_ini: 'Ruang Direksi Lt. 3',
-    tanggal_dokumen: '15 Des 2023',
-    tanggal_kadaluarsa: '15 Des 2026',
-    sisa_hari: 42,
-    file_size: '2.1 MB',
-    mime_type: 'application/pdf',
-    tingkat_sensitif: 'Sangat Rahasia',
+    id: '3', kode_arsip: 'ARS-2026-0003', nomor_dokumen: '007/SK-DIR/SDM/2026',
+    judul: 'Surat Keputusan Direksi Tentang Kebijakan Mutasi & Promosi 2026', kategori_id: 'k-sdm', kategori: 'SDM & Kepegawaian',
+    deskripsi: '', status: 'aktif', lokasi_saat_ini: 'Ruang Direksi Lt. 3',
+    tanggal_dokumen: '2023-12-15', tanggal_kadaluarsa: '2026-12-15', file_size: 2_100_000,
+    file_path: '', bucket: 'arsip-aktif', pemilik_id: 'demo',
   },
   {
-    id: '4',
-    kode_arsip: 'ARS-2023-0045',
-    nomor_dokumen: 'BA-240/TIK-LOG/XI/2023',
-    judul: 'Berita Acara Pengadaan Server & Komponen Basis Data Utama 2023',
-    kategori: 'Operasional & Logistik',
-    status: 'nonaktif',
-    pemegang: 'Sistem (Gudang)',
-    lokasi_saat_ini: 'Gudang Non-Aktif - Kotak B-12',
-    tanggal_dokumen: '01 Nov 2023',
-    tanggal_kadaluarsa: '01 Nov 2026',
-    sisa_hari: 0,
-    file_size: '8.4 MB',
-    mime_type: 'application/pdf',
-    tingkat_sensitif: 'Biasa',
+    id: '4', kode_arsip: 'ARS-2023-0045', nomor_dokumen: 'BA-240/TIK-LOG/XI/2023',
+    judul: 'Berita Acara Pengadaan Server & Komponen Basis Data Utama 2023', kategori_id: 'k-ops', kategori: 'Operasional & Logistik',
+    deskripsi: '', status: 'nonaktif', lokasi_saat_ini: 'Gudang Non-Aktif - Kotak B-12',
+    tanggal_dokumen: '2023-11-01', tanggal_kadaluarsa: '2026-11-01', file_size: 8_400_000,
+    file_path: '', bucket: 'arsip-inaktif', pemilik_id: 'demo',
   },
   {
-    id: '5',
-    kode_arsip: 'ARS-2026-0004',
-    nomor_dokumen: 'NDA-099/LGL/2026',
-    judul: 'Dokumen Perjanjian Kerahasiaan Data Klien (NDA) Multinasional',
-    kategori: 'Kontrak & Legal',
-    status: 'aktif',
-    pemegang: 'Bambang S. (PIC Arsip)',
-    lokasi_saat_ini: 'Ruang Arsip Aktif - Rak A2',
-    tanggal_dokumen: '12 Feb 2026',
-    tanggal_kadaluarsa: '12 Feb 2029',
-    sisa_hari: 1045,
-    file_size: '1.9 MB',
-    mime_type: 'application/pdf',
-    tingkat_sensitif: 'Rahasia',
+    id: '5', kode_arsip: 'ARS-2026-0004', nomor_dokumen: 'NDA-099/LGL/2026',
+    judul: 'Dokumen Perjanjian Kerahasiaan Data Klien (NDA) Multinasional', kategori_id: 'k-lgl', kategori: 'Kontrak & Legal',
+    deskripsi: '', status: 'aktif', lokasi_saat_ini: 'Ruang Arsip Aktif - Rak A2',
+    tanggal_dokumen: '2026-02-12', tanggal_kadaluarsa: '2029-02-12', file_size: 1_900_000,
+    file_path: '', bucket: 'arsip-aktif', pemilik_id: 'demo',
   },
 ]
 
+const statusPill: Record<DokumenStatus, { label: string; className: string }> = {
+  aktif: { label: 'Aktif', className: 'bg-[#E7F6EC] text-[#2F9E5B]' },
+  menunggu_persetujuan: { label: 'Menunggu', className: 'bg-[#FFF4DE] text-[#C98A1B]' },
+  nonaktif: { label: 'Non-Aktif', className: 'bg-[#EEF0F4] text-[#6B7185]' },
+  ditolak: { label: 'Ditolak', className: 'bg-[#FDECEC] text-[#D64545]' },
+}
+
+const DOC_SELECT = `
+  id, kode_arsip, nomor_dokumen, judul, deskripsi, status, kategori_id,
+  file_path, bucket, file_size, lokasi_saat_ini, tanggal_dokumen,
+  tanggal_kadaluarsa, pemilik_id, kategori_dokumen ( nama )
+`
+
+// ============================================================
+// HELPER
+// ============================================================
+function todayISO() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function formatTanggal(iso: string | null) {
+  if (!iso) return '-'
+  return new Date(iso).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function formatSize(bytes: number | null) {
+  if (!bytes) return '-'
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function sisaHari(iso: string | null) {
+  if (!iso) return null
+  const diff = new Date(iso).getTime() - Date.now()
+  return Math.max(0, Math.ceil(diff / 86_400_000))
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapRow(d: any): DocRow {
+  return {
+    id: d.id,
+    kode_arsip: d.kode_arsip,
+    nomor_dokumen: d.nomor_dokumen || '',
+    judul: d.judul,
+    kategori_id: d.kategori_id || '',
+    kategori: d.kategori_dokumen?.nama || 'Umum',
+    deskripsi: d.deskripsi || '',
+    status: d.status,
+    lokasi_saat_ini: d.lokasi_saat_ini || '-',
+    tanggal_dokumen: d.tanggal_dokumen || '',
+    tanggal_kadaluarsa: d.tanggal_kadaluarsa || null,
+    file_size: d.file_size ?? null,
+    file_path: d.file_path || '',
+    bucket: d.bucket || 'arsip-aktif',
+    pemilik_id: d.pemilik_id,
+  }
+}
+
+const emptyForm = (kategoriId = ''): FormState => ({
+  judul: '',
+  nomor_dokumen: '',
+  kategori_id: kategoriId,
+  tanggal_dokumen: todayISO(),
+  lokasi_saat_ini: 'Meja Pengaju',
+  deskripsi: '',
+  status: 'menunggu_persetujuan',
+  file: null,
+})
+
+// ============================================================
+// KOMPONEN UI KECIL
+// ============================================================
+function Modal({
+  title,
+  subtitle,
+  onClose,
+  children,
+  maxWidth = 'max-w-lg',
+}: {
+  title: string
+  subtitle?: string
+  onClose: () => void
+  children: React.ReactNode
+  maxWidth?: string
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1F2333]/40 p-4 backdrop-blur-[2px]" onClick={onClose}>
+      <div
+        className={`w-full ${maxWidth} max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-[#ECEEF5] px-6 py-4">
+          <div>
+            <h3 className="text-lg font-semibold text-[#1F2333]">{title}</h3>
+            {subtitle && <p className="mt-0.5 text-sm text-[#6B7185]">{subtitle}</p>}
+          </div>
+          <button type="button" onClick={onClose} className="rounded-md p-1 text-[#8A90A2] hover:bg-[#F4F5FA] hover:text-[#1F2333]">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+const inputClass =
+  'w-full rounded-lg border border-[#E3E6F0] bg-white px-3.5 py-2.5 text-sm text-[#1F2333] placeholder:text-[#A5ABBC] focus:border-[#3BA4E8] focus:outline-none focus:ring-2 focus:ring-[#3BA4E8]/15 disabled:bg-[#F7F8FC] disabled:text-[#8A90A2]'
+
+function Field({ label, required, children, hint }: { label: string; required?: boolean; children: React.ReactNode; hint?: string }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-medium text-[#1F2333]">
+        {label} {required && <span className="text-[#D64545]">*</span>}
+      </span>
+      {children}
+      {hint && <span className="mt-1 block text-xs text-[#8A90A2]">{hint}</span>}
+    </label>
+  )
+}
+
+// ============================================================
+// HALAMAN
+// ============================================================
 function DaftarDokumenContent() {
   const searchParams = useSearchParams()
   const roleParam = searchParams.get('demo_role') as UserRole | null
+  const [supabase] = useState(() => createClient())
 
-  const [documents, setDocuments] = useState<DocumentItem[]>(defaultDocuments)
+  // Data
+  const [documents, setDocuments] = useState<DocRow[]>([])
+  const [kategoriList, setKategoriList] = useState<Kategori[]>(fallbackKategori)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isDemo, setIsDemo] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [profileRole, setProfileRole] = useState<UserRole>('user')
+  const role: UserRole = isDemo ? roleParam || 'admin' : profileRole
+
+  // Filter & tampilan
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedStatus, setSelectedStatus] = useState<string>('semua')
-  const [selectedKategori, setSelectedKategori] = useState<string>('semua')
-  const [selectedUrutan, setSelectedUrutan] = useState<string>('terbaru')
+  const [selectedStatus, setSelectedStatus] = useState('semua')
+  const [selectedKategori, setSelectedKategori] = useState('semua')
+  const [sortBy, setSortBy] = useState('terbaru')
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table')
-  const [showQrModal, setShowQrModal] = useState<DocumentItem | null>(null)
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole>('user')
+  const [page, setPage] = useState(1)
+  const [exportOpen, setExportOpen] = useState(false)
 
-  useEffect(() => {
-    async function loadData() {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single()
-        if (profile?.role) {
-          setCurrentUserRole(profile.role as UserRole)
-        }
-      }
+  // Modal & form
+  const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null)
+  const [editing, setEditing] = useState<DocRow | null>(null)
+  const [form, setForm] = useState<FormState>(emptyForm())
+  const [formError, setFormError] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [deleting, setDeleting] = useState<DocRow | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [qrDoc, setQrDoc] = useState<DocRow | null>(null)
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-      // Ambil data dokumen dari supabase jika tersedia
-      try {
-        const { data: docs, error } = await supabase
-          .from('dokumen')
-          .select(`
-            id,
-            kode_arsip,
-            nomor_dokumen,
-            judul,
-            status,
-            file_size,
-            mime_type,
-            lokasi_saat_ini,
-            tanggal_dokumen,
-            tanggal_kadaluarsa,
-            kategori_dokumen ( nama )
-          `)
-          .order('tanggal_diajukan', { ascending: false })
-
-        if (!error && docs && docs.length > 0) {
-          const mapped: DocumentItem[] = docs.map((d: any) => {
-            let sisa: number | null = null
-            if (d.tanggal_kadaluarsa) {
-              const diff = new Date(d.tanggal_kadaluarsa).getTime() - new Date().getTime()
-              sisa = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
-            }
-            return {
-              id: d.id,
-              kode_arsip: d.kode_arsip,
-              nomor_dokumen: d.nomor_dokumen || '-',
-              judul: d.judul,
-              kategori: d.kategori_dokumen?.nama || 'Umum',
-              status: d.status,
-              pemegang: 'Pengguna Terdaftar',
-              lokasi_saat_ini: d.lokasi_saat_ini || 'Ruang Arsip',
-              tanggal_dokumen: d.tanggal_dokumen ? new Date(d.tanggal_dokumen).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-',
-              tanggal_kadaluarsa: d.tanggal_kadaluarsa ? new Date(d.tanggal_kadaluarsa).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : null,
-              sisa_hari: sisa,
-              file_size: d.file_size ? `${(d.file_size / (1024 * 1024)).toFixed(1)} MB` : '1.5 MB',
-              mime_type: d.mime_type || 'application/pdf',
-              tingkat_sensitif: 'Biasa',
-            }
-          })
-          setDocuments(mapped)
-        }
-      } catch (err) {
-        console.warn('Fallback ke default mock documents:', err)
-      }
-    }
-
-    loadData()
+  const showToast = useCallback((type: 'success' | 'error', text: string) => {
+    setToast({ type, text })
+    setTimeout(() => setToast(null), 3500)
   }, [])
 
-  // Filter & sorting
-  const filteredAndSortedDocs = useMemo(() => {
+  // ---------------- READ ----------------
+  const loadDocuments = useCallback(async () => {
+    const { data, error } = await supabase.from('dokumen').select(DOC_SELECT).order('created_at', { ascending: false })
+    if (error) throw error
+    setDocuments((data || []).map(mapRow))
+  }, [supabase])
+
+  useEffect(() => {
+    async function init() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          setIsDemo(true)
+          setDocuments(demoDocuments)
+          return
+        }
+        setUserId(user.id)
+
+        const [{ data: profile }, { data: kats }] = await Promise.all([
+          supabase.from('profiles').select('role').eq('id', user.id).single(),
+          supabase.from('kategori_dokumen').select('id, nama').eq('is_active', true).order('nama'),
+        ])
+        if (profile?.role) setProfileRole(profile.role as UserRole)
+        if (kats && kats.length > 0) setKategoriList(kats)
+
+        await loadDocuments()
+      } catch (err) {
+        console.warn('Gagal memuat dokumen dari Supabase, beralih ke mode demo:', err)
+        setIsDemo(true)
+        setDocuments(demoDocuments)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    init()
+  }, [supabase, loadDocuments])
+
+  // ---------------- PERMISSION ----------------
+  const isPrivileged = PRIVILEGED.includes(role)
+  const canCreate = role !== 'viewer' && role !== 'accounting'
+  const isOwnerPending = (doc: DocRow) => doc.pemilik_id === userId && doc.status === 'menunggu_persetujuan'
+  const canEdit = (doc: DocRow) => isDemo ? canCreate : isPrivileged || isOwnerPending(doc)
+  const canDelete = (doc: DocRow) =>
+    isDemo ? role === 'admin' || role === 'pic_arsip' : role === 'admin' || role === 'pic_arsip' || isOwnerPending(doc)
+
+  // ---------------- FILTER ----------------
+  const filteredDocs = useMemo(() => {
+    const q = searchQuery.toLowerCase()
     return documents
       .filter((doc) => {
         const matchSearch =
-          doc.kode_arsip.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          doc.judul.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          doc.nomor_dokumen.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          doc.pemegang.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          doc.lokasi_saat_ini.toLowerCase().includes(searchQuery.toLowerCase())
-
-        const matchKategori =
-          selectedKategori === 'semua' || doc.kategori === selectedKategori
-
-        let matchStatus = true
-        if (selectedStatus === 'aktif') matchStatus = doc.status === 'aktif'
-        else if (selectedStatus === 'menunggu_persetujuan') matchStatus = doc.status === 'menunggu_persetujuan'
-        else if (selectedStatus === 'nonaktif') matchStatus = doc.status === 'nonaktif'
-        else if (selectedStatus === 'ditolak') matchStatus = doc.status === 'ditolak'
-        else if (selectedStatus === 'kritis') matchStatus = doc.status === 'aktif' && doc.sisa_hari !== null && doc.sisa_hari < 90
-
+          !q ||
+          doc.kode_arsip.toLowerCase().includes(q) ||
+          doc.judul.toLowerCase().includes(q) ||
+          doc.nomor_dokumen.toLowerCase().includes(q) ||
+          doc.lokasi_saat_ini.toLowerCase().includes(q)
+        const matchKategori = selectedKategori === 'semua' || doc.kategori === selectedKategori
+        const sisa = sisaHari(doc.tanggal_kadaluarsa)
+        const matchStatus =
+          selectedStatus === 'semua' ||
+          (selectedStatus === 'kritis' ? doc.status === 'aktif' && sisa !== null && sisa < 90 : doc.status === selectedStatus)
         return matchSearch && matchKategori && matchStatus
       })
       .sort((a, b) => {
-        if (selectedUrutan === 'terbaru') return b.kode_arsip.localeCompare(a.kode_arsip)
-        if (selectedUrutan === 'terlama') return a.kode_arsip.localeCompare(b.kode_arsip)
-        if (selectedUrutan === 'judul_az') return a.judul.localeCompare(b.judul)
-        if (selectedUrutan === 'kadaluarsa_terdekat') {
-          return (a.sisa_hari ?? 9999) - (b.sisa_hari ?? 9999)
-        }
-        return 0
+        if (sortBy === 'terlama') return a.kode_arsip.localeCompare(b.kode_arsip)
+        if (sortBy === 'judul_az') return a.judul.localeCompare(b.judul)
+        if (sortBy === 'kadaluarsa') return (sisaHari(a.tanggal_kadaluarsa) ?? 99999) - (sisaHari(b.tanggal_kadaluarsa) ?? 99999)
+        return b.kode_arsip.localeCompare(a.kode_arsip)
       })
-  }, [documents, searchQuery, selectedStatus, selectedKategori, selectedUrutan])
+  }, [documents, searchQuery, selectedStatus, selectedKategori, sortBy])
 
-  // Hitung jumlah per status
-  const countAktif = documents.filter(d => d.status === 'aktif').length
-  const countMenunggu = documents.filter(d => d.status === 'menunggu_persetujuan').length
-  const countNonaktif = documents.filter(d => d.status === 'nonaktif').length
-  const countKritis = documents.filter(d => d.status === 'aktif' && d.sisa_hari !== null && d.sisa_hari < 90).length
+  const totalPages = Math.max(1, Math.ceil(filteredDocs.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const pagedDocs = filteredDocs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+
+  const counts = {
+    semua: documents.length,
+    aktif: documents.filter((d) => d.status === 'aktif').length,
+    menunggu_persetujuan: documents.filter((d) => d.status === 'menunggu_persetujuan').length,
+    kritis: documents.filter((d) => {
+      const s = sisaHari(d.tanggal_kadaluarsa)
+      return d.status === 'aktif' && s !== null && s < 90
+    }).length,
+    nonaktif: documents.filter((d) => d.status === 'nonaktif').length,
+    ditolak: documents.filter((d) => d.status === 'ditolak').length,
+  }
+
+  const statusTabs = [
+    { id: 'semua', label: 'Semua' },
+    { id: 'aktif', label: 'Aktif' },
+    { id: 'menunggu_persetujuan', label: 'Menunggu' },
+    { id: 'kritis', label: 'Kritis < 90 Hari' },
+    { id: 'nonaktif', label: 'Non-Aktif' },
+    { id: 'ditolak', label: 'Ditolak' },
+  ] as const
+
+  // ---------------- FORM HANDLER ----------------
+  const openCreate = () => {
+    setForm(emptyForm(kategoriList[0]?.id || ''))
+    setEditing(null)
+    setFormError(null)
+    setFormMode('create')
+  }
+
+  const openEdit = (doc: DocRow) => {
+    setForm({
+      judul: doc.judul,
+      nomor_dokumen: doc.nomor_dokumen,
+      kategori_id: doc.kategori_id,
+      tanggal_dokumen: doc.tanggal_dokumen || todayISO(),
+      lokasi_saat_ini: doc.lokasi_saat_ini,
+      deskripsi: doc.deskripsi,
+      status: doc.status,
+      file: null,
+    })
+    setEditing(doc)
+    setFormError(null)
+    setFormMode('edit')
+  }
+
+  const closeForm = () => {
+    if (isSaving) return
+    setFormMode(null)
+    setEditing(null)
+  }
+
+  const kategoriName = (id: string) => kategoriList.find((k) => k.id === id)?.nama || 'Umum'
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!form.judul.trim()) return setFormError('Judul dokumen wajib diisi.')
+    if (!form.kategori_id) return setFormError('Pilih kategori dokumen.')
+    if (formMode === 'create' && !isDemo && !form.file) return setFormError('Pilih berkas dokumen yang akan diunggah.')
+
+    setIsSaving(true)
+    setFormError(null)
+
+    // ----- Mode demo: simpan di state lokal saja -----
+    if (isDemo) {
+      if (formMode === 'create') {
+        const nextNo = documents.length + 1
+        const newDoc: DocRow = {
+          id: `demo-${Date.now()}`,
+          kode_arsip: `ARS-${new Date().getFullYear()}-${String(nextNo).padStart(4, '0')}`,
+          nomor_dokumen: form.nomor_dokumen,
+          judul: form.judul.trim(),
+          kategori_id: form.kategori_id,
+          kategori: kategoriName(form.kategori_id),
+          deskripsi: form.deskripsi,
+          status: 'menunggu_persetujuan',
+          lokasi_saat_ini: form.lokasi_saat_ini || 'Meja Pengaju',
+          tanggal_dokumen: form.tanggal_dokumen,
+          tanggal_kadaluarsa: null,
+          file_size: form.file?.size ?? null,
+          file_path: '',
+          bucket: 'arsip-aktif',
+          pemilik_id: 'demo',
+        }
+        setDocuments((prev) => [newDoc, ...prev])
+        showToast('success', `Dokumen ${newDoc.kode_arsip} ditambahkan (mode demo).`)
+      } else if (editing) {
+        setDocuments((prev) =>
+          prev.map((d) =>
+            d.id === editing.id
+              ? {
+                  ...d,
+                  judul: form.judul.trim(),
+                  nomor_dokumen: form.nomor_dokumen,
+                  kategori_id: form.kategori_id,
+                  kategori: kategoriName(form.kategori_id),
+                  deskripsi: form.deskripsi,
+                  tanggal_dokumen: form.tanggal_dokumen,
+                  lokasi_saat_ini: form.lokasi_saat_ini,
+                  status: form.status,
+                }
+              : d
+          )
+        )
+        showToast('success', `Dokumen ${editing.kode_arsip} diperbarui (mode demo).`)
+      }
+      setIsSaving(false)
+      setFormMode(null)
+      return
+    }
+
+    // ----- Mode live: Supabase -----
+    try {
+      if (formMode === 'create' && form.file && userId) {
+        const safeName = form.file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+        const filePath = `${userId}/${Date.now()}_${safeName}`
+        const { error: uploadError } = await supabase.storage.from('arsip-aktif').upload(filePath, form.file)
+        if (uploadError) throw new Error(`Gagal mengunggah berkas: ${uploadError.message}`)
+
+        const { data, error } = await supabase
+          .from('dokumen')
+          .insert({
+            nomor_dokumen: form.nomor_dokumen || null,
+            judul: form.judul.trim(),
+            kategori_id: form.kategori_id,
+            deskripsi: form.deskripsi || null,
+            status: 'menunggu_persetujuan',
+            file_path: filePath,
+            bucket: 'arsip-aktif',
+            file_size: form.file.size,
+            mime_type: form.file.type || null,
+            pemilik_id: userId,
+            pemegang_saat_ini: userId,
+            lokasi_saat_ini: form.lokasi_saat_ini || 'Meja Pengaju',
+            tanggal_dokumen: form.tanggal_dokumen,
+          })
+          .select('kode_arsip')
+          .single()
+
+        if (error) {
+          await supabase.storage.from('arsip-aktif').remove([filePath])
+          throw error
+        }
+        showToast('success', `Dokumen ${data?.kode_arsip ?? ''} berhasil ditambahkan.`)
+      } else if (formMode === 'edit' && editing) {
+        const payload: Record<string, unknown> = {
+          judul: form.judul.trim(),
+          nomor_dokumen: form.nomor_dokumen || null,
+          kategori_id: form.kategori_id,
+          deskripsi: form.deskripsi || null,
+          tanggal_dokumen: form.tanggal_dokumen,
+        }
+        if (isPrivileged) {
+          payload.lokasi_saat_ini = form.lokasi_saat_ini
+          payload.status = form.status
+        }
+        const { data, error } = await supabase.from('dokumen').update(payload).eq('id', editing.id).select('id')
+        if (error) throw error
+        if (!data || data.length === 0) throw new Error('Perubahan ditolak: Anda tidak memiliki izin mengubah dokumen ini.')
+        showToast('success', `Dokumen ${editing.kode_arsip} berhasil diperbarui.`)
+      }
+
+      await loadDocuments()
+      setFormMode(null)
+      setEditing(null)
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan dokumen.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // ---------------- RENDER HELPERS ----------------
+  const RetensiCell = ({ doc }: { doc: DocRow }) => {
+    const sisa = sisaHari(doc.tanggal_kadaluarsa)
+    if (sisa === null) return <span className="text-[#A5ABBC]">-</span>
+    if (sisa === 0) return <span className="text-[#8A90A2]">Kedaluwarsa</span>
+    const kritis = doc.status === 'aktif' && sisa < 90
+    return (
+      <div>
+        <span className={`font-medium ${kritis ? 'text-[#D64545]' : 'text-[#1F2333]'}`}>
+          {kritis && <AlertTriangle className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />}
+          {sisa} hari
+        </span>
+        <span className="block text-xs text-[#8A90A2]">s.d. {formatTanggal(doc.tanggal_kadaluarsa)}</span>
+      </div>
+    )
+  }
+
+  const ActionButtons = ({ doc }: { doc: DocRow }) => (
+    <div className="flex items-center justify-end gap-1">
+      <Link href={`/dokumen/${doc.id}`} title="Lihat detail" className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]">
+        <Eye className="h-4 w-4" />
+      </Link>
+      {canEdit(doc) && (
+        <button type="button" onClick={() => openEdit(doc)} title="Ubah" className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]">
+          <Pencil className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  )
+
+  const cardClass = 'bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)]'
 
   return (
-    <AppLayout currentRole={roleParam || undefined}>
-      <div className="space-y-6 max-w-7xl mx-auto">
-        
-        {/* ======================================================== */}
-        {/* HEADER KATALOG DOKUMEN                                  */}
-        {/* ======================================================== */}
-        <div className="border-b border-[#D8D2C4] pb-5">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="font-mono text-[10px] tracking-wider uppercase px-2 py-0.5 bg-[#1E2429] text-[#F7F3EB] font-bold">
-                  REGISTER ARSIP DIGITAL RESMI
-                </span>
-                <span className="text-xs text-[#5B6166] font-mono">
-                  Standar Retensi 3 Tahun • Klasifikasi Dokumen Terstruktur
-                </span>
-              </div>
-              <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#1A1D21] tracking-tight">
-                Daftar & Katalog Dokumen
-              </h1>
-              <p className="text-xs sm:text-sm text-[#5B6166] mt-1 max-w-2xl leading-relaxed">
-                Kelola dan telusuri seluruh berkas fisik maupun digital dengan verifikasi barcode, status cap pengesahan, dan lokasi penyimpanan.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2.5 shrink-0">
-              <Link
-                href="/serah-terima"
-                className="px-3.5 py-2 bg-white border border-[#D8D2C4] hover:border-[#1A1D21] text-[#1A1D21] text-xs font-mono font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
+    <AppLayout currentRole={isDemo ? role : undefined}>
+      <div className="mx-auto max-w-7xl space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-[28px] font-bold tracking-tight text-[#1F2333]">Daftar Dokumen</h1>
+            <p className="mt-1 text-sm text-[#4B5163]">Kelola, telusuri, dan perbarui seluruh arsip dokumen Anda</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {canCreate && (
+              <button
+                type="button"
+                onClick={openCreate}
+                className="flex items-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-medium text-white shadow-sm shadow-[#3BA4E8]/30 transition-colors hover:bg-[#2A92D6]"
               >
-                <QrCode className="w-4 h-4" />
-                <span>Penyimpanan (Scan)</span>
-              </Link>
-              <Link
-                href="/dokumen/upload"
-                className="px-4 py-2 bg-[#1F5C55] hover:bg-[#184843] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Unggah Dokumen</span>
-              </Link>
-            </div>
+                <Plus className="h-4 w-4" />
+                Tambah Dokumen
+              </button>
+            )}
           </div>
         </div>
 
-        {/* ======================================================== */}
-        {/* BILAH KONTROL: PENCARIAN, FILTER, URUTAN, VIEW MODE      */}
-        {/* ======================================================== */}
-        <div className="bg-white border border-[#D8D2C4] p-4 space-y-3.5 shadow-2xs">
-          {/* Baris Atas: Input Pencarian & Dropdown Kategori / Urutan */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-            {/* Input Pencarian */}
-            <div className="md:col-span-6 relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#8C9399]" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari kode arsip (ARS-...), judul, nomor surat, pemegang..."
-                className="w-full pl-9 pr-8 py-2 text-xs font-sans bg-[#F7F3EB]/40 border border-[#D8D2C4] focus:border-[#1A1D21] focus:bg-white focus:outline-none transition-colors"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#8C9399] hover:text-[#1A1D21]"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* Filter Klasifikasi Kategori */}
-            <div className="md:col-span-3">
-              <select
-                value={selectedKategori}
-                onChange={(e) => setSelectedKategori(e.target.value)}
-                className="w-full text-xs bg-white border border-[#D8D2C4] px-3 py-2 text-[#1A1D21] focus:border-[#1A1D21] focus:outline-none font-medium cursor-pointer"
-              >
-                <option value="semua">Semua Klasifikasi Kategori</option>
-                <option value="Kontrak & Legal">Kontrak & Legal</option>
-                <option value="Keuangan">Keuangan</option>
-                <option value="SDM & Kepegawaian">SDM & Kepegawaian</option>
-                <option value="Operasional & Logistik">Operasional & Logistik</option>
-              </select>
-            </div>
-
-            {/* Urutan & Mode Tampilan */}
-            <div className="md:col-span-3 flex items-center gap-2">
-              <select
-                value={selectedUrutan}
-                onChange={(e) => setSelectedUrutan(e.target.value)}
-                className="flex-1 text-xs bg-white border border-[#D8D2C4] px-3 py-2 text-[#1A1D21] focus:border-[#1A1D21] focus:outline-none font-mono cursor-pointer"
-              >
-                <option value="terbaru">Terbaru (Kode ↓)</option>
-                <option value="terlama">Terlama (Kode ↑)</option>
-                <option value="kadaluarsa_terdekat">Kadaluarsa Terdekat</option>
-                <option value="judul_az">Judul (A-Z)</option>
-              </select>
-
-              {/* View Mode Toggle */}
-              <div className="flex border border-[#D8D2C4] shrink-0 bg-[#F7F3EB]">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('table')}
-                  className={`p-1.5 transition-colors ${viewMode === 'table' ? 'bg-[#1E2429] text-white' : 'text-[#5B6166] hover:text-[#1A1D21]'}`}
-                  title="Tampilan Tabel Berkas"
-                >
-                  <List className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('grid')}
-                  className={`p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-[#1E2429] text-white' : 'text-[#5B6166] hover:text-[#1A1D21]'}`}
-                  title="Tampilan Kartu Map Berkas"
-                >
-                  <Grid className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+        {isDemo && (
+          <div className="flex items-start gap-3 rounded-xl border border-[#BFE2F8] bg-[#EAF5FD] px-4 py-3 text-sm text-[#1E86C8]">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              <span className="font-semibold">Mode demo.</span> Anda belum masuk atau koneksi Supabase gagal, jadi perubahan hanya tersimpan sementara di
+              browser dan hilang saat halaman dimuat ulang.
+            </p>
           </div>
+        )}
 
-          {/* Baris Bawah: Tab Status Berkas */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pt-2 border-t border-[#F7F3EB] text-xs">
-            {[
-              { id: 'semua', label: 'Semua Dokumen', count: documents.length },
-              { id: 'aktif', label: 'Arsip Aktif', count: countAktif },
-              { id: 'menunggu_persetujuan', label: 'Menunggu Approval', count: countMenunggu },
-              { id: 'kritis', label: 'Kritis (<90 Hari)', count: countKritis },
-              { id: 'nonaktif', label: 'Non-Aktif (Gudang)', count: countNonaktif },
-            ].map((tab) => {
-              const isActive = selectedStatus === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setSelectedStatus(tab.id)}
-                  className={`px-3 py-1 font-mono text-[11px] whitespace-nowrap transition-all flex items-center gap-1.5 border ${
-                    isActive
-                      ? 'bg-[#1E2429] text-white border-[#1E2429] font-bold'
-                      : 'bg-white text-[#5B6166] border-[#D8D2C4] hover:bg-[#F7F3EB] hover:text-[#1A1D21]'
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  <span className={`px-1 py-0.2 rounded-none text-[10px] ${isActive ? 'bg-white/20 text-white' : 'bg-[#F7F3EB] text-[#5B6166]'}`}>
-                    {tab.count}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
+        {/* Kartu ringkasan */}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[
+            { label: 'Total Dokumen', value: counts.semua, color: 'text-[#1F2333]' },
+            { label: 'Arsip Aktif', value: counts.aktif, color: 'text-[#2F9E5B]' },
+            { label: 'Menunggu Persetujuan', value: counts.menunggu_persetujuan, color: 'text-[#C98A1B]' },
+            { label: 'Kritis < 90 Hari', value: counts.kritis, color: 'text-[#D64545]' },
+          ].map((s) => (
+            <div key={s.label} className={`${cardClass} p-5`}>
+              <p className="text-sm text-[#4B5163]">{s.label}</p>
+              <p className={`mt-2 text-[26px] font-bold tracking-tight ${s.color}`}>{s.value}</p>
+            </div>
+          ))}
         </div>
 
-        {/* ======================================================== */}
-        {/* VIEW 1: TABEL DATA BUKU KENDALI (RESPONSIVE TABLE)       */}
-        {/* ======================================================== */}
-        {viewMode === 'table' ? (
-          <div className="bg-white border border-[#D8D2C4] shadow-2xs">
-            <div 
-              tabIndex={0} 
-              role="region" 
-              aria-label="Tabel Katalog Seluruh Dokumen"
-              className="overflow-x-auto max-h-[640px] focus:outline-none focus:ring-1 focus:ring-[#1F5C55]"
-            >
-              <table className="w-full text-left border-collapse text-xs">
-                <thead className="sticky top-0 z-10 bg-[#F7F3EB] border-b border-[#D8D2C4] shadow-2xs">
-                  <tr className="text-[#5B6166] font-mono uppercase text-[11px] tracking-wider">
-                    <th scope="col" className="py-3 px-3.5 font-bold border-r border-[#D8D2C4]/60 whitespace-nowrap">
-                      Kode Arsip & Barcode
-                    </th>
-                    <th scope="col" className="py-3 px-3.5 font-bold border-r border-[#D8D2C4]/60 min-w-[280px]">
-                      Judul & Nomor Surat
-                    </th>
-                    <th scope="col" className="py-3 px-3.5 font-bold border-r border-[#D8D2C4]/60 whitespace-nowrap">
-                      Klasifikasi
-                    </th>
-                    <th scope="col" className="py-3 px-3.5 font-bold border-r border-[#D8D2C4]/60 whitespace-nowrap">
-                      Status Cap
-                    </th>
-                    <th scope="col" className="py-3 px-3.5 font-bold border-r border-[#D8D2C4]/60 whitespace-nowrap">
-                      Pemegang & Lokasi
-                    </th>
-                    <th scope="col" className="py-3 px-3.5 font-bold border-r border-[#D8D2C4]/60 text-right whitespace-nowrap">
-                      Masa Retensi
-                    </th>
-                    <th scope="col" className="py-3 px-3.5 font-bold text-center whitespace-nowrap">
-                      Aksi
-                    </th>
+        {/* Daftar */}
+        <div className={cardClass}>
+          {/* Toolbar */}
+          <div className="space-y-4 border-b border-[#ECEEF5] p-5">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9AA0B2]" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value)
+                    setPage(1)
+                  }}
+                  placeholder="Cari kode arsip, judul, nomor dokumen, lokasi..."
+                  className={`${inputClass} pl-10 pr-9`}
+                />
+                {searchQuery && (
+                  <button type="button" onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9AA0B2] hover:text-[#1F2333]">
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <select
+                  value={selectedKategori}
+                  onChange={(e) => {
+                    setSelectedKategori(e.target.value)
+                    setPage(1)
+                  }}
+                  className={`${inputClass} w-auto cursor-pointer`}
+                >
+                  <option value="semua">Semua Kategori</option>
+                  {kategoriList.map((k) => (
+                    <option key={k.id} value={k.nama}>
+                      {k.nama}
+                    </option>
+                  ))}
+                </select>
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className={`${inputClass} w-auto cursor-pointer`}>
+                  <option value="terbaru">Terbaru</option>
+                  <option value="terlama">Terlama</option>
+                  <option value="kadaluarsa">Kedaluwarsa Terdekat</option>
+                  <option value="judul_az">Judul A–Z</option>
+                </select>
+                <div className="flex shrink-0 rounded-lg bg-[#F4F5FA] p-1">
+                  {(['table', 'grid'] as const).map((mode) => {
+                    const Icon = mode === 'table' ? List : LayoutGrid
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setViewMode(mode)}
+                        title={mode === 'table' ? 'Tampilan tabel' : 'Tampilan kartu'}
+                        className={`rounded-md p-1.5 transition-colors ${viewMode === mode ? 'bg-white text-[#1E86C8] shadow-sm' : 'text-[#6B7185] hover:text-[#1F2333]'}`}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto">
+              {statusTabs.map((tab) => {
+                const active = selectedStatus === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedStatus(tab.id)
+                      setPage(1)
+                    }}
+                    className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                      active ? 'bg-[#3BA4E8] text-white' : 'bg-[#F4F5FA] text-[#4B5163] hover:bg-[#EEF7FD] hover:text-[#1E86C8]'
+                    }`}
+                  >
+                    {tab.label}
+                    <span className={`rounded-md px-1.5 text-xs ${active ? 'bg-white/25' : 'bg-white text-[#6B7185]'}`}>{counts[tab.id]}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Konten */}
+          {isLoading ? (
+            <div className="flex items-center justify-center gap-2 py-20 text-sm text-[#6B7185]">
+              <Loader2 className="h-5 w-5 animate-spin" /> Memuat dokumen...
+            </div>
+          ) : filteredDocs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-20 text-center">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#EAF5FD] text-[#3BA4E8]">
+                <FolderOpen className="h-6 w-6" />
+              </span>
+              <p className="mt-1 font-semibold text-[#1F2333]">Belum ada dokumen yang cocok</p>
+              <p className="text-sm text-[#6B7185]">Ubah kata kunci atau filter, atau tambahkan dokumen baru.</p>
+            </div>
+          ) : viewMode === 'table' ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-[#ECEEF5] text-xs text-[#4B5163]">
+                    <th className="px-5 py-3 font-normal">Dokumen</th>
+                    <th className="px-4 py-3 font-normal">Kategori</th>
+                    <th className="px-4 py-3 font-normal">Status</th>
+                    <th className="px-4 py-3 font-normal">Lokasi</th>
+                    <th className="px-4 py-3 font-normal">Retensi</th>
+                    <th className="px-5 py-3 text-right font-normal">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#D8D2C4] text-[#1A1D21]">
-                  {filteredAndSortedDocs.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-12 text-center text-[#5B6166]">
-                        <div className="flex flex-col items-center justify-center gap-2">
-                          <FolderArchive className="w-8 h-8 text-[#8C9399]" />
-                          <p className="font-semibold text-sm text-[#1A1D21]">Tidak ada dokumen yang ditemukan.</p>
-                          <p className="text-xs">Ubah kata kunci pencarian atau sesuaikan filter status klasifikasi.</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredAndSortedDocs.map((doc) => {
-                      const isKritis = doc.sisa_hari !== null && doc.sisa_hari < 90 && doc.status === 'aktif'
-                      return (
-                        <tr 
-                          key={doc.id} 
-                          className={`hover:bg-[#F7F3EB]/70 transition-colors ${isKritis ? 'bg-[#FEFBE8]/40' : ''}`}
-                        >
-                          {/* Kode Arsip & QR */}
-                          <td className="py-3 px-3.5 font-mono border-r border-[#D8D2C4]/40 align-top whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => setShowQrModal(doc)}
-                                className="p-1 bg-[#F7F3EB] border border-[#D8D2C4] hover:border-[#1A1D21] text-[#1A1D21] transition-colors"
-                                title="Lihat Label QR Code Berkas"
-                              >
-                                <QrCode className="w-3.5 h-3.5" />
-                              </button>
-                              <div>
-                                <span className="font-bold text-[#1A1D21] block tracking-tight">
-                                  {doc.kode_arsip}
-                                </span>
-                                <span className="text-[10px] text-[#8C9399] font-mono">
-                                  {doc.file_size}
-                                </span>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Judul & Nomor Surat */}
-                          <td className="py-3 px-3.5 border-r border-[#D8D2C4]/40 align-top">
-                            <Link 
-                              href={`/dokumen/${doc.id}`}
-                              className="font-semibold text-[#1A1D21] hover:text-[#1F5C55] hover:underline block leading-snug"
-                            >
+                <tbody className="divide-y divide-[#F1F2F7]">
+                  {pagedDocs.map((doc) => (
+                    <tr key={doc.id} className="transition-colors hover:bg-[#F9FBFE]">
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#EAF5FD] text-[#3BA4E8]">
+                            <FileText className="h-5 w-5" />
+                          </span>
+                          <div className="min-w-0">
+                            <Link href={`/dokumen/${doc.id}`} className="block max-w-[320px] truncate font-semibold text-[#1F2333] hover:text-[#1E86C8]">
                               {doc.judul}
                             </Link>
-                            <div className="mt-1 flex items-center gap-2 text-[10px] text-[#5B6166] font-mono">
-                              <span className="text-[#1A1D21] font-semibold">{doc.nomor_dokumen}</span>
-                              <span>•</span>
-                              <span>Terbit: {doc.tanggal_dokumen}</span>
-                            </div>
-                          </td>
-
-                          {/* Kategori */}
-                          <td className="py-3 px-3.5 border-r border-[#D8D2C4]/40 align-top whitespace-nowrap">
-                            <span className="px-2 py-0.5 bg-[#F7F3EB] border border-[#D8D2C4] text-[11px] font-mono text-[#1E2429]">
-                              {doc.kategori}
+                            <span className="block text-xs text-[#8A90A2]">
+                              #{doc.kode_arsip}
+                              {doc.nomor_dokumen && ` • ${doc.nomor_dokumen}`}
                             </span>
-                          </td>
-
-                          {/* Status */}
-                          <td className="py-3 px-3.5 border-r border-[#D8D2C4]/40 align-top whitespace-nowrap">
-                            <StampBadge status={doc.status} />
-                          </td>
-
-                          {/* Pemegang & Lokasi */}
-                          <td className="py-3 px-3.5 border-r border-[#D8D2C4]/40 align-top whitespace-nowrap">
-                            <div className="font-medium text-[#1A1D21] text-xs">
-                              {doc.pemegang}
-                            </div>
-                            <div className="text-[10px] text-[#5B6166] font-mono mt-0.5 flex items-center gap-1">
-                              <span>📍</span>
-                              <span>{doc.lokasi_saat_ini}</span>
-                            </div>
-                          </td>
-
-                          {/* Retensi */}
-                          <td className="py-3 px-3.5 border-r border-[#D8D2C4]/40 text-right align-top whitespace-nowrap font-mono">
-                            {doc.sisa_hari !== null ? (
-                              <div>
-                                {doc.sisa_hari <= 0 ? (
-                                  <span className="text-[#8C9399] font-bold">KADALUARSA</span>
-                                ) : isKritis ? (
-                                  <span className="text-[#B42318] font-bold flex items-center justify-end gap-1">
-                                    <AlertTriangle className="w-3 h-3 text-[#B42318]" />
-                                    <span>{doc.sisa_hari} hari lagi</span>
-                                  </span>
-                                ) : (
-                                  <span className="text-[#1F5C55] font-semibold">{doc.sisa_hari} hari</span>
-                                )}
-                                <span className="block text-[10px] text-[#8C9399]">
-                                  s.d. {doc.tanggal_kadaluarsa}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-[#8C9399]">-</span>
-                            )}
-                          </td>
-
-                          {/* Aksi */}
-                          <td className="py-3 px-3.5 text-center align-top whitespace-nowrap">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <Link
-                                href={`/dokumen/${doc.id}`}
-                                className="px-2.5 py-1 bg-white border border-[#D8D2C4] hover:border-[#1A1D21] text-[#1A1D21] font-mono text-[11px] font-semibold transition-colors shadow-2xs"
-                              >
-                                Detail
-                              </Link>
-                              {currentUserRole !== 'viewer' && (
-                                <Link
-                                  href={`/dokumen/${doc.id}`}
-                                  className="p-1 bg-[#F7F3EB] border border-[#D8D2C4] hover:bg-[#1E2429] hover:text-white text-[#1E2429] transition-colors"
-                                  title="Unduh Lembar Berkas"
-                                >
-                                  <Download className="w-3.5 h-3.5" />
-                                </Link>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })
-                  )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3.5 text-[#4B5163]">{doc.kategori}</td>
+                      <td className="whitespace-nowrap px-4 py-3.5">
+                        <span className={`inline-flex rounded-md px-2.5 py-1 text-xs font-medium ${statusPill[doc.status].className}`}>
+                          {statusPill[doc.status].label}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3.5 text-[#4B5163]">{doc.lokasi_saat_ini}</td>
+                      <td className="whitespace-nowrap px-4 py-3.5">
+                        <RetensiCell doc={doc} />
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <ActionButtons doc={doc} />
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4">
+              {pagedDocs.map((doc) => (
+                <div key={doc.id} className="flex flex-col rounded-xl border border-[#ECEEF5] p-4 transition-shadow hover:shadow-md">
+                  <div className="flex items-start justify-between">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#EAF5FD] text-[#3BA4E8]">
+                      <FileText className="h-5 w-5" />
+                    </span>
+                    <span className={`rounded-md px-2.5 py-1 text-xs font-medium ${statusPill[doc.status].className}`}>{statusPill[doc.status].label}</span>
+                  </div>
+                  <Link href={`/dokumen/${doc.id}`} className="mt-3 line-clamp-2 font-semibold leading-snug text-[#1F2333] hover:text-[#1E86C8]">
+                    {doc.judul}
+                  </Link>
+                  <p className="mt-1 text-xs text-[#8A90A2]">#{doc.kode_arsip}</p>
+                  <div className="mt-3 space-y-1.5 text-xs text-[#4B5163]">
+                    <p className="flex items-center gap-1.5">
+                      <FolderOpen className="h-3.5 w-3.5 text-[#9AA0B2]" /> {doc.kategori}
+                    </p>
+                    <p className="flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5 text-[#9AA0B2]" /> <span className="truncate">{doc.lokasi_saat_ini}</span>
+                    </p>
+                  </div>
+                  <div className="mt-auto flex items-center justify-between border-t border-[#F1F2F7] pt-3 text-xs">
+                    <span className="text-[#8A90A2]">{formatSize(doc.file_size)}</span>
+                    <ActionButtons doc={doc} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
-            {/* Pagination Footer */}
-            <div className="px-4 py-3 bg-[#F7F3EB] border-t border-[#D8D2C4] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs font-mono">
-              <span className="text-[#5B6166]">
-                Menampilkan <strong>{filteredAndSortedDocs.length}</strong> dari <strong>{documents.length}</strong> dokumen resmi terdaftar
+          {/* Pagination */}
+          {!isLoading && filteredDocs.length > 0 && (
+            <div className="flex flex-col gap-3 border-t border-[#ECEEF5] px-5 py-3.5 text-sm text-[#6B7185] sm:flex-row sm:items-center sm:justify-between">
+              <span>
+                Menampilkan {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredDocs.length)} dari {filteredDocs.length} dokumen
               </span>
               <div className="flex items-center gap-1">
-                <button disabled className="px-2.5 py-1 bg-white border border-[#D8D2C4] text-[#8C9399] cursor-not-allowed">
-                  Sebelumnya
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => setPage(currentPage - 1)}
+                  className="rounded-md border border-[#E3E6F0] p-1.5 hover:bg-[#F4F5FA] disabled:opacity-40"
+                >
+                  <ChevronLeft className="h-4 w-4" />
                 </button>
-                <button className="px-2.5 py-1 bg-[#1E2429] text-white border border-[#1E2429] font-bold">
-                  1
-                </button>
-                <button disabled className="px-2.5 py-1 bg-white border border-[#D8D2C4] text-[#8C9399] cursor-not-allowed">
-                  Selanjutnya
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setPage(n)}
+                    className={`h-8 min-w-8 rounded-md px-2 text-sm ${n === currentPage ? 'bg-[#3BA4E8] text-white' : 'hover:bg-[#F4F5FA]'}`}
+                  >
+                    {n}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setPage(currentPage + 1)}
+                  className="rounded-md border border-[#E3E6F0] p-1.5 hover:bg-[#F4F5FA] disabled:opacity-40"
+                >
+                  <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
             </div>
-          </div>
-        ) : (
-          /* ======================================================== */
-          /* VIEW 2: TAMPILAN MAP FOLDER GRID BERKAS                  */
-          /* ======================================================== */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredAndSortedDocs.map((doc) => {
-              const isKritis = doc.sisa_hari !== null && doc.sisa_hari < 90 && doc.status === 'aktif'
-              return (
-                <div 
-                  key={doc.id}
-                  className={`bg-white border p-4 flex flex-col justify-between shadow-2xs transition-all hover:border-[#1A1D21] ${
-                    isKritis ? 'border-[#9A6700] ring-1 ring-[#9A6700]' : 'border-[#D8D2C4]'
-                  }`}
-                >
-                  <div>
-                    {/* Header Map */}
-                    <div className="flex items-start justify-between gap-2 pb-3 border-b border-[#F7F3EB]">
-                      <div className="flex items-center gap-2">
-                        <div className="p-2 bg-[#F7F3EB] border border-[#D8D2C4]">
-                          <FileText className="w-4 h-4 text-[#1E2429]" />
-                        </div>
-                        <div>
-                          <span className="font-mono font-bold text-xs text-[#1A1D21] block">
-                            {doc.kode_arsip}
-                          </span>
-                          <span className="text-[10px] text-[#8C9399] font-mono">
-                            {doc.kategori}
-                          </span>
-                        </div>
-                      </div>
-                      <StampBadge status={doc.status} />
-                    </div>
-
-                    {/* Judul & Nomor Dokumen */}
-                    <div className="mt-3">
-                      <Link 
-                        href={`/dokumen/${doc.id}`}
-                        className="font-serif font-bold text-sm text-[#1A1D21] hover:text-[#1F5C55] hover:underline line-clamp-2"
-                      >
-                        {doc.judul}
-                      </Link>
-                      <p className="text-[11px] font-mono text-[#5B6166] mt-1">
-                        No: {doc.nomor_dokumen}
-                      </p>
-                    </div>
-
-                    {/* Metadata Box */}
-                    <div className="mt-4 p-2.5 bg-[#F7F3EB]/60 border border-[#D8D2C4]/70 space-y-1.5 text-[11px] font-mono">
-                      <div className="flex justify-between">
-                        <span className="text-[#5B6166]">Pemegang:</span>
-                        <span className="font-medium text-[#1A1D21] truncate max-w-[150px]">{doc.pemegang}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-[#5B6166]">Lokasi:</span>
-                        <span className="text-[#1A1D21] truncate max-w-[150px]">{doc.lokasi_saat_ini}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-[#5B6166]">Retensi 3 Thn:</span>
-                        <span className={isKritis ? 'font-bold text-[#B42318]' : 'text-[#1F5C55]'}>
-                          {doc.sisa_hari !== null ? `${doc.sisa_hari} hari lagi` : '-'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Footer Aksi */}
-                  <div className="mt-4 pt-3 border-t border-[#F7F3EB] flex items-center justify-between gap-2">
-                    <button
-                      onClick={() => setShowQrModal(doc)}
-                      className="px-2.5 py-1 bg-[#F7F3EB] border border-[#D8D2C4] hover:border-[#1A1D21] text-xs font-mono flex items-center gap-1 transition-colors"
-                      title="Lihat QR Code"
-                    >
-                      <QrCode className="w-3.5 h-3.5" />
-                      <span>QR</span>
-                    </button>
-                    <Link
-                      href={`/dokumen/${doc.id}`}
-                      className="flex-1 text-center py-1 bg-[#1F5C55] hover:bg-[#184843] text-white text-xs font-mono font-medium transition-colors"
-                    >
-                      Buka Berkas
-                    </Link>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* MODAL LABEL BARCODE & QR CODE RESMI                      */}
-        {/* ======================================================== */}
-        {showQrModal && (
-          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-2xs">
-            <div className="bg-white max-w-md w-full border-2 border-[#1E2429] p-6 space-y-4 shadow-xl">
-              <div className="flex items-start justify-between border-b border-[#D8D2C4] pb-3">
-                <div>
-                  <span className="font-mono text-[10px] text-[#8C9399] uppercase tracking-wider block">
-                    LABEL RESMI KEARSIPAN
-                  </span>
-                  <h3 className="font-serif font-bold text-lg text-[#1A1D21]">
-                    {showQrModal.kode_arsip}
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setShowQrModal(null)}
-                  className="p-1 hover:bg-[#F7F3EB] text-[#5B6166] hover:text-[#1A1D21]"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Tampilan Visual Label Fisik */}
-              <div className="p-4 border border-dashed border-[#1E2429] bg-[#F7F3EB] text-center space-y-3 font-mono">
-                <div className="text-[10px] tracking-wider text-[#5B6166] uppercase">
-                  INSTANSI ARSIP NASIONAL • RUANG SIMPAN VAULT
-                </div>
-                
-                {/* Visual QR Barcode Box */}
-                <div className="w-40 h-40 mx-auto bg-white border border-[#1E2429] p-2 flex flex-col items-center justify-center shadow-xs">
-                  <QrCode className="w-32 h-32 text-[#1E2429]" />
-                </div>
-                
-                <div className="space-y-0.5">
-                  <div className="font-bold text-sm text-[#1A1D21] tracking-widest">
-                    {showQrModal.kode_arsip}
-                  </div>
-                  <div className="text-[11px] text-[#5B6166] truncate max-w-xs mx-auto">
-                    {showQrModal.judul}
-                  </div>
-                  <div className="text-[10px] text-[#8C9399]">
-                    Lokasi: {showQrModal.lokasi_saat_ini}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#D8D2C4]">
-                <button
-                  onClick={() => setShowQrModal(null)}
-                  className="px-3.5 py-1.5 border border-[#D8D2C4] text-xs font-mono font-medium hover:bg-[#F7F3EB]"
-                >
-                  Tutup
-                </button>
-                <button
-                  onClick={() => window.print()}
-                  className="px-4 py-1.5 bg-[#1F5C55] hover:bg-[#184843] text-white text-xs font-mono font-semibold flex items-center gap-1.5"
-                >
-                  <FileDown className="w-3.5 h-3.5" />
-                  <span>Cetak Label Stiker</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
+          )}
+        </div>
       </div>
+
+      {/* ================= MODAL TAMBAH / UBAH ================= */}
+      {formMode && (
+        <Modal
+          title={formMode === 'create' ? 'Tambah Dokumen' : 'Ubah Dokumen'}
+          subtitle={formMode === 'create' ? 'Dokumen baru akan berstatus Menunggu Persetujuan' : `#${editing?.kode_arsip}`}
+          onClose={closeForm}
+        >
+          <form onSubmit={handleSave}>
+            <div className="space-y-4 px-6 py-5">
+              {formError && (
+                <div className="flex items-start gap-2 rounded-lg border border-[#F5C2C2] bg-[#FDECEC] px-3.5 py-2.5 text-sm text-[#B42318]">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {formError}
+                </div>
+              )}
+
+              <Field label="Judul Dokumen" required>
+                <input
+                  className={inputClass}
+                  value={form.judul}
+                  onChange={(e) => setForm({ ...form, judul: e.target.value })}
+                  placeholder="Contoh: Kontrak Kerja Sama Vendor 2026"
+                  autoFocus
+                />
+              </Field>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Nomor Dokumen">
+                  <input
+                    className={inputClass}
+                    value={form.nomor_dokumen}
+                    onChange={(e) => setForm({ ...form, nomor_dokumen: e.target.value })}
+                    placeholder="042/LEG/2026"
+                  />
+                </Field>
+                <Field label="Kategori" required>
+                  <select className={`${inputClass} cursor-pointer`} value={form.kategori_id} onChange={(e) => setForm({ ...form, kategori_id: e.target.value })}>
+                    <option value="" disabled>
+                      Pilih kategori
+                    </option>
+                    {kategoriList.map((k) => (
+                      <option key={k.id} value={k.id}>
+                        {k.nama}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Tanggal Dokumen" required>
+                  <input
+                    type="date"
+                    className={inputClass}
+                    value={form.tanggal_dokumen}
+                    onChange={(e) => setForm({ ...form, tanggal_dokumen: e.target.value })}
+                  />
+                </Field>
+                <Field label="Lokasi Fisik" hint={!isPrivileged && formMode === 'edit' ? 'Hanya PIC/Atasan/Admin yang dapat mengubah' : undefined}>
+                  <input
+                    className={inputClass}
+                    value={form.lokasi_saat_ini}
+                    disabled={formMode === 'edit' && !isPrivileged}
+                    onChange={(e) => setForm({ ...form, lokasi_saat_ini: e.target.value })}
+                    placeholder="Ruang Arsip - Rak A1"
+                  />
+                </Field>
+              </div>
+
+              {formMode === 'edit' && isPrivileged && (
+                <Field label="Status">
+                  <select
+                    className={`${inputClass} cursor-pointer`}
+                    value={form.status}
+                    onChange={(e) => setForm({ ...form, status: e.target.value as DokumenStatus })}
+                  >
+                    <option value="menunggu_persetujuan">Menunggu Persetujuan</option>
+                    <option value="aktif">Aktif</option>
+                    <option value="nonaktif">Non-Aktif</option>
+                    <option value="ditolak">Ditolak</option>
+                  </select>
+                </Field>
+              )}
+
+              <Field label="Deskripsi">
+                <textarea
+                  rows={3}
+                  className={`${inputClass} resize-none`}
+                  value={form.deskripsi}
+                  onChange={(e) => setForm({ ...form, deskripsi: e.target.value })}
+                  placeholder="Ringkasan isi dokumen (opsional)"
+                />
+              </Field>
+
+              {formMode === 'create' && (
+                <Field label="Berkas Dokumen" required={!isDemo}>
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-[#BFE2F8] bg-[#F5FAFE] px-4 py-6 text-center transition-colors hover:border-[#3BA4E8]">
+                    <UploadCloud className="h-7 w-7 text-[#3BA4E8]" />
+                    {form.file ? (
+                      <>
+                        <span className="text-sm font-medium text-[#1F2333]">{form.file.name}</span>
+                        <span className="text-xs text-[#8A90A2]">{formatSize(form.file.size)} • klik untuk mengganti</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-sm font-medium text-[#1F2333]">Klik untuk memilih berkas</span>
+                        <span className="text-xs text-[#8A90A2]">PDF, DOCX, JPG, atau PNG</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      className="hidden"
+                      onChange={(e) => setForm({ ...form, file: e.target.files?.[0] ?? null })}
+                    />
+                  </label>
+                </Field>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-[#ECEEF5] px-6 py-4">
+              <button
+                type="button"
+                onClick={closeForm}
+                disabled={isSaving}
+                className="rounded-lg border border-[#E3E6F0] px-4 py-2 text-sm font-medium text-[#4B5163] hover:bg-[#F4F5FA] disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="flex items-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-medium text-white hover:bg-[#2A92D6] disabled:opacity-60"
+              >
+                {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                {formMode === 'create' ? 'Simpan Dokumen' : 'Simpan Perubahan'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* ================= TOAST ================= */}
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 z-[60] flex max-w-sm items-start gap-2.5 rounded-xl px-4 py-3 text-sm text-white shadow-lg ${
+            toast.type === 'success' ? 'bg-[#1F2333]' : 'bg-[#D64545]'
+          }`}
+        >
+          {toast.type === 'success' ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#6FD39A]" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}
+          {toast.text}
+        </div>
+      )}
     </AppLayout>
   )
 }
 
 export default function DaftarDokumenPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center font-mono">Memuat Katalog Dokumen...</div>}>
+    <Suspense fallback={<div className="p-8 text-center text-sm text-[#6B7185]">Memuat daftar dokumen...</div>}>
       <DaftarDokumenContent />
     </Suspense>
   )
 }
-
