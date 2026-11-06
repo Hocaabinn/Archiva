@@ -253,6 +253,93 @@ function ArchiveBarChart() {
   )
 }
 
+function CategoryDonut() {
+  const data = useMemo(() => {
+    const counts = new Map<string, number>()
+    sampleDocuments.forEach((d) => counts.set(d.kategori, (counts.get(d.kategori) || 0) + 1))
+    const total = sampleDocuments.length
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, count], i) => ({ label, count, pct: Math.round((count / total) * 100), color: DONUT_COLORS[i % DONUT_COLORS.length] }))
+  }, [])
+
+  const size = 200
+  const cx = size / 2
+  const r = 70
+  const stroke = 34
+  const circumference = 2 * Math.PI * r
+  const segments = data.map((d, i) => {
+    const before = data.slice(0, i).reduce((s, x) => s + x.pct / 100, 0)
+    return { ...d, dash: (d.pct / 100) * circumference, offset: before * circumference, start: before }
+  })
+
+  return (
+    <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-5 h-full flex flex-col">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-[#1F2333]">Kategori Arsip</h2>
+        <button
+          type="button"
+          className="flex items-center gap-1.5 rounded-md bg-[#F4F5FA] px-3 py-1.5 text-xs text-[#4B5163]"
+        >
+          Semua <ChevronDown className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      <div className="flex-1 flex items-center justify-center py-4">
+        <svg viewBox={`-40 -10 ${size + 80} ${size + 20}`} className="w-full max-w-[280px]">
+          <g transform={`rotate(-90 ${cx} ${cx})`}>
+            {segments.map((s) => (
+              <circle
+                key={s.label}
+                cx={cx}
+                cy={cx}
+                r={r}
+                fill="none"
+                stroke={s.color}
+                strokeWidth={stroke}
+                strokeDasharray={`${s.dash} ${circumference - s.dash}`}
+                strokeDashoffset={-s.offset}
+              />
+            ))}
+          </g>
+          {segments.map((s) => {
+            const mid = (s.start + s.pct / 200) * 2 * Math.PI - Math.PI / 2
+            const x1 = cx + Math.cos(mid) * (r + stroke / 2)
+            const y1 = cx + Math.sin(mid) * (r + stroke / 2)
+            const x2 = cx + Math.cos(mid) * (r + stroke / 2 + 14)
+            const y2 = cx + Math.sin(mid) * (r + stroke / 2 + 14)
+            const right = Math.cos(mid) >= 0
+            const x3 = x2 + (right ? 10 : -10)
+            return (
+              <g key={`label-${s.label}`}>
+                <polyline points={`${x1},${y1} ${x2},${y2} ${x3},${y2}`} fill="none" stroke="#9AA0B2" strokeWidth={0.8} />
+                <text
+                  x={x3 + (right ? 3 : -3)}
+                  y={y2 + 4}
+                  textAnchor={right ? 'start' : 'end'}
+                  className="fill-[#4B5163]"
+                  fontSize={11}
+                >
+                  {s.pct}%
+                </text>
+              </g>
+            )
+          })}
+        </svg>
+      </div>
+
+      <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-xs text-[#4B5163]">
+        {data.map((d) => (
+          <span key={d.label} className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
+            {d.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function getInitials(name: string) {
   return name
     .replace(/\(.*\)/, '')
@@ -385,6 +472,75 @@ function DashboardBody() {
         </div>
       </div>
 
+      {/* Aktivitas terbaru + donut kategori */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+        <div className="xl:col-span-8 bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-[#1F2333]">Aktivitas Terbaru</h2>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-md bg-[#F4F5FA] px-3 py-1.5 text-xs text-[#4B5163]"
+            >
+              24 Jam Terakhir <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="text-xs text-[#4B5163]">
+                  <th className="pb-3 font-normal">Dokumen</th>
+                  <th className="pb-3 font-normal">Status</th>
+                  <th className="pb-3 font-normal">Kode Arsip</th>
+                  <th className="pb-3 font-normal">Waktu</th>
+                  <th className="pb-3 font-normal text-right">Ukuran</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activities.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-10 text-center text-sm text-[#8A90A2]">
+                      Tidak ada aktivitas untuk filter ini.
+                    </td>
+                  </tr>
+                ) : (
+                  activities.map((doc) => (
+                    <tr key={doc.id} className="align-middle">
+                      <td className="py-2.5 pr-4">
+                        <Link href={`/dokumen/${doc.id}`} className="flex items-center gap-3 group">
+                          <span className="w-9 h-9 shrink-0 rounded-full bg-[#EAF5FD] text-[#1E86C8] text-xs font-semibold flex items-center justify-center">
+                            {getInitials(doc.pemegang)}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block font-semibold text-[#1F2333] group-hover:text-[#1E86C8] truncate max-w-[260px]">
+                              {doc.judul}
+                            </span>
+                            <span className="block text-xs text-[#8A90A2] truncate max-w-[260px]">
+                              {doc.pemegang} • {doc.kategori}
+                            </span>
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="py-2.5 pr-4 whitespace-nowrap">
+                        <span className={`inline-flex rounded-md px-2.5 py-1 text-xs font-medium ${statusPill[doc.status].className}`}>
+                          {statusPill[doc.status].label}
+                        </span>
+                      </td>
+                      <td className="py-2.5 pr-4 whitespace-nowrap text-[#4B5163]">#{doc.kode_arsip}</td>
+                      <td className="py-2.5 pr-4 whitespace-nowrap text-[#4B5163]">{doc.waktu}</td>
+                      <td className="py-2.5 whitespace-nowrap text-right text-[#4B5163]">{doc.ukuran_file}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="xl:col-span-4">
+          <CategoryDonut />
+        </div>
+      </div>
     </div>
   )
 }
