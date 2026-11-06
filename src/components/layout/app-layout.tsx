@@ -115,14 +115,9 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
       roles: ['admin', 'pic_arsip', 'atasan', 'user', 'accounting', 'viewer'],
       children: [
         { label: 'Daftar Dokumen', href: '/dokumen', roles: ['admin', 'pic_arsip', 'atasan', 'user', 'accounting', 'viewer'] },
+        { label: 'Verifikasi Dokumen', href: '/persetujuan', roles: ['admin', 'pic_arsip', 'atasan'] },
         { label: 'Penyimpanan Dokumen', href: '/serah-terima', roles: ['admin', 'pic_arsip', 'user'] },
       ]
-    },
-    { 
-      label: 'Antrean Persetujuan', 
-      href: '/persetujuan', 
-      icon: CheckSquare, 
-      roles: ['admin', 'pic_arsip', 'atasan'] 
     },
     { 
       label: 'Kas & Pembayaran', 
