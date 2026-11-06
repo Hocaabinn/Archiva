@@ -197,6 +197,14 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
                 className="h-6 w-auto object-contain"
               />
             )}
+            <button
+              type="button"
+              onClick={() => setIsCollapsed((v) => !v)}
+              className="hidden md:inline-flex p-1.5 rounded-md border border-[#E3E6F0] text-[#6B7185] hover:text-[#1F2333] hover:bg-[#EEF7FD] transition-colors mx-auto md:mx-0"
+              title={isCollapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}
+            >
+              {isCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+            </button>
           </div>
 
           {/* Workspace / Peran aktif */}
