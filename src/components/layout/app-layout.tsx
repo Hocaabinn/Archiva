@@ -5,18 +5,32 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { 
-  FileText, 
+  LayoutDashboard, 
   FolderArchive, 
   CheckSquare, 
-  QrCode, 
   CreditCard, 
   History, 
   Settings, 
   LogOut,
-  UserCheck
+  UserCheck,
+  ChevronDown
 } from 'lucide-react'
 import { UserRole } from '@/types'
 import { createClient } from '@/lib/supabase/client'
+
+interface SubNavItem {
+  label: string
+  href: string
+  roles: UserRole[]
+}
+
+interface NavItem {
+  label: string
+  href?: string
+  icon: any
+  roles: UserRole[]
+  children?: SubNavItem[]
+}
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -31,6 +45,7 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
   const [currentRole, setCurrentRole] = useState<UserRole>(initialRole || 'user')
   const [userName, setUserName] = useState<string>('Memuat...')
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isKatalogOpen, setIsKatalogOpen] = useState(true)
 
   useEffect(() => {
     if (initialRole) {
@@ -87,17 +102,58 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
     viewer: { title: 'Viewer (Hanya Lihat)', color: 'bg-stone-600 text-white' },
   }
 
-  const navItems = [
-    { label: 'Meja Kerja (Ringkasan)', href: '/dashboard', icon: FileText, roles: ['admin', 'pic_arsip', 'atasan', 'user', 'accounting', 'viewer'] },
-    { label: 'Katalog Dokumen', href: '/dokumen', icon: FolderArchive, roles: ['admin', 'pic_arsip', 'atasan', 'user', 'accounting', 'viewer'] },
-    { label: 'Antrean Persetujuan', href: '/persetujuan', icon: CheckSquare, roles: ['admin', 'pic_arsip', 'atasan'] },
-    { label: 'Serah Terima (Scan)', href: '/serah-terima', icon: QrCode, roles: ['admin', 'pic_arsip', 'user'] },
-    { label: 'Kas & Pembayaran', href: '/pembayaran', icon: CreditCard, roles: ['admin', 'pic_arsip', 'accounting', 'user'] },
-    { label: 'Buku Log Riwayat', href: '/riwayat', icon: History, roles: ['admin', 'pic_arsip', 'atasan', 'accounting'] },
-    { label: 'Pengaturan Sistem', href: '/pengaturan/pengguna', icon: Settings, roles: ['admin'] },
+  const navItems: NavItem[] = [
+    { 
+      label: 'Dashboard', 
+      href: '/dashboard', 
+      icon: LayoutDashboard, 
+      roles: ['admin', 'pic_arsip', 'atasan', 'user', 'accounting', 'viewer'] 
+    },
+    { 
+      label: 'Katalog Dokumen', 
+      icon: FolderArchive, 
+      roles: ['admin', 'pic_arsip', 'atasan', 'user', 'accounting', 'viewer'],
+      children: [
+        { label: 'Daftar Dokumen', href: '/dokumen', roles: ['admin', 'pic_arsip', 'atasan', 'user', 'accounting', 'viewer'] },
+        { label: 'Penyimpanan Dokumen', href: '/serah-terima', roles: ['admin', 'pic_arsip', 'user'] },
+      ]
+    },
+    { 
+      label: 'Antrean Persetujuan', 
+      href: '/persetujuan', 
+      icon: CheckSquare, 
+      roles: ['admin', 'pic_arsip', 'atasan'] 
+    },
+    { 
+      label: 'Kas & Pembayaran', 
+      href: '/pembayaran', 
+      icon: CreditCard, 
+      roles: ['admin', 'pic_arsip', 'accounting', 'user'] 
+    },
+    { 
+      label: 'Buku Log Riwayat', 
+      href: '/riwayat', 
+      icon: History, 
+      roles: ['admin', 'pic_arsip', 'atasan', 'accounting'] 
+    },
+    { 
+      label: 'Pengaturan Sistem', 
+      href: '/pengaturan/pengguna', 
+      icon: Settings, 
+      roles: ['admin'] 
+    },
   ]
 
-  const accessibleNavs = navItems.filter(item => item.roles.includes(currentRole))
+  const accessibleNavs = navItems
+    .map(item => {
+      if (item.children) {
+        const filteredChildren = item.children.filter(child => child.roles.includes(currentRole))
+        if (filteredChildren.length === 0) return null
+        return { ...item, children: filteredChildren }
+      }
+      return item.roles.includes(currentRole) ? item : null
+    })
+    .filter(Boolean) as NavItem[]
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-[#F7F3EB]">
@@ -138,11 +194,66 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
         <nav className="p-2 space-y-1 flex-1 overflow-y-auto">
           {accessibleNavs.map((item) => {
             const Icon = item.icon
+
+            // Jika item memiliki submenu (dropdown)
+            if (item.children) {
+              const isChildActive = item.children.some(child => pathname === child.href)
+              return (
+                <div key={item.label} className="space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsKatalogOpen(prev => !prev)}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-xs sm:text-sm font-medium transition-colors ${
+                      isChildActive
+                        ? 'text-[#F7F3EB] bg-[#252C33]'
+                        : 'text-[#D8D2C4] hover:bg-[#2D353C] hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon className={`w-4 h-4 shrink-0 ${isChildActive ? 'text-[#F7F3EB]' : 'text-[#8C9399]'}`} />
+                      <span>{item.label}</span>
+                    </div>
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-[#8C9399] transition-transform duration-200 ${
+                        isKatalogOpen ? 'rotate-180 text-[#F7F3EB]' : ''
+                      }`}
+                    />
+                  </button>
+                  {isKatalogOpen && (
+                    <div className="ml-4 pl-3 border-l border-[#2D353C] space-y-0.5 py-1">
+                      {item.children.map((subItem) => {
+                        const isSubActive = pathname === subItem.href
+                        return (
+                          <Link
+                            key={subItem.href}
+                            href={subItem.href}
+                            className={`flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                              isSubActive
+                                ? 'bg-[#F7F3EB] text-[#1E2429] font-semibold'
+                                : 'text-[#8C9399] hover:text-white hover:bg-[#2D353C]'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                isSubActive ? 'bg-[#1E2429]' : 'bg-[#5B6166]'
+                              }`}
+                            />
+                            <span>{subItem.label}</span>
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            }
+
+            // Item navigasi biasa
             const isActive = pathname === item.href
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={item.href!}
                 className={`flex items-center gap-3 px-3 py-2 text-xs sm:text-sm font-medium transition-colors ${
                   isActive
                     ? 'bg-[#F7F3EB] text-[#1E2429] font-semibold'
