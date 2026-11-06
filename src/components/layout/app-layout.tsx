@@ -1,19 +1,23 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, createContext, useContext } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname, useRouter } from 'next/navigation'
-import { 
-  LayoutDashboard, 
-  FolderArchive, 
-  CheckSquare, 
-  CreditCard, 
-  History, 
-  Settings, 
+import { usePathname } from 'next/navigation'
+import {
+  LayoutDashboard,
+  FolderArchive,
+  CreditCard,
+  History,
+  Settings,
   LogOut,
-  UserCheck,
-  ChevronDown
+  ChevronDown,
+  ChevronsUpDown,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Search,
+  Bell,
+  MoreVertical,
 } from 'lucide-react'
 import { UserRole } from '@/types'
 import { createClient } from '@/lib/supabase/client'
@@ -27,7 +31,7 @@ interface SubNavItem {
 interface NavItem {
   label: string
   href?: string
-  icon: any
+  icon: React.ComponentType<{ className?: string }>
   roles: UserRole[]
   children?: SubNavItem[]
 }
@@ -37,21 +41,53 @@ interface AppLayoutProps {
   currentRole?: UserRole
 }
 
+interface AppUser {
+  name: string
+  role: UserRole
+  roleTitle: string
+}
+
+const roleTitles: Record<UserRole, string> = {
+  admin: 'Admin Sistem',
+  pic_arsip: 'PIC Arsip',
+  atasan: 'Atasan / Approval',
+  user: 'Pengaju (User)',
+  accounting: 'Accounting',
+  viewer: 'Viewer (Hanya Lihat)',
+}
+
+const AppUserContext = createContext<AppUser>({
+  name: 'Pengguna',
+  role: 'user',
+  roleTitle: roleTitles.user,
+})
+
+/** Data pengguna yang sedang login, tersedia untuk semua halaman di dalam AppLayout. */
+export function useAppUser() {
+  return useContext(AppUserContext)
+}
+
+function getInitials(name: string) {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join('')
+}
+
 export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps) {
   const pathname = usePathname()
-  const router = useRouter()
-  const supabase = createClient()
+  const [supabase] = useState(() => createClient())
 
-  const [currentRole, setCurrentRole] = useState<UserRole>(initialRole || 'user')
+  const [profileRole, setProfileRole] = useState<UserRole>('user')
+  const currentRole: UserRole = initialRole || profileRole
   const [userName, setUserName] = useState<string>('Memuat...')
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isKatalogOpen, setIsKatalogOpen] = useState(true)
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
   useEffect(() => {
-    if (initialRole) {
-      setCurrentRole(initialRole)
-    }
-
     async function loadUser() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
@@ -63,9 +99,7 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
             .single()
 
           if (profile) {
-            if (!initialRole) {
-              setCurrentRole((profile.role as UserRole) || 'user')
-            }
+            setProfileRole((profile.role as UserRole) || 'user')
             setUserName(profile.nama_lengkap || user.email?.split('@')[0] || 'Pengguna')
           } else {
             setUserName(user.email?.split('@')[0] || 'Pengguna')
@@ -93,56 +127,41 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
     }
   }
 
-  const roleLabels: Record<UserRole, { title: string; color: string }> = {
-    admin: { title: 'Admin Sistem', color: 'bg-red-800 text-white' },
-    pic_arsip: { title: 'PIC Arsip', color: 'bg-[#1F5C55] text-white' },
-    atasan: { title: 'Atasan / Approval', color: 'bg-[#9A6700] text-white' },
-    user: { title: 'Pengaju (User)', color: 'bg-[#1E2429] text-white' },
-    accounting: { title: 'Accounting', color: 'bg-emerald-800 text-white' },
-    viewer: { title: 'Viewer (Hanya Lihat)', color: 'bg-stone-600 text-white' },
-  }
-
   const navItems: NavItem[] = [
-    { 
-      label: 'Dashboard', 
-      href: '/dashboard', 
-      icon: LayoutDashboard, 
-      roles: ['admin', 'pic_arsip', 'atasan', 'user', 'accounting', 'viewer'] 
+    {
+      label: 'Dashboard',
+      href: '/dashboard',
+      icon: LayoutDashboard,
+      roles: ['admin', 'pic_arsip', 'atasan', 'user', 'accounting', 'viewer'],
     },
-    { 
-      label: 'Katalog Dokumen', 
-      icon: FolderArchive, 
+    {
+      label: 'Katalog Dokumen',
+      icon: FolderArchive,
       roles: ['admin', 'pic_arsip', 'atasan', 'user', 'accounting', 'viewer'],
       children: [
         { label: 'Daftar Dokumen', href: '/dokumen', roles: ['admin', 'pic_arsip', 'atasan', 'user', 'accounting', 'viewer'] },
         { label: 'Verifikasi Dokumen', href: '/persetujuan', roles: ['admin', 'pic_arsip', 'atasan'] },
         { label: 'Penyimpanan Dokumen', href: '/serah-terima', roles: ['admin', 'pic_arsip', 'user'] },
-      ]
+      ],
     },
-    { 
-      label: 'Kas & Pembayaran', 
-      href: '/pembayaran', 
-      icon: CreditCard, 
-      roles: ['admin', 'pic_arsip', 'accounting', 'user'] 
+    {
+      label: 'Kas & Pembayaran',
+      href: '/pembayaran',
+      icon: CreditCard,
+      roles: ['admin', 'pic_arsip', 'accounting', 'user'],
     },
-    { 
-      label: 'Buku Log Riwayat', 
-      href: '/riwayat', 
-      icon: History, 
-      roles: ['admin', 'pic_arsip', 'atasan', 'accounting'] 
-    },
-    { 
-      label: 'Pengaturan Sistem', 
-      href: '/pengaturan/pengguna', 
-      icon: Settings, 
-      roles: ['admin'] 
+    {
+      label: 'Buku Log Riwayat',
+      href: '/riwayat',
+      icon: History,
+      roles: ['admin', 'pic_arsip', 'atasan', 'accounting'],
     },
   ]
 
   const accessibleNavs = navItems
-    .map(item => {
+    .map((item) => {
       if (item.children) {
-        const filteredChildren = item.children.filter(child => child.roles.includes(currentRole))
+        const filteredChildren = item.children.filter((child) => child.roles.includes(currentRole))
         if (filteredChildren.length === 0) return null
         return { ...item, children: filteredChildren }
       }
@@ -150,161 +169,183 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
     })
     .filter(Boolean) as NavItem[]
 
+  const roleTitle = roleTitles[currentRole] || currentRole
+
+  const navLinkClass = (active: boolean) =>
+    `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+      active
+        ? 'bg-[#3BA4E8] text-white shadow-sm shadow-[#3BA4E8]/30'
+        : 'text-[#4B5163] hover:bg-[#EEF7FD] hover:text-[#1F2333]'
+    } ${isCollapsed ? 'md:justify-center md:px-0' : ''}`
+
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-[#F7F3EB]">
-      {/* Sidebar Anti-Slop (Tema Berkas Arsip Klasik Tegas) */}
-      <aside className="w-full md:w-64 bg-[#1E2429] text-[#F7F3EB] flex flex-col shrink-0 border-r border-[#D8D2C4]">
-        {/* Brand Header */}
-        <div className="p-4 border-b border-[#2D353C] flex items-center justify-between">
-          <div className="flex flex-col gap-1">
-            <Image
-              src="/pic/logo_gabungan.png"
-              alt="Archiva"
-              width={1019}
-              height={245}
-              priority
-              className="h-13 sm:h-14 w-auto -ml-1 object-contain"
-            />
-            <span className="font-mono text-[10px] text-[#8C9399] tracking-wider uppercase">
-              v1.0 • Standar 3 Thn
-            </span>
+    <AppUserContext.Provider value={{ name: userName, role: currentRole, roleTitle }}>
+      <div className="min-h-screen flex flex-col md:flex-row bg-[#F7F8FC] text-[#1F2333]">
+        {/* ================= SIDEBAR ================= */}
+        <aside
+          className={`w-full ${isCollapsed ? 'md:w-20' : 'md:w-64'} bg-white flex flex-col shrink-0 border-r border-[#ECEEF5] md:sticky md:top-0 md:h-screen transition-[width] duration-200`}
+        >
+          {/* Brand */}
+          <div className="h-16 px-5 flex items-center justify-between border-b border-[#ECEEF5]">
+            {!isCollapsed && (
+              <Image
+                src="/pic/Logo-gabungan-gelap.png"
+                alt="Archiva"
+                width={838}
+                height={132}
+                priority
+                className="h-6 w-auto object-contain"
+              />
+            )}
           </div>
-        </div>
 
-        {/* Info Pemegang Sesi */}
-        <div className="p-3.5 bg-[#171C20] border-b border-[#2D353C] text-xs">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[#8C9399] font-mono text-[10px] uppercase">Akses Peran:</span>
-            <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-none uppercase ${roleLabels[currentRole]?.color || 'bg-stone-600 text-white'}`}>
-              {roleLabels[currentRole]?.title || currentRole}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-stone-200 mt-1">
-            <UserCheck className="w-3.5 h-3.5 text-[#8C9399]" />
-            <span className="truncate font-medium">{userName}</span>
-          </div>
-        </div>
-
-        {/* Navigasi Kerja */}
-        <nav className="p-2 space-y-1 flex-1 overflow-y-auto">
-          {accessibleNavs.map((item) => {
-            const Icon = item.icon
-
-            // Jika item memiliki submenu (dropdown)
-            if (item.children) {
-              const isChildActive = item.children.some(child => pathname === child.href)
-              return (
-                <div key={item.label} className="space-y-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setIsKatalogOpen(prev => !prev)}
-                    className={`w-full flex items-center justify-between px-3 py-2 text-xs sm:text-sm font-medium transition-colors ${
-                      isChildActive
-                        ? 'text-[#F7F3EB] bg-[#252C33]'
-                        : 'text-[#D8D2C4] hover:bg-[#2D353C] hover:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Icon className={`w-4 h-4 shrink-0 ${isChildActive ? 'text-[#F7F3EB]' : 'text-[#8C9399]'}`} />
-                      <span>{item.label}</span>
-                    </div>
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 text-[#8C9399] transition-transform duration-200 ${
-                        isKatalogOpen ? 'rotate-180 text-[#F7F3EB]' : ''
-                      }`}
-                    />
-                  </button>
-                  {isKatalogOpen && (
-                    <div className="ml-4 pl-3 border-l border-[#2D353C] space-y-0.5 py-1">
-                      {item.children.map((subItem) => {
-                        const isSubActive = pathname === subItem.href
-                        return (
-                          <Link
-                            key={subItem.href}
-                            href={subItem.href}
-                            className={`flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                              isSubActive
-                                ? 'bg-[#F7F3EB] text-[#1E2429] font-semibold'
-                                : 'text-[#8C9399] hover:text-white hover:bg-[#2D353C]'
-                            }`}
-                          >
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                isSubActive ? 'bg-[#1E2429]' : 'bg-[#5B6166]'
-                              }`}
-                            />
-                            <span>{subItem.label}</span>
-                          </Link>
-                        )
-                      })}
-                    </div>
-                  )}
+          {/* Workspace / Peran aktif */}
+          {!isCollapsed && (
+            <div className="px-5 pt-5 pb-3">
+              <div className="flex items-center justify-between rounded-lg px-1 py-1">
+                <div className="min-w-0">
+                  <p className="text-[15px] font-semibold text-[#1F2333] truncate">Arsip Instansi</p>
+                  <p className="text-xs text-[#8A90A2] truncate">{roleTitle}</p>
                 </div>
+                <ChevronsUpDown className="w-4 h-4 text-[#6B7185] shrink-0" />
+              </div>
+            </div>
+          )}
+
+          {/* Navigasi utama */}
+          <nav className={`px-3 pb-4 space-y-1 flex-1 overflow-y-auto ${isCollapsed ? 'pt-4' : ''}`}>
+            {accessibleNavs.map((item) => {
+              const Icon = item.icon
+
+              if (item.children) {
+                const isChildActive = item.children.some((child) => pathname === child.href)
+                return (
+                  <div key={item.label} className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsKatalogOpen((prev) => !prev)}
+                      title={item.label}
+                      className={`w-full flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                        isChildActive
+                          ? 'text-[#1E86C8] bg-[#EAF5FD]'
+                          : 'text-[#4B5163] hover:bg-[#EEF7FD] hover:text-[#1F2333]'
+                      } ${isCollapsed ? 'md:justify-center md:px-0' : ''}`}
+                    >
+                      <span className="flex items-center gap-3">
+                        <Icon className="w-[18px] h-[18px] shrink-0" />
+                        {!isCollapsed && <span>{item.label}</span>}
+                      </span>
+                      {!isCollapsed && (
+                        <ChevronDown
+                          className={`w-4 h-4 transition-transform duration-200 ${isKatalogOpen ? 'rotate-180' : ''}`}
+                        />
+                      )}
+                    </button>
+                    {isKatalogOpen && !isCollapsed && (
+                      <div className="ml-[22px] pl-4 border-l border-[#E3E6F0] space-y-0.5 py-1">
+                        {item.children.map((subItem) => {
+                          const isSubActive = pathname === subItem.href
+                          return (
+                            <Link
+                              key={subItem.href}
+                              href={subItem.href}
+                              className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium transition-colors ${
+                                isSubActive
+                                  ? 'bg-[#3BA4E8] text-white'
+                                  : 'text-[#6B7185] hover:text-[#1F2333] hover:bg-[#EEF7FD]'
+                              }`}
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                  isSubActive ? 'bg-white' : 'bg-[#C3C8D8]'
+                                }`}
+                              />
+                              <span>{subItem.label}</span>
+                            </Link>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+
+              const isActive = pathname === item.href
+              return (
+                <Link key={item.href} href={item.href!} title={item.label} className={navLinkClass(isActive)}>
+                  <Icon className="w-[18px] h-[18px] shrink-0" />
+                  {!isCollapsed && <span>{item.label}</span>}
+                </Link>
               )
-            }
+            })}
+          </nav>
 
-            // Item navigasi biasa
-            const isActive = pathname === item.href
-            return (
+          {/* Bagian bawah sidebar */}
+          <div className="px-3 py-4 border-t border-[#ECEEF5] space-y-1">
+            {currentRole === 'admin' && (
               <Link
-                key={item.href}
-                href={item.href!}
-                className={`flex items-center gap-3 px-3 py-2 text-xs sm:text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-[#F7F3EB] text-[#1E2429] font-semibold'
-                    : 'text-[#D8D2C4] hover:bg-[#2D353C] hover:text-white'
-                }`}
+                href="/pengaturan/pengguna"
+                title="Pengaturan Sistem"
+                className={navLinkClass(pathname.startsWith('/pengaturan'))}
               >
-                <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#1E2429]' : 'text-[#8C9399]'}`} />
-                <span>{item.label}</span>
+                <Settings className="w-[18px] h-[18px] shrink-0" />
+                {!isCollapsed && <span>Pengaturan</span>}
               </Link>
-            )
-          })}
-        </nav>
-
-        {/* Footer Sidebar */}
-        <div className="p-3 border-t border-[#2D353C] text-xs">
-          <button
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-            className="w-full flex items-center gap-2 px-3 py-2 text-stone-400 hover:text-white hover:bg-[#2D353C] text-left transition-colors font-medium disabled:opacity-50"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>{isLoggingOut ? 'Mengakhiri Sesi...' : 'Keluar Sesi'}</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content Viewport */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Topbar Arsip */}
-        <header className="bg-white border-b border-[#D8D2C4] px-4 sm:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs px-2 py-0.5 bg-[#F7F3EB] border border-[#D8D2C4] text-[#1A1D21]">
-              INSTANSI ARSIP NASIONAL
-            </span>
-            <span className="hidden sm:inline text-xs text-[#5B6166]">
-              • Ruang Simpan Aktif & Inaktif
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-[#5B6166] font-mono hidden sm:inline">
-              3 Nov 2026
-            </span>
-            <Link
-              href="/dokumen/upload"
-              className="px-3 py-1.5 bg-[#1F5C55] hover:bg-[#184843] text-white text-xs font-medium flex items-center gap-1.5 transition-colors"
+            )}
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              title="Keluar Sesi"
+              className={`w-full ${navLinkClass(false)} disabled:opacity-50`}
             >
-              <span>+ Upload Dokumen</span>
-            </Link>
+              <LogOut className="w-[18px] h-[18px] shrink-0" />
+              {!isCollapsed && <span>{isLoggingOut ? 'Mengakhiri Sesi...' : 'Keluar Sesi'}</span>}
+            </button>
           </div>
-        </header>
+        </aside>
 
-        {/* Konten Halaman */}
-        <main className="p-4 sm:p-6 lg:p-8 flex-1 overflow-y-auto">
-          {children}
-        </main>
+        {/* ================= KONTEN ================= */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Topbar */}
+          <header className="h-16 bg-white border-b border-[#ECEEF5] px-4 sm:px-8 flex items-center justify-between gap-4 md:sticky md:top-0 z-20">
+            <div className="relative w-full max-w-xs">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9AA0B2]" />
+              <input
+                type="search"
+                placeholder="Cari dokumen, kode arsip, dll..."
+                className="w-full rounded-lg border border-[#E3E6F0] bg-white pl-10 pr-3 py-2 text-sm placeholder:text-[#A5ABBC] focus:outline-none focus:border-[#3BA4E8] focus:ring-2 focus:ring-[#3BA4E8]/15 transition"
+              />
+            </div>
+
+            <div className="flex items-center gap-4 shrink-0">
+              <button
+                type="button"
+                className="relative p-1.5 text-[#4B5163] hover:text-[#1F2333] transition-colors"
+                title="Notifikasi"
+              >
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#E5484D] ring-2 ring-white" />
+              </button>
+              <span className="hidden sm:block w-px h-7 bg-[#E3E6F0]" />
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-[#3BA4E8] text-white text-sm font-semibold flex items-center justify-center">
+                  {getInitials(userName) || '?'}
+                </div>
+                <div className="hidden sm:block leading-tight">
+                  <p className="text-sm font-semibold text-[#1F2333] max-w-[160px] truncate">{userName}</p>
+                  <p className="text-xs text-[#8A90A2]">{roleTitle}</p>
+                </div>
+              </div>
+              <button type="button" className="p-1 text-[#6B7185] hover:text-[#1F2333]" title="Menu lainnya">
+                <MoreVertical className="w-5 h-5" />
+              </button>
+            </div>
+          </header>
+
+          <main className="p-4 sm:p-6 lg:p-8 flex-1">{children}</main>
+        </div>
       </div>
-    </div>
+    </AppUserContext.Provider>
   )
 }
