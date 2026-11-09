@@ -221,3 +221,4 @@ export function DocumentQR({
     </div>
   )
 }
+

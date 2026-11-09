@@ -321,7 +321,7 @@ function DaftarDokumenContent() {
 
   // ---------------- PERMISSION ----------------
   const isPrivileged = PRIVILEGED.includes(role)
-  const canCreate = role !== 'viewer' && role !== 'accounting'
+  const canCreate = role === 'user'
   const isOwnerPending = (doc: DocRow) => doc.pemilik_id === userId && doc.status === 'menunggu_persetujuan'
   const canEdit = (doc: DocRow) => isDemo ? canCreate : isPrivileged || isOwnerPending(doc)
   const canDelete = (doc: DocRow) =>

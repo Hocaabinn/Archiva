@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import QRCode from 'qrcode'
 import { catatLogAktivitas, kirimNotifikasiKeUser } from '@/lib/server-dokumen'
 
 export const dynamic = 'force-dynamic'
@@ -78,16 +79,41 @@ export async function POST(
     const nowISO = now.toISOString()
     const expDateISO = expDate.toISOString().slice(0, 10) // format YYYY-MM-DD
 
-    // 5. Update data: ubah status menjadi aktif, isi tanggal disetujui, tanggal kadaluarsa, dan disetujui_oleh
+    // 5. Terbitkan QR Code ke bucket barcode bila belum ada
+    let barcodeStoragePath: string | null = null
+    try {
+      const qrBuffer = await QRCode.toBuffer(doc.kode_arsip, {
+        width: 300,
+        margin: 1,
+        color: { dark: '#1A1D21', light: '#FFFFFF' },
+      })
+      const qrFileName = `qr/${doc.kode_arsip}.png`
+      const { error: qrErr } = await admin.storage
+        .from('barcode')
+        .upload(qrFileName, qrBuffer, {
+          contentType: 'image/png',
+          upsert: true,
+        })
+      if (!qrErr) barcodeStoragePath = qrFileName
+    } catch (e) {
+      console.warn('Gagal menerbitkan file QR di storage:', e)
+    }
+
+    // 6. Update data: ubah status menjadi aktif, isi tanggal disetujui, tanggal kadaluarsa, barcode_path, dan disetujui_oleh
+    const updatePayload: Record<string, unknown> = {
+      status: 'aktif',
+      disetujui_oleh: user.id,
+      tanggal_disetujui: nowISO,
+      tanggal_kadaluarsa: expDateISO,
+      updated_at: nowISO,
+    }
+    if (barcodeStoragePath) {
+      updatePayload.barcode_path = barcodeStoragePath
+    }
+
     const { error: updateError } = await admin
       .from('dokumen')
-      .update({
-        status: 'aktif',
-        disetujui_oleh: user.id,
-        tanggal_disetujui: nowISO,
-        tanggal_kadaluarsa: expDateISO,
-        updated_at: nowISO,
-      })
+      .update(updatePayload)
       .eq('id', doc.id)
 
     if (updateError) {
@@ -128,3 +154,4 @@ export async function POST(
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
+

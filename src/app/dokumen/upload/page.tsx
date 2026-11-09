@@ -96,12 +96,6 @@ export default function UploadDokumenPage() {
   const handleMainFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
-      if (file.size > 20 * 1024 * 1024) {
-        setErrorMsg('Ukuran berkas utama melebihi batas maksimal 20 MB.')
-        setSelectedFile(null)
-        return
-      }
-
       setSelectedFile(file)
       setErrorMsg(null)
 
@@ -214,8 +208,8 @@ export default function UploadDokumenPage() {
     )
   }
 
-  // Jika bukan Pengaju atau Admin (misal Viewer atau Accounting)
-  if (currentUserRole && currentUserRole !== 'user' && currentUserRole !== 'admin') {
+  // Hanya Pengaju (user) yang diizinkan mengunggah sesuai Blueprint Bab 5
+  if (currentUserRole && currentUserRole !== 'user') {
     return (
       <AppLayout>
         <div className="max-w-2xl mx-auto py-12">
@@ -539,7 +533,7 @@ export default function UploadDokumenPage() {
                     : 'Pilih Berkas Dokumen Utama (PDF, JPG, PNG)'}
                 </label>
                 <p className="text-[10px] text-[#8C9399] mt-1 font-mono">
-                  Batas maks. 20 MB • Disimpan di bucket privat arsip-aktif
+                  Format berkas: PDF, PNG, JPG • Disimpan di bucket privat arsip-aktif
                 </p>
               </div>
             </div>
