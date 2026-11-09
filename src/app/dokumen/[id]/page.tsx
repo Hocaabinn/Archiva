@@ -93,9 +93,10 @@ export default function DetailDokumenPage({ params }: PageProps) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null)
 
-  // Modal State untuk Aksi Approval / Tolak / Ajukan Ulang
-  const [modalType, setModalType] = useState<'verifikasi' | 'approve' | 'tolak' | 'ajukan_ulang' | null>(null)
+  // Modal State untuk Aksi Approval / Tolak / Ajukan Ulang / Pembatalan
+  const [modalType, setModalType] = useState<'verifikasi' | 'approve' | 'tolak' | 'ajukan_ulang' | 'batal' | null>(null)
   const [alasanTolak, setAlasanTolak] = useState('')
+  const [alasanBatal, setAlasanBatal] = useState('')
   const [isSubmittingModal, setIsSubmittingModal] = useState(false)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -313,10 +314,25 @@ export default function DetailDokumenPage({ params }: PageProps) {
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Gagal mengajukan ulang dokumen.')
         showToast('success', 'Dokumen berhasil diperbaiki dan diajukan ulang untuk verifikasi PIC Arsip.')
+      } else if (modalType === 'batal') {
+        if (!alasanBatal.trim()) {
+          showToast('error', 'Alasan pembatalan dokumen wajib diisi.')
+          setIsSubmittingModal(false)
+          return
+        }
+        const res = await fetch(`/api/dokumen/${doc.id}/batal`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ alasan: alasanBatal.trim() }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Gagal membatalkan dokumen.')
+        showToast('success', `Dokumen ${doc.kode_arsip} resmi dibatalkan dan berstatus DIBATALKAN.`)
       }
 
       setModalType(null)
       setAlasanTolak('')
+      setAlasanBatal('')
       await loadDocumentData()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Terjadi kesalahan sistem'
@@ -382,13 +398,26 @@ export default function DetailDokumenPage({ params }: PageProps) {
               <span>Cetak Lembar</span>
             </button>
             {doc.status === 'aktif' && (
-              <Link
-                href={`/serah-terima?kode=${doc.kode_arsip}`}
-                className="px-3 py-1.5 bg-[#1F5C55] hover:bg-[#184843] text-white font-semibold flex items-center gap-1.5 transition-colors"
-              >
-                <QrCode className="w-3.5 h-3.5" />
-                <span>Serah Terima</span>
-              </Link>
+              <>
+                <Link
+                  href={`/serah-terima?kode=${doc.kode_arsip}`}
+                  className="px-3 py-1.5 bg-[#1F5C55] hover:bg-[#184843] text-white font-semibold flex items-center gap-1.5 transition-colors"
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>Serah Terima</span>
+                </Link>
+                {isAtasan && (
+                  <button
+                    type="button"
+                    onClick={() => setModalType('batal')}
+                    className="px-3 py-1.5 bg-white border border-red-700 hover:bg-red-50 text-red-800 font-semibold flex items-center gap-1.5 transition-colors"
+                    title="Pembatalan Dokumen Aktif oleh Atasan (Blueprint Bab 6.7)"
+                  >
+                    <XCircle className="w-3.5 h-3.5 text-red-700" />
+                    <span>Batalkan Dokumen</span>
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -740,6 +769,8 @@ export default function DetailDokumenPage({ params }: PageProps) {
                     ? 'Pengesahan Akhir (Atasan)'
                     : modalType === 'tolak'
                     ? 'Tolak Pengajuan Dokumen'
+                    : modalType === 'batal'
+                    ? 'Pembatalan Dokumen Aktif (Atasan)'
                     : 'Perbaiki & Ajukan Ulang Dokumen'}
                 </h3>
                 <p className="font-mono text-xs text-[#5B6166]">
@@ -782,6 +813,27 @@ export default function DetailDokumenPage({ params }: PageProps) {
                   placeholder="Tuliskan alasan penolakan secara jelas..."
                   className="w-full p-2.5 border border-[#D8D2C4] bg-[#F7F3EB]/30 focus:border-[#1A1D21] focus:outline-none"
                 />
+              </div>
+            )}
+
+            {modalType === 'batal' && (
+              <div className="space-y-3 font-sans">
+                <p className="leading-relaxed text-[#1A1D21]">
+                  Sesuai ketentuan Blueprint Bab 6.7, pembatalan dokumen Aktif hanya dapat disahkan oleh Atasan. Kode arsip <strong>{doc.kode_arsip}</strong> akan tetap disimpan dan tidak akan dipakai ulang. Dokumen akan berstatus <strong>DIBATALKAN</strong>.
+                </p>
+                <div>
+                  <label className="block font-mono text-[11px] font-bold text-[#1A1D21] uppercase mb-1">
+                    Alasan Pembatalan Dokumen <span className="text-red-700">*</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={alasanBatal}
+                    onChange={(e) => setAlasanBatal(e.target.value)}
+                    placeholder="Tuliskan alasan resmi pembatalan dokumen aktif ini..."
+                    className="w-full p-2.5 border border-[#D8D2C4] bg-[#F7F3EB]/30 focus:border-red-700 focus:outline-none text-xs"
+                  />
+                </div>
               </div>
             )}
 
@@ -861,11 +913,15 @@ export default function DetailDokumenPage({ params }: PageProps) {
               </button>
               <button
                 type="button"
-                disabled={isSubmittingModal || (modalType === 'tolak' && !alasanTolak.trim())}
+                disabled={
+                  isSubmittingModal ||
+                  (modalType === 'tolak' && !alasanTolak.trim()) ||
+                  (modalType === 'batal' && !alasanBatal.trim())
+                }
                 onClick={handleExecuteModal}
                 className={`px-5 py-2 text-white font-semibold transition-colors disabled:opacity-50 ${
-                  modalType === 'tolak'
-                    ? 'bg-red-700 hover:bg-red-800'
+                  modalType === 'tolak' || modalType === 'batal'
+                    ? 'bg-red-800 hover:bg-red-900'
                     : 'bg-[#1F5C55] hover:bg-[#184843]'
                 }`}
               >
@@ -877,6 +933,8 @@ export default function DetailDokumenPage({ params }: PageProps) {
                   ? 'Konfirmasi Sahkan Aktif'
                   : modalType === 'tolak'
                   ? 'Konfirmasi Tolak'
+                  : modalType === 'batal'
+                  ? 'Konfirmasi Batalkan Dokumen'
                   : 'Kirim Ajukan Ulang'}
               </button>
             </div>
