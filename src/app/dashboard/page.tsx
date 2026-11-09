@@ -4,7 +4,8 @@ import { useSearchParams } from 'next/navigation'
 import { Suspense, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { AppLayout, useAppUser } from '@/components/layout/app-layout'
-import { UserRole } from '@/types'
+import { UserRole, DokumenStatus } from '@/types'
+import { StampBadge } from '@/components/ui/stamp-badge'
 import {
   ArrowUp,
   ArrowDown,
@@ -21,7 +22,7 @@ import {
 // ============================================================
 // DATA CONTOH (sesuai PRD & DESIGN.md)
 // ============================================================
-type DocStatus = 'aktif' | 'menunggu_persetujuan' | 'nonaktif' | 'ditolak'
+type DocStatus = DokumenStatus
 
 interface DocumentItem {
   id: string
@@ -79,7 +80,7 @@ const sampleDocuments: DocumentItem[] = [
     judul: 'Berita Acara Pengadaan Server & Basis Data Utama 2023',
     nomor_surat: 'BA-240/TIK-LOG/XI/2023',
     kategori: 'Operasional & Logistik',
-    status: 'nonaktif',
+    status: 'inaktif',
     pemegang: 'Sistem (Gudang)',
     waktu: 'Kemarin',
     sisa_hari: 0,
@@ -99,21 +100,22 @@ const sampleDocuments: DocumentItem[] = [
   },
 ]
 
-// Arsip masuk vs berpindah ke non-aktif per bulan (6 bulan terakhir)
+// Arsip masuk vs berpindah ke inaktif per bulan (6 bulan terakhir)
 const monthlyArchive = [
-  { bulan: 'JUN', label: 'Jun 2026', masuk: 102, nonaktif: 44 },
-  { bulan: 'JUL', label: 'Jul 2026', masuk: 141, nonaktif: 62 },
-  { bulan: 'AGU', label: 'Agu 2026', masuk: 120, nonaktif: 70 },
-  { bulan: 'SEP', label: 'Sep 2026', masuk: 168, nonaktif: 59 },
-  { bulan: 'OKT', label: 'Okt 2026', masuk: 74, nonaktif: 41 },
-  { bulan: 'NOV', label: 'Nov 2026', masuk: 115, nonaktif: 68 },
+  { bulan: 'JUN', label: 'Jun 2026', masuk: 102, inaktif: 44 },
+  { bulan: 'JUL', label: 'Jul 2026', masuk: 141, inaktif: 62 },
+  { bulan: 'AGU', label: 'Agu 2026', masuk: 120, inaktif: 70 },
+  { bulan: 'SEP', label: 'Sep 2026', masuk: 168, inaktif: 59 },
+  { bulan: 'OKT', label: 'Okt 2026', masuk: 74, inaktif: 41 },
+  { bulan: 'NOV', label: 'Nov 2026', masuk: 115, inaktif: 68 },
 ]
 
 const statusPill: Record<DocStatus, { label: string; className: string }> = {
   aktif: { label: 'Aktif', className: 'bg-[#E7F6EC] text-[#2F9E5B]' },
   menunggu_persetujuan: { label: 'Menunggu', className: 'bg-[#FFF4DE] text-[#C98A1B]' },
-  nonaktif: { label: 'Non-Aktif', className: 'bg-[#EEF0F4] text-[#6B7185]' },
+  inaktif: { label: 'Inaktif', className: 'bg-[#EEF0F4] text-[#6B7185]' },
   ditolak: { label: 'Ditolak', className: 'bg-[#FDECEC] text-[#D64545]' },
+  dibatalkan: { label: 'Dibatalkan', className: 'bg-[#FDECEC] text-[#800000]' },
 }
 
 const DONUT_COLORS = ['#3BA4E8', '#86C8F2', '#C4E4FA', '#E6F3FD']
@@ -240,7 +242,7 @@ function ArchiveBarChart() {
                   />
                   <div
                     className="w-3 sm:w-4 rounded-t-[4px] bg-[#BFE2F8]"
-                    style={{ height: `${(m.nonaktif / max) * 100}%` }}
+                    style={{ height: `${(m.inaktif / max) * 100}%` }}
                   />
                 </div>
                 <span className="h-6 flex items-end text-[11px] text-[#6B7185]">{m.bulan}</span>
@@ -364,7 +366,7 @@ function DashboardBody() {
   const totalAktif = sampleDocuments.filter((d) => d.status === 'aktif').length
   const totalMenunggu = sampleDocuments.filter((d) => d.status === 'menunggu_persetujuan').length
   const totalKritis = sampleDocuments.filter((d) => d.status === 'aktif' && d.sisa_hari !== null && d.sisa_hari < 90).length
-  const totalNonaktif = sampleDocuments.filter((d) => d.status === 'nonaktif').length
+  const totalInaktif = sampleDocuments.filter((d) => d.status === 'inaktif').length
 
   const activities = useMemo(
     () => sampleDocuments.filter((d) => statusFilter === 'semua' || d.status === statusFilter),
@@ -375,7 +377,9 @@ function DashboardBody() {
     { id: 'semua', label: 'Semua Status' },
     { id: 'aktif', label: 'Aktif' },
     { id: 'menunggu_persetujuan', label: 'Menunggu Persetujuan' },
-    { id: 'nonaktif', label: 'Non-Aktif' },
+    { id: 'inaktif', label: 'Inaktif' },
+    { id: 'ditolak', label: 'Ditolak' },
+    { id: 'dibatalkan', label: 'Dibatalkan' },
   ]
 
   return (
@@ -465,7 +469,7 @@ function DashboardBody() {
           <StatCard title="Arsip Aktif" value={`${totalAktif} berkas`} trend="+20,1%" trendUp note="+2 bulan ini" href="/dokumen" />
           <StatCard title="Antrean Persetujuan" value={`${totalMenunggu} berkas`} trend="+10,6%" trendUp note="+1 hari ini" href="/persetujuan" />
           <StatCard title="Kedaluwarsa < 90 Hari" value={`${totalKritis} berkas`} trend="-10%" trendUp={false} note="H-42 terdekat" href="/dokumen" />
-          <StatCard title="Gudang Non-Aktif" value={`${totalNonaktif} berkas`} trend="+12%" trendUp note="dapat direaktivasi" href="/dokumen" />
+          <StatCard title="Gudang Inaktif" value={`${totalInaktif} berkas`} trend="+12%" trendUp note="dapat dipinjam" href="/dokumen" />
         </div>
         <div className="xl:col-span-6">
           <ArchiveBarChart />

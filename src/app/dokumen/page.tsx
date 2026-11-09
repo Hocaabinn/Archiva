@@ -4,6 +4,8 @@ import { useState, useMemo, useEffect, useCallback, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
+import { StampBadge } from '@/components/ui/stamp-badge'
+import { DocumentQR } from '@/components/documents/qr-code'
 import { UserRole, DokumenStatus } from '@/types'
 import {
   Search,
@@ -656,14 +658,13 @@ function DaftarDokumenContent() {
               )}
             </div>
             {canCreate && (
-              <button
-                type="button"
-                onClick={openCreate}
-                className="flex items-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-medium text-white shadow-sm shadow-[#3BA4E8]/30 transition-colors hover:bg-[#2A92D6]"
+              <Link
+                href="/dokumen/upload"
+                className="flex items-center gap-2 rounded-lg bg-[#1F5C55] px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#184843]"
               >
                 <Plus className="h-4 w-4" />
                 Tambah Dokumen
-              </button>
+              </Link>
             )}
           </div>
         </div>
@@ -827,9 +828,7 @@ function DaftarDokumenContent() {
                       </td>
                       <td className="whitespace-nowrap px-4 py-3.5 text-[#4B5163]">{doc.kategori}</td>
                       <td className="whitespace-nowrap px-4 py-3.5">
-                        <span className={`inline-flex rounded-md px-2.5 py-1 text-xs font-medium ${statusPill[doc.status].className}`}>
-                          {statusPill[doc.status].label}
-                        </span>
+                        <StampBadge status={doc.status} />
                       </td>
                       <td className="whitespace-nowrap px-4 py-3.5 text-[#4B5163]">{doc.lokasi_saat_ini}</td>
                       <td className="whitespace-nowrap px-4 py-3.5">
@@ -851,7 +850,7 @@ function DaftarDokumenContent() {
                     <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#EAF5FD] text-[#3BA4E8]">
                       <FileText className="h-5 w-5" />
                     </span>
-                    <span className={`rounded-md px-2.5 py-1 text-xs font-medium ${statusPill[doc.status].className}`}>{statusPill[doc.status].label}</span>
+                    <StampBadge status={doc.status} />
                   </div>
                   <Link href={`/dokumen/${doc.id}`} className="mt-3 line-clamp-2 font-semibold leading-snug text-[#1F2333] hover:text-[#1E86C8]">
                     {doc.judul}
@@ -987,8 +986,9 @@ function DaftarDokumenContent() {
                   >
                     <option value="menunggu_persetujuan">Menunggu Persetujuan</option>
                     <option value="aktif">Aktif</option>
-                    <option value="nonaktif">Non-Aktif</option>
+                    <option value="inaktif">Inaktif</option>
                     <option value="ditolak">Ditolak</option>
+                    <option value="dibatalkan">Dibatalkan</option>
                   </select>
                 </Field>
               )}
@@ -1089,26 +1089,14 @@ function DaftarDokumenContent() {
 
       {/* ================= MODAL QR ================= */}
       {qrDoc && (
-        <Modal title="Label QR Dokumen" subtitle={`#${qrDoc.kode_arsip}`} onClose={() => setQrDoc(null)} maxWidth="max-w-sm">
-          <div className="px-6 py-5 text-center">
-            <div className="mx-auto flex h-44 w-44 items-center justify-center rounded-xl border border-[#ECEEF5] bg-white shadow-sm">
-              <QrCode className="h-36 w-36 text-[#1F2333]" />
-            </div>
-            <p className="mt-4 font-semibold tracking-wider text-[#1F2333]">{qrDoc.kode_arsip}</p>
-            <p className="mt-1 line-clamp-2 text-sm text-[#6B7185]">{qrDoc.judul}</p>
-            <p className="mt-1 text-xs text-[#8A90A2]">{qrDoc.lokasi_saat_ini}</p>
-          </div>
-          <div className="flex items-center justify-end gap-3 border-t border-[#ECEEF5] px-6 py-4">
-            <button type="button" onClick={() => setQrDoc(null)} className="rounded-lg border border-[#E3E6F0] px-4 py-2 text-sm font-medium text-[#4B5163] hover:bg-[#F4F5FA]">
-              Tutup
-            </button>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="flex items-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-medium text-white hover:bg-[#2A92D6]"
-            >
-              <Printer className="h-4 w-4" /> Cetak Label
-            </button>
+        <Modal title="Label QR Dokumen Fisik" subtitle={`#${qrDoc.kode_arsip}`} onClose={() => setQrDoc(null)} maxWidth="max-w-md">
+          <div className="p-6">
+            <DocumentQR
+              kodeArsip={qrDoc.kode_arsip}
+              judul={qrDoc.judul}
+              nomorDokumen={qrDoc.nomor_dokumen || undefined}
+              size={180}
+            />
           </div>
         </Modal>
       )}
