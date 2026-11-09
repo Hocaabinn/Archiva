@@ -1,0 +1,110 @@
+// ERD Aplikasi Manajemen Arsip Dokumen (Archiva)
+// Versi Blueprint R.02 — PT Semen Indonesia Group
+
+Table profiles {
+  id uuid [pk] // references auth.users(id)
+  email text [not null, unique]
+  nama text [not null]
+  nomor_pegawai text
+  jabatan text
+  role text [not null, default: 'user'] // admin, pic_arsip, atasan, user, accounting, viewer
+  avatar_url text
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table kategori_dokumen {
+  id uuid [pk]
+  nama text [not null, unique]
+  kode text [not null, unique]
+  deskripsi text
+  is_active boolean [default: true]
+  created_at timestamptz [default: `now()`]
+}
+
+Table dokumen {
+  id uuid [pk]
+  kode_arsip text [not null, unique] // Format: TAHUN_KODEPERUSAHAAN_NOPAYMENT_DOCVOUCHER
+  judul text [not null]
+  nomor_dokumen text // Doc Voucher
+  nomor_ppl text // No. Payment / PPL (10 digit)
+  penandatangan text
+  kategori_id uuid [ref: > kategori_dokumen.id]
+  pemilik_id uuid [ref: > profiles.id]
+  pemegang_saat_ini uuid [ref: > profiles.id]
+  lokasi_saat_ini text [default: 'Ruang Arsip Aktif']
+  tanggal_dokumen date [default: `CURRENT_DATE`]
+  tanggal_kadaluarsa date // tanggal_disetujui + 3 tahun
+  tanggal_masuk timestamptz [default: `now()`]
+  tanggal_disetujui timestamptz
+  status text [not null, default: 'menunggu_persetujuan'] // menunggu_persetujuan, aktif, ditolak, inaktif, dibatalkan
+  bucket text [not null, default: 'arsip-aktif']
+  file_path text [not null]
+  file_tipe text
+  ukuran_file bigint
+  barcode_path text
+  verifikasi_pic_oleh uuid [ref: > profiles.id]
+  disetujui_oleh uuid [ref: > profiles.id]
+  alasan_penolakan text
+  deskripsi text
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table peminjaman {
+  id uuid [pk]
+  dokumen_id uuid [not null, ref: > dokumen.id]
+  peminjam_id uuid [not null, ref: > profiles.id]
+  pic_inaktif_id uuid [ref: > profiles.id]
+  tanggal_pinjam timestamptz [default: `now()`]
+  tanggal_kembali timestamptz
+  status text [not null, default: 'Diajukan'] // Diajukan, Disetujui, Dipinjam, Dikembalikan, Ditolak
+  keperluan text [not null]
+  created_at timestamptz [default: `now()`]
+}
+
+Table serah_terima {
+  id uuid [pk]
+  dokumen_id uuid [not null, ref: > dokumen.id]
+  dari_user_id uuid [not null, ref: > profiles.id]
+  ke_user_id uuid [not null, ref: > profiles.id]
+  dari_lokasi text
+  ke_lokasi text
+  tanggal_serah timestamptz [default: `now()`]
+  tanggal_terima timestamptz
+  status_serah text [not null, default: 'Menunggu konfirmasi'] // Menunggu konfirmasi, Diterima, Ditolak
+  keterangan text
+  bukti_pdf_path text
+  created_at timestamptz [default: `now()`]
+}
+
+Table log_aktivitas {
+  id uuid [pk]
+  dokumen_id uuid [ref: > dokumen.id]
+  user_id uuid [ref: > profiles.id]
+  aksi text [not null] // upload, verifikasi PIC, approve Atasan, tolak, lihat, download, pindah Inaktif, peminjaman, serah terima, pembatalan
+  keterangan text
+  created_at timestamptz [default: `now()`]
+}
+
+Table notifikasi {
+  id uuid [pk]
+  user_id uuid [not null, ref: > profiles.id]
+  judul text [not null]
+  isi text [not null]
+  dokumen_id uuid [ref: > dokumen.id]
+  dibaca boolean [default: false]
+  created_at timestamptz [default: `now()`]
+}
+
+Table lampiran {
+  id uuid [pk]
+  dokumen_id uuid [not null, ref: > dokumen.id]
+  nama_file text [not null]
+  file_path text [not null]
+  file_size bigint [not null]
+  mime_type text [not null]
+  diunggah_oleh uuid [ref: > profiles.id]
+  created_at timestamptz [default: `now()`]
+}
+

@@ -103,7 +103,7 @@ const demoDocuments: DocRow[] = [
   {
     id: '4', kode_arsip: 'ARS-2023-0045', nomor_dokumen: 'BA-240/TIK-LOG/XI/2023',
     judul: 'Berita Acara Pengadaan Server & Komponen Basis Data Utama 2023', kategori_id: 'k-ops', kategori: 'Operasional & Logistik',
-    deskripsi: '', status: 'nonaktif', lokasi_saat_ini: 'Gudang Non-Aktif - Kotak B-12',
+    deskripsi: '', status: 'inaktif', lokasi_saat_ini: 'Gudang Inaktif - Kotak B-12',
     tanggal_dokumen: '2023-11-01', tanggal_kadaluarsa: '2026-11-01', file_size: 8_400_000,
     file_path: '', bucket: 'arsip-inaktif', pemilik_id: 'demo',
   },
@@ -119,8 +119,9 @@ const demoDocuments: DocRow[] = [
 const statusPill: Record<DokumenStatus, { label: string; className: string }> = {
   aktif: { label: 'Aktif', className: 'bg-[#E7F6EC] text-[#2F9E5B]' },
   menunggu_persetujuan: { label: 'Menunggu', className: 'bg-[#FFF4DE] text-[#C98A1B]' },
-  nonaktif: { label: 'Non-Aktif', className: 'bg-[#EEF0F4] text-[#6B7185]' },
+  inaktif: { label: 'Inaktif', className: 'bg-[#EEF0F4] text-[#6B7185]' },
   ditolak: { label: 'Ditolak', className: 'bg-[#FDECEC] text-[#D64545]' },
+  dibatalkan: { label: 'Dibatalkan', className: 'bg-[#FDECEC] text-[#800000]' },
 }
 
 const DOC_SELECT = `
@@ -362,8 +363,9 @@ function DaftarDokumenContent() {
       const s = sisaHari(d.tanggal_kadaluarsa)
       return d.status === 'aktif' && s !== null && s < 90
     }).length,
-    nonaktif: documents.filter((d) => d.status === 'nonaktif').length,
+    inaktif: documents.filter((d) => d.status === 'inaktif').length,
     ditolak: documents.filter((d) => d.status === 'ditolak').length,
+    dibatalkan: documents.filter((d) => d.status === 'dibatalkan').length,
   }
 
   const statusTabs = [
@@ -371,8 +373,9 @@ function DaftarDokumenContent() {
     { id: 'aktif', label: 'Aktif' },
     { id: 'menunggu_persetujuan', label: 'Menunggu' },
     { id: 'kritis', label: 'Kritis < 90 Hari' },
-    { id: 'nonaktif', label: 'Non-Aktif' },
+    { id: 'inaktif', label: 'Inaktif' },
     { id: 'ditolak', label: 'Ditolak' },
+    { id: 'dibatalkan', label: 'Dibatalkan' },
   ] as const
 
   // ---------------- FORM HANDLER ----------------

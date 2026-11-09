@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
-import { ShieldAlert, ArrowRight, Loader2, CheckCircle2, Eye, EyeOff } from 'lucide-react'
+import { ShieldAlert, ArrowRight, Loader2, CheckCircle2, Eye, EyeOff, KeyRound, Mail, Sparkles } from 'lucide-react'
 import ArchiveAnimation from '@/app/ArchiveAnimation'
 
 // Representasi hashing acak (angka & simbol unik) dengan panjang pas 1:1 (8 - 15 digit)
@@ -23,19 +23,24 @@ function getScrambledHash(pass: string): string {
 
 export default function LoginForm() {
   const router = useRouter()
+  const [loginMethod, setLoginMethod] = useState<'password' | 'otp'>('password')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [otpToken, setOtpToken] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Modal Lupa Kata Sandi (Pemulihan Akses)
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false)
   const [forgotEmail, setForgotEmail] = useState('')
   const [forgotLoading, setForgotLoading] = useState(false)
   const [forgotMsg, setForgotMsg] = useState('')
   const [forgotError, setForgotError] = useState('')
 
-  // Animasi text ketik bergantian (typing & erasing loop) dengan warna Biru & Putih
+  // Animasi text ketik bergantian (typing & erasing loop)
   const [typedPart1, setTypedPart1] = useState('')
   const [typedPart2, setTypedPart2] = useState('')
 
@@ -98,7 +103,8 @@ export default function LoginForm() {
     return () => clearTimeout(timer)
   }, [])
 
-  const handleLogin = async (e: React.FormEvent) => {
+  // 1. Login dengan Kata Sandi
+  const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg('')
     setSuccessMsg('')
@@ -112,7 +118,6 @@ export default function LoginForm() {
 
     if (error) {
       if (error.message.includes('fetch failed') || error.message.includes('dummy') || !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy-project')) {
-        // Fallback demo
         setSuccessMsg('Autentikasi terverifikasi (Mode Demonstrasi). Mengalihkan ke dasbor...')
         setTimeout(() => {
           router.push('/dashboard')
@@ -128,6 +133,60 @@ export default function LoginForm() {
     router.refresh()
   }
 
+  // 2. Minta Kode OTP ke Surel
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErrorMsg('')
+    setSuccessMsg('')
+    setLoading(true)
+
+    const supabase = createClient()
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false,
+      },
+    })
+
+    if (error) {
+      setErrorMsg(`Gagal mengirimkan kode OTP: ${error.message}. Pastikan surel Anda telah terdaftar.`)
+      setLoading(false)
+      return
+    }
+
+    setOtpSent(true)
+    setSuccessMsg('Kode verifikasi OTP 6-digit telah dikirimkan ke surel kedinasan Anda.')
+    setLoading(false)
+  }
+
+  // 3. Verifikasi Kode OTP Surel
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErrorMsg('')
+    setSuccessMsg('')
+    setLoading(true)
+
+    const supabase = createClient()
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token: otpToken.trim(),
+      type: 'email',
+    })
+
+    if (error) {
+      setErrorMsg(`Kode OTP tidak valid atau telah kadaluarsa: ${error.message}`)
+      setLoading(false)
+      return
+    }
+
+    setSuccessMsg('Kode OTP terverifikasi. Mengalihkan ke dasbor...')
+    setTimeout(() => {
+      router.push('/dashboard')
+      router.refresh()
+    }, 1000)
+  }
+
+  // 4. Kirim Pemulihan Kata Sandi
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setForgotMsg('')
@@ -140,17 +199,12 @@ export default function LoginForm() {
     })
 
     if (error) {
-      if (error.message.includes('fetch failed') || error.message.includes('dummy') || !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy-project')) {
-        setForgotMsg('Tautan pemulihan kata sandi telah dikirimkan ke surel kedinasan Anda.')
-        setForgotLoading(false)
-        return
-      }
       setForgotError(`Gagal mengirimkan pemulihan: ${error.message}`)
       setForgotLoading(false)
       return
     }
 
-    setForgotMsg('Tautan pemulihan kata sandi telah dikirimkan ke surel kedinasan Anda. Silakan periksa kotak masuk surel Anda.')
+    setForgotMsg('Tautan instruksi pemulihan kata sandi telah dikirimkan ke surel kedinasan Anda. Silakan periksa kotak masuk surel.')
     setForgotLoading(false)
   }
 
@@ -158,12 +212,12 @@ export default function LoginForm() {
     <section className="min-h-dvh bg-[#F0F5FA] p-3 sm:p-4 md:p-6 text-[#1A232E] antialiased">
       <div className="grid gap-3 sm:gap-4 md:gap-6 lg:min-h-[calc(100dvh-3rem)] lg:grid-cols-[1.1fr_0.9fr]">
         
-        {/* Kolom Kiri: Formulir Masuk Berarsitektur Split Panel (Mobile: order-2, Desktop: order-1) */}
+        {/* Kolom Kiri: Formulir Masuk Berarsitektur Split Panel */}
         <div className="order-2 lg:order-1 flex items-center rounded-xl border border-[#CBD7E3] bg-white px-5 py-7 sm:px-10 sm:py-10 lg:px-12 lg:py-14 shadow-xs">
           <div className="mx-auto w-full max-w-[560px]">
             
             {/* Header Form */}
-            <div className="border-b border-[#CBD7E3] pb-5 mb-7">
+            <div className="border-b border-[#CBD7E3] pb-5 mb-6">
               <Image
                 src="/pic/logo_gabungan.png"
                 alt="Archiva"
@@ -176,8 +230,44 @@ export default function LoginForm() {
                 Masuk ke Sistem
               </h1>
               <p className="mt-2 text-sm text-[#4B5E76]">
-                Memudahkan pengelolaan arsip dokumen secara terpusat dan terstruktur melalui proses penyimpanan serta verifikasi yang efektif.
+                Memudahkan pengelolaan arsip dokumen secara terpusat dan terstruktur melalui autentikasi kedinasan resmi.
               </p>
+            </div>
+
+            {/* Pemilih Metode Masuk: Kata Sandi vs Kode OTP Surel (BLUEPRINT 3.1 & 4.2) */}
+            <div className="flex border-b border-[#E2E8F0] mb-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMethod('password')
+                  setErrorMsg('')
+                  setSuccessMsg('')
+                }}
+                className={`flex items-center gap-2 pb-3 px-4 text-xs font-semibold uppercase tracking-wider transition-all border-b-2 ${
+                  loginMethod === 'password'
+                    ? 'border-[#1E3A5F] text-[#1E3A5F]'
+                    : 'border-transparent text-[#64748B] hover:text-[#1E3A5F]'
+                }`}
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>Kata Sandi</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMethod('otp')
+                  setErrorMsg('')
+                  setSuccessMsg('')
+                }}
+                className={`flex items-center gap-2 pb-3 px-4 text-xs font-semibold uppercase tracking-wider transition-all border-b-2 ${
+                  loginMethod === 'otp'
+                    ? 'border-[#1E3A5F] text-[#1E3A5F]'
+                    : 'border-transparent text-[#64748B] hover:text-[#1E3A5F]'
+                }`}
+              >
+                <Mail className="w-3.5 h-3.5" />
+                <span>Kode OTP Surel</span>
+              </button>
             </div>
 
             {errorMsg && (
@@ -194,107 +284,203 @@ export default function LoginForm() {
               <div className="mb-6 p-4 bg-[#E8F5E9] border-l-4 border-[#1F5C55] text-[#1F5C55] text-xs sm:text-sm flex items-start gap-3 rounded-r-md">
                 <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold">Autentikasi Berhasil</p>
+                  <p className="font-semibold">Berhasil</p>
                   <p className="mt-0.5 leading-relaxed">{successMsg}</p>
                 </div>
               </div>
             )}
 
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-[#1E3A5F] uppercase tracking-wider mb-1.5" htmlFor="email">
-                  Alamat Surel Kedinasan
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nama@example.com"
-                  className="w-full h-12 px-4 text-sm bg-[#F8FAFC] border border-[#CBD7E3] rounded-lg focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F] text-[#111827] placeholder-[#94A3B8] transition-all"
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label className="block text-xs font-medium text-[#1E3A5F] uppercase tracking-wider" htmlFor="password">
-                    Kata Sandi
+            {/* 1. FORM METODE KATA SANDI */}
+            {loginMethod === 'password' && (
+              <form onSubmit={handlePasswordLogin} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-[#1E3A5F] uppercase tracking-wider mb-1.5" htmlFor="email">
+                    Alamat Surel Kedinasan
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setForgotEmail(email)
-                      setForgotMsg('')
-                      setForgotError('')
-                      setIsForgotModalOpen(true)
-                    }}
-                    className="text-xs text-[#1E3A5F] hover:text-[#111827] underline underline-offset-2 transition-colors cursor-pointer"
-                  >
-                    Lupa Kata Sandi?
-                  </button>
-                </div>
-                <div className="relative">
                   <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
+                    id="email"
+                    type="email"
                     required
-                    minLength={8}
-                    maxLength={15}
-                    value={showPassword ? getScrambledHash(password) : password}
-                    onChange={(e) => {
-                      if (!showPassword) setPassword(e.target.value.slice(0, 15))
-                    }}
-                    onClick={() => {
-                      if (showPassword) setShowPassword(false)
-                    }}
-                    placeholder="••••••••"
-                    className={`w-full h-12 pl-4 pr-11 text-sm bg-[#F8FAFC] border border-[#CBD7E3] rounded-lg focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F] transition-all ${
-                      showPassword
-                        ? 'font-mono text-sm text-[#0284C7] bg-[#F0F7FF] select-all tracking-widest cursor-pointer'
-                        : 'text-[#111827] placeholder-[#94A3B8]'
-                    }`}
-                    title={showPassword ? 'Klik kolom untuk kembali mengedit kata sandi' : undefined}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="nama@instansi.co.id"
+                    className="w-full h-12 px-4 text-sm bg-[#F8FAFC] border border-[#CBD7E3] rounded-lg focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F] text-[#111827] placeholder-[#94A3B8] transition-all"
                   />
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="block text-xs font-medium text-[#1E3A5F] uppercase tracking-wider" htmlFor="password">
+                      Kata Sandi
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotEmail(email)
+                        setForgotMsg('')
+                        setForgotError('')
+                        setIsForgotModalOpen(true)
+                      }}
+                      className="text-xs text-[#1E3A5F] hover:text-[#111827] underline underline-offset-2 transition-colors cursor-pointer"
+                    >
+                      Lupa Kata Sandi?
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      minLength={8}
+                      maxLength={15}
+                      value={showPassword ? getScrambledHash(password) : password}
+                      onChange={(e) => {
+                        if (!showPassword) setPassword(e.target.value.slice(0, 15))
+                      }}
+                      onClick={() => {
+                        if (showPassword) setShowPassword(false)
+                      }}
+                      placeholder="••••••••"
+                      className={`w-full h-12 pl-4 pr-11 text-sm bg-[#F8FAFC] border border-[#CBD7E3] rounded-lg focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F] transition-all ${
+                        showPassword
+                          ? 'font-mono text-sm text-[#0284C7] bg-[#F0F7FF] select-all tracking-widest cursor-pointer'
+                          : 'text-[#111827] placeholder-[#94A3B8]'
+                      }`}
+                      title={showPassword ? 'Klik kolom untuk kembali mengedit kata sandi' : undefined}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#4B5E76] hover:text-[#1E3A5F] p-1 transition-colors cursor-pointer"
+                      aria-label={showPassword ? 'Kembali ke mode sembunyi' : 'Lihat representasi hashing'}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-4 h-4 text-[#0284C7]" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-2">
                   <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#4B5E76] hover:text-[#1E3A5F] p-1 transition-colors cursor-pointer"
-                    aria-label={showPassword ? 'Kembali ke mode sembunyi' : 'Lihat representasi hashing angka & simbol unik'}
-                    title={showPassword ? 'Kembali ke mode sembunyi' : 'Lihat representasi hashing angka & simbol unik'}
+                    type="submit"
+                    disabled={loading}
+                    className="w-full h-12 bg-[#1E3A5F] hover:bg-[#162A45] text-white font-medium text-sm rounded-lg flex items-center justify-center gap-2 transition-all duration-150 disabled:opacity-70 cursor-pointer shadow-sm active:scale-[0.99]"
                   >
-                    {showPassword ? (
-                      <EyeOff className="w-4 h-4 text-[#0284C7]" />
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Memverifikasi Akun...</span>
+                      </>
                     ) : (
-                      <Eye className="w-4 h-4" />
+                      <>
+                        <span>Masuk dengan Kata Sandi</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
                     )}
                   </button>
                 </div>
-              </div>
+              </form>
+            )}
 
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full h-12 bg-[#1E3A5F] hover:bg-[#162A45] text-white font-medium text-sm rounded-lg flex items-center justify-center gap-2 transition-all duration-150 disabled:opacity-70 cursor-pointer shadow-sm active:scale-[0.99]"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Memverifikasi Akun...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Login di Sini</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-                <p className="text-[11px] text-[#4B5E76] text-center mt-2">
-                  Akses terenkripsi dan tercatat otomatis di dalam log audit keamanan instansi.
-                </p>
+            {/* 2. FORM METODE KODE OTP SUREL (Supabase Auth OTP) */}
+            {loginMethod === 'otp' && (
+              <div className="space-y-4">
+                {!otpSent ? (
+                  <form onSubmit={handleSendOtp} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-medium text-[#1E3A5F] uppercase tracking-wider mb-1.5" htmlFor="otpEmail">
+                        Alamat Surel Kedinasan
+                      </label>
+                      <input
+                        id="otpEmail"
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="nama@instansi.co.id"
+                        className="w-full h-12 px-4 text-sm bg-[#F8FAFC] border border-[#CBD7E3] rounded-lg focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F] text-[#111827] placeholder-[#94A3B8] transition-all"
+                      />
+                      <p className="mt-1.5 text-[11px] text-[#64748B]">
+                        Kode OTP 6-digit akan dikirimkan ke surel ini untuk masuk tanpa perlu mengingat kata sandi.
+                      </p>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full h-12 bg-[#1E3A5F] hover:bg-[#162A45] text-white font-medium text-sm rounded-lg flex items-center justify-center gap-2 transition-all duration-150 disabled:opacity-70 cursor-pointer shadow-sm"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Mengirimkan Kode OTP...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Kirim Kode OTP ke Surel</span>
+                          <Mail className="w-4 h-4" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleVerifyOtp} className="space-y-4">
+                    <div>
+                      <div className="flex justify-between items-center mb-1.5">
+                        <label className="block text-xs font-medium text-[#1E3A5F] uppercase tracking-wider" htmlFor="otpToken">
+                          Masukkan 6-Digit Kode OTP
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setOtpSent(false)}
+                          className="text-xs text-[#1E3A5F] underline"
+                        >
+                          Ubah Surel
+                        </button>
+                      </div>
+                      <input
+                        id="otpToken"
+                        type="text"
+                        required
+                        maxLength={8}
+                        value={otpToken}
+                        onChange={(e) => setOtpToken(e.target.value)}
+                        placeholder="Contoh: 123456"
+                        className="w-full h-12 px-4 text-center font-mono text-lg tracking-widest bg-[#F8FAFC] border border-[#CBD7E3] rounded-lg focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F] text-[#111827]"
+                      />
+                      <p className="mt-1.5 text-[11px] text-[#64748B] text-center">
+                        Kode dikirimkan ke <strong className="text-[#1E3A5F]">{email}</strong>. Periksa folder Inbox / Spam.
+                      </p>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full h-12 bg-[#1E3A5F] hover:bg-[#162A45] text-white font-medium text-sm rounded-lg flex items-center justify-center gap-2 transition-all duration-150 disabled:opacity-70 cursor-pointer shadow-sm"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Memverifikasi Kode OTP...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Verifikasi & Masuk</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+                )}
               </div>
-            </form>
+            )}
+
+            <p className="text-[11px] text-[#4B5E76] text-center mt-4">
+              Akses kedinasan terenkripsi dan tercatat otomatis di dalam log audit keamanan instansi.
+            </p>
 
             <div className="mt-8 pt-5 border-t border-[#CBD7E3] flex items-center justify-between text-xs text-[#4B5E76]">
               <span>Belum memiliki akun terdaftar?</span>
@@ -302,15 +488,14 @@ export default function LoginForm() {
                 href="/register" 
                 className="font-medium text-[#1E3A5F] underline underline-offset-4 hover:text-[#111827] transition-colors"
               >
-                Daftar Akun →
+                Daftar Akun Pengaju →
               </Link>
             </div>
           </div>
         </div>
 
-        {/* Kolom Kanan: Panel Kartu Brand / Identitas Arsip Instansi (Mobile: order-1 di atas, Desktop: order-2 di kanan) */}
+        {/* Kolom Kanan: Panel Kartu Brand / Identitas Arsip Instansi */}
         <div className="order-1 lg:order-2 relative flex flex-col justify-between overflow-hidden rounded-xl bg-[#081528] gap-6 p-5 sm:p-8 lg:p-12 text-white border border-[#1E3A5F] shadow-lg min-h-[220px] sm:min-h-[300px] lg:min-h-0">
-          {/* Background Animasi Arsip Dokumen Interaktif */}
           <ArchiveAnimation />
 
           <div className="relative z-10 space-y-3 sm:space-y-4">
@@ -377,7 +562,7 @@ export default function LoginForm() {
                   required
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}
-                  placeholder="nama@example.com"
+                  placeholder="nama@instansi.co.id"
                   className="w-full h-11 px-3 text-sm bg-[#F8FAFC] border border-[#CBD7E3] rounded-lg focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F] text-[#111827]"
                 />
               </div>

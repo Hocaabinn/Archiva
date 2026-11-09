@@ -33,9 +33,13 @@ export function StampBadge({ status, className = '' }: StampProps) {
       badgeClass = 'stamp-badge-red'
       label = status === 'ditolak' ? 'DITOLAK' : 'GAGAL'
       break
-    case 'nonaktif':
+    case 'dibatalkan':
+      badgeClass = 'stamp-badge-red'
+      label = 'DIBATALKAN'
+      break
+    case 'inaktif':
       badgeClass = 'stamp-badge-gray'
-      label = 'NON-AKTIF'
+      label = 'INAKTIF'
       break
   }
 

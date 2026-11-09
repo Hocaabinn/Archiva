@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# revisi internal
+src/revisi-8-9Nov-jgn-dipush-digithub-foldernya/
+revisi-8-9Nov-jgn-dipush-digithub-foldernya/
+backup_*.json
+

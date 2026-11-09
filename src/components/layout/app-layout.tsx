@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   FolderArchive,
-  CreditCard,
+  BookOpenCheck,
   History,
   Settings,
   LogOut,
@@ -50,10 +50,10 @@ interface AppUser {
 const roleTitles: Record<UserRole, string> = {
   admin: 'Admin Sistem',
   pic_arsip: 'PIC Arsip',
-  atasan: 'Atasan / Approval',
-  user: 'Pengaju (User)',
+  atasan: 'Atasan',
+  user: 'Pengaju',
   accounting: 'Accounting',
-  viewer: 'Viewer (Hanya Lihat)',
+  viewer: 'Viewer',
 }
 
 const AppUserContext = createContext<AppUser>({
@@ -145,10 +145,10 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
       ],
     },
     {
-      label: 'Kas & Pembayaran',
-      href: '/pembayaran',
-      icon: CreditCard,
-      roles: ['admin', 'pic_arsip', 'accounting', 'user'],
+      label: 'Peminjaman Inaktif',
+      href: '/peminjaman',
+      icon: BookOpenCheck,
+      roles: ['admin', 'pic_arsip', 'user', 'atasan', 'accounting'],
     },
     {
       label: 'Buku Log Riwayat',

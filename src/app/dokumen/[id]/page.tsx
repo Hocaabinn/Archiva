@@ -65,11 +65,11 @@ export default function DetailDokumenPage({ params }: PageProps) {
           ? 'Berita Acara Pengadaan Server & Komponen Basis Data Utama 2023' 
           : 'Kontrak Kerja Sama Vendor PT Prima Logistik 2026',
     kategori: id === '3' ? 'SDM & Kepegawaian' : id === '2' ? 'Keuangan' : id === '4' ? 'Operasional & Logistik' : 'Kontrak & Legal',
-    status: (id === '2' ? 'menunggu_persetujuan' : id === '4' ? 'nonaktif' : 'aktif') as 'aktif' | 'menunggu_persetujuan' | 'nonaktif',
+    status: (id === '2' ? 'menunggu_persetujuan' : id === '4' ? 'inaktif' : 'aktif') as 'aktif' | 'menunggu_persetujuan' | 'inaktif',
     deskripsi: 'Dokumen legalitas kearsipan resmi yang telah diverifikasi kelengkapannya dan dicatatkan ke dalam buku induk registrasi arsip nasional.',
     pemilik: 'Siti Aminah (Bagian Umum)',
     pemegang: id === '3' ? 'Drs. Hendra M.' : id === '4' ? 'Sistem (Gudang)' : 'Bambang S. (PIC Arsip)',
-    lokasi_saat_ini: id === '3' ? 'Ruang Direksi Lt. 3' : id === '4' ? 'Gudang Non-Aktif - Kotak B-12' : 'Ruang Arsip Aktif - Rak A1',
+    lokasi_saat_ini: id === '3' ? 'Ruang Direksi Lt. 3' : id === '4' ? 'Gudang Inaktif - Kotak B-12' : 'Ruang Arsip Aktif - Rak A1',
     tanggal_dokumen: '03 Januari 2026',
     tanggal_diajukan: '03 Januari 2026, 09:15 WIB',
     tanggal_disetujui: id === '2' ? '-' : '04 Januari 2026, 14:30 WIB',
