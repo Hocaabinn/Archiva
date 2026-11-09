@@ -31,6 +31,7 @@ import {
   Clock,
   Send,
   Loader2,
+  BookOpenCheck,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -419,8 +420,61 @@ export default function DetailDokumenPage({ params }: PageProps) {
                 )}
               </>
             )}
+            {doc.status === 'inaktif' && currentUserRole !== 'viewer' && (
+              <Link
+                href={`/peminjaman?dokumen_id=${doc.id}`}
+                className="px-3 py-1.5 bg-[#1F5C55] hover:bg-[#184843] text-white font-semibold flex items-center gap-1.5 transition-colors"
+              >
+                <BookOpenCheck className="w-3.5 h-3.5" />
+                <span>Ajukan Peminjaman</span>
+              </Link>
+            )}
           </div>
         </div>
+
+        {/* Banner Dokumen Dibatalkan (Blueprint Bab 6.7) */}
+        {doc.status === 'dibatalkan' && (
+          <div className="p-4 bg-red-50 border-2 border-red-800 text-red-950 text-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-bold flex items-center gap-2 text-sm text-red-950 font-serif">
+                <XCircle className="w-4 h-4 text-red-800" />
+                DOKUMEN RESMI DIBATALKAN
+              </span>
+              <span className="font-mono text-[11px] text-red-800 font-semibold">
+                Sesuai Ketentuan Blueprint Bab 6.7
+              </span>
+            </div>
+            <p className="leading-relaxed">
+              <strong>Alasan Pembatalan:</strong> {doc.alasan_penolakan || 'Tidak ada keterangan spesifik.'}
+            </p>
+            <p className="text-[11px] text-red-900/80 font-mono">
+              Kode arsip ({doc.kode_arsip}) tetap tersimpan dan tidak dipakai ulang. Dokumen tetap dapat dilihat dengan penanda cap DIBATALKAN.
+            </p>
+          </div>
+        )}
+
+        {/* Banner Dokumen Inaktif (Blueprint Bab 3.4 & 3.6) */}
+        {doc.status === 'inaktif' && (
+          <div className="p-4 bg-[#F7F3EB] border-2 border-[#5B6166] text-[#1A1D21] text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 font-mono">
+            <div>
+              <span className="font-bold text-[#1A1D21] block">
+                STATUS DOKUMEN: INAKTIF (GUDANG INAKTIF)
+              </span>
+              <span className="text-[#5B6166] text-[11px]">
+                Masa retensi aktif dokumen telah berakhir. Berkas fisik tersimpan di Gudang Inaktif dan dapat dipinjam melalui PIC Arsip Inaktif.
+              </span>
+            </div>
+            {currentUserRole !== 'viewer' && (
+              <Link
+                href={`/peminjaman?dokumen_id=${doc.id}`}
+                className="px-4 py-1.5 bg-[#1F5C55] hover:bg-[#184843] text-white font-semibold flex items-center gap-1.5 shrink-0"
+              >
+                <BookOpenCheck className="w-3.5 h-3.5" />
+                <span>Pinjam Dokumen Ini</span>
+              </Link>
+            )}
+          </div>
+        )}
 
         {/* Banner Peringatan Dokumen Ditolak */}
         {doc.status === 'ditolak' && (
