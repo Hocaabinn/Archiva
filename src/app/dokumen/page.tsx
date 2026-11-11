@@ -966,11 +966,14 @@ function DaftarDokumenContent() {
                                 </span>
                               )}
                             </div>
-                            <span className="block font-mono text-xs text-[#64748B] truncate select-all" title={`#${doc.kode_arsip}`}>
-                              #{doc.kode_arsip}
-                              {doc.nomor_ppl && ` • PPL: ${doc.nomor_ppl}`}
-                              {doc.nomor_dokumen && ` • Doc: ${doc.nomor_dokumen}`}
-                            </span>
+                            <KodeArsip kode={doc.kode_arsip} prefix="#" className="block font-mono text-xs text-[#64748B] select-all" />
+                            {(doc.nomor_ppl || doc.nomor_dokumen) && (
+                              <span className="block font-mono text-[11px] text-[#94A3B8] break-all">
+                                {doc.nomor_ppl && `PPL: ${doc.nomor_ppl}`}
+                                {doc.nomor_ppl && doc.nomor_dokumen && ' • '}
+                                {doc.nomor_dokumen && `Doc: ${doc.nomor_dokumen}`}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -1029,12 +1032,7 @@ function DaftarDokumenContent() {
                         {doc.judul}
                       </Link>
                       <div className="mt-1.5 min-w-0">
-                        <p
-                          className="font-mono text-[11px] text-[#64748B] truncate select-all"
-                          title={`#${doc.kode_arsip}`}
-                        >
-                          #{doc.kode_arsip}
-                        </p>
+                        <KodeArsip kode={doc.kode_arsip} prefix="#" className="block font-mono text-[11px] text-[#64748B] select-all" />
                         {(doc.nomor_ppl || doc.nomor_dokumen) && (
                           <p className="font-mono text-[10px] text-[#94A3B8] truncate mt-0.5">
                             {doc.nomor_ppl && `PPL: ${doc.nomor_ppl}`}
