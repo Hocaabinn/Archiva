@@ -20,8 +20,31 @@ import {
   Loader2,
   Calendar,
   ExternalLink,
+  X,
+  Info,
+  Hourglass,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { KodeArsip } from '@/components/documents/kode-arsip'
+
+const inputClass =
+  'w-full rounded-lg border border-[#E3E6F0] bg-white px-3.5 py-2.5 text-sm text-[#1F2333] placeholder:text-[#A5ABBC] focus:border-[#3BA4E8] focus:outline-none focus:ring-2 focus:ring-[#3BA4E8]/15 disabled:bg-[#F7F8FC] disabled:text-[#8A90A2]'
+
+const STATUS_STYLE: Record<string, { className: string; icon: React.ComponentType<{ className?: string }> }> = {
+  Diajukan: { className: 'bg-[#FEF7E0] text-[#B06000] border-[#FEEFC3]', icon: Hourglass },
+  Dipinjam: { className: 'bg-[#EAF5FD] text-[#1E86C8] border-[#BCE1F9]', icon: Clock },
+  Dikembalikan: { className: 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]', icon: CheckCircle2 },
+  Ditolak: { className: 'bg-[#FDECEC] text-[#D64545] border-[#F5C2C2]', icon: XCircle },
+}
+
+function initials(name: string) {
+  return name
+    .split(/[\s@.]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join('')
+}
 
 interface PeminjamanRow {
   id: string
@@ -315,6 +338,92 @@ function PeminjamanContent() {
 
   const isPicArsip = currentUserRole === 'pic_arsip'
   const isPicOrAdmin = currentUserRole === 'pic_arsip' || currentUserRole === 'admin'
+
+  const counts = useMemo(() => {
+    const c = { semua: loans.length, diajukan: 0, dipinjam: 0, dikembalikan: 0, ditolak: 0 } as Record<string, number>
+    loans.forEach((l) => {
+      const key = l.status?.toLowerCase()
+      if (key in c) c[key] += 1
+    })
+    return c
+  }, [loans])
+
+  const statusTabs = [
+    { id: 'semua', label: 'Semua' },
+    { id: 'diajukan', label: 'Diajukan' },
+    { id: 'dipinjam', label: 'Dipinjam' },
+    { id: 'dikembalikan', label: 'Dikembalikan' },
+    { id: 'ditolak', label: 'Ditolak' },
+  ]
+
+  const formatDate = (value?: string) =>
+    value
+      ? new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+      : null
+
+  const cardClass = 'bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)]'
+
+  const renderStatusBadge = (status: PeminjamanStatus) => {
+    const s = STATUS_STYLE[status] || STATUS_STYLE.Diajukan
+    const Icon = s.icon
+    return (
+      <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold ${s.className}`}>
+        <Icon className="h-3.5 w-3.5" />
+        {status}
+      </span>
+    )
+  }
+
+  const renderActions = (loan: PeminjamanRow, fullWidth = false) => {
+    const isBorrower = loan.peminjam_id === currentUserId
+    const busy = processingId === loan.id
+    const w = fullWidth ? 'flex-1 justify-center' : ''
+
+    if (loan.status === 'Diajukan' && isPicArsip) {
+      return (
+        <div className={`flex items-center gap-2 ${fullWidth ? 'w-full' : ''}`}>
+          <button
+            type="button"
+            onClick={() => handleApproveLoan(loan.id)}
+            disabled={busy}
+            className={`inline-flex items-center gap-1.5 rounded-lg bg-[#3BA4E8] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#2A92D6] disabled:opacity-50 ${w}`}
+          >
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+            Setujui
+          </button>
+          <button
+            type="button"
+            onClick={() => setRejectingLoan(loan)}
+            disabled={busy}
+            className={`inline-flex items-center gap-1.5 rounded-lg border border-[#F5C2C2] bg-white px-3 py-1.5 text-xs font-semibold text-[#D64545] transition-colors hover:bg-[#FDECEC] disabled:opacity-50 ${w}`}
+          >
+            <XCircle className="h-3.5 w-3.5" />
+            Tolak
+          </button>
+        </div>
+      )
+    }
+
+    if (loan.status === 'Dipinjam' && (isPicOrAdmin || isBorrower)) {
+      return (
+        <button
+          type="button"
+          onClick={() => handleReturnLoan(loan.id)}
+          disabled={busy}
+          className={`inline-flex items-center gap-1.5 rounded-lg border border-[#BCE1F9] bg-[#EAF5FD] px-3 py-1.5 text-xs font-semibold text-[#1E86C8] transition-colors hover:bg-[#D6ECFB] disabled:opacity-50 ${w}`}
+        >
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+          {isPicOrAdmin ? 'Konfirmasi Kembali' : 'Kembalikan Berkas'}
+        </button>
+      )
+    }
+
+    if (loan.status === 'Dikembalikan' || loan.status === 'Ditolak') {
+      return <span className="text-xs text-[#9AA0B2]">Selesai</span>
+    }
+
+    return <span className="text-xs text-[#9AA0B2]">Menunggu verifikasi</span>
+  }
 
   return (
     <AppLayout>
