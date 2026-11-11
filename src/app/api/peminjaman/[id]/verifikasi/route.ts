@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 /**
  * POST /api/peminjaman/[id]/verifikasi
  * Verifikasi & Persetujuan/Penolakan Peminjaman oleh PIC Arsip Inaktif (Blueprint 3.6).
- * - Hanya PIC Arsip (atau Admin).
+ * - Hanya PIC Arsip (pic_arsip).
  * - Aksi: 'setujui' -> status peminjaman menjadi 'Dipinjam'.
  * - Aksi: 'tolak' -> status peminjaman menjadi 'Ditolak'.
  * - ATURAN KERAS: Status dokumen TETAP 'inaktif' dan file berkas TETAP di bucket 'arsip-inaktif'.
@@ -26,11 +26,13 @@ export async function POST(
       return NextResponse.json({ error: 'ID peminjaman wajib disertakan.' }, { status: 400 })
     }
 
+    const authHeader = request.headers.get('authorization')
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined
     const supabase = await createClient()
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser()
+    } = await supabase.auth.getUser(token)
 
     if (authError || !user) {
       return NextResponse.json(
@@ -39,15 +41,16 @@ export async function POST(
       )
     }
 
+    // Cek peran pengguna: Hanya PIC Arsip yang berhak memverifikasi peminjaman
     const { data: profile } = await supabase
       .from('profiles')
       .select('id, nama, nama_lengkap, role')
       .eq('id', user.id)
       .single()
 
-    if (!profile || (profile.role !== 'pic_arsip' && profile.role !== 'admin')) {
+    if (!profile || profile.role !== 'pic_arsip') {
       return NextResponse.json(
-        { error: 'Akses Ditolak: Hanya PIC Arsip Inaktif (atau Admin) yang berhak memverifikasi peminjaman.' },
+        { error: 'Akses Ditolak: Hanya PIC Arsip (pic_arsip) yang berhak memverifikasi peminjaman.' },
         { status: 403 }
       )
     }
