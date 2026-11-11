@@ -521,24 +521,25 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
         <div className="flex-1 flex flex-col min-w-0">
           {/* Topbar */}
           <header className="h-16 bg-white border-b border-[#ECEEF5] px-4 sm:px-8 flex items-center justify-between gap-3 md:sticky md:top-0 z-20">
-            <div className="flex items-center gap-2.5 sm:gap-3 flex-1 max-w-xs sm:max-w-sm">
+            {/* Pencarian hanya ada di halaman Daftar Dokumen (Blueprint 3.7), bukan di bar atas */}
+            <div className="flex items-center gap-2.5 min-w-0 md:hidden">
               <button
                 type="button"
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="md:hidden p-2 -ml-2 rounded-lg text-[#4B5163] hover:text-[#1F2333] hover:bg-[#EEF7FD]"
+                className="p-2 -ml-2 rounded-lg text-[#4B5163] hover:text-[#1F2333] hover:bg-[#EEF7FD]"
                 title="Buka menu navigasi"
               >
                 <Menu className="w-5 h-5" />
               </button>
-              <div className="relative w-full">
-                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9AA0B2]" />
-                <input
-                  type="search"
-                  placeholder="Cari dokumen, kode arsip..."
-                  className="w-full rounded-lg border border-[#E3E6F0] bg-white pl-10 pr-3 py-1.5 sm:py-2 text-xs sm:text-sm placeholder:text-[#A5ABBC] focus:outline-none focus:border-[#3BA4E8] focus:ring-2 focus:ring-[#3BA4E8]/15 transition"
-                />
-              </div>
+              <Image
+                src="/pic/Logo-gabungan-gelap.png"
+                alt="Archiva"
+                width={838}
+                height={132}
+                className="h-5 w-auto object-contain"
+              />
             </div>
+            <div className="hidden md:block" />
 
             <div className="flex items-center gap-4 shrink-0">
               <button
