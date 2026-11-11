@@ -37,42 +37,43 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Stempel / Stamp Badge Utilitas */
+/* Stempel / Stamp Badge Utilitas Modern */
 .stamp-badge {
   display: inline-flex;
   align-items: center;
-  font-family: var(--font-mono), ui-monospace, monospace;
+  font-family: inherit;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: 0.75rem;
-  padding: 0.15rem 0.5rem;
-  border-width: 1.5px;
+  letter-spacing: 0.04em;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  border-width: 1px;
   border-style: solid;
 }
 
 .stamp-badge-amber {
-  border-color: #9A6700;
-  color: #9A6700;
-  background-color: #FEFBE8;
+  border-color: #FCD34D;
+  color: #92400E;
+  background-color: #FEF3C7;
 }
 
 .stamp-badge-green {
-  border-color: #1F5C55;
-  color: #1F5C55;
-  background-color: #E8F5E9;
+  border-color: #A7F3D0;
+  color: #065F46;
+  background-color: #ECFDF5;
 }
 
 .stamp-badge-red {
-  border-color: #B42318;
-  color: #B42318;
-  background-color: #FEF3F2;
+  border-color: #FECACA;
+  color: #991B1B;
+  background-color: #FEF2F2;
 }
 
 .stamp-badge-gray {
-  border-color: #5B6166;
-  color: #5B6166;
-  background-color: #F0EBDD;
+  border-color: #E2E8F0;
+  color: #475569;
+  background-color: #F1F5F9;
 }
 
 /* Celestial Orrery Styles (Hanya Orbit Bulat Sempurna & Planet) */
