@@ -613,23 +613,23 @@ function DaftarDokumenContent() {
     </div>
   )
 
-  const cardClass = 'bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)]'
+  const cardClass = 'bg-white rounded-2xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden'
 
   return (
     <AppLayout currentRole={role}>
       <div className="mx-auto max-w-7xl space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-[28px] font-bold tracking-tight text-[#1F2333]">Daftar Dokumen</h1>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-[#1F2333]">Daftar Dokumen</h1>
               <span className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold ${roleHeader.badgeClass}`} suppressHydrationWarning>
                 {roleHeader.badge}
               </span>
             </div>
-            <p className="mt-1 text-sm text-[#4B5163]" suppressHydrationWarning>{roleHeader.subtitle}</p>
+            <p className="mt-1 text-xs sm:text-sm text-[#4B5163]" suppressHydrationWarning>{roleHeader.subtitle}</p>
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             {role === 'pic_arsip' && (
               <Link
                 href="/persetujuan"
@@ -653,14 +653,14 @@ function DaftarDokumenContent() {
                 <button
                   type="button"
                   onClick={() => setExportOpen((v) => !v)}
-                  className="flex items-center gap-2 rounded-lg border border-[#1F2333] bg-white px-4 py-2 text-sm font-medium text-[#1F2333] transition-colors hover:bg-[#F7F8FC]"
+                  className="flex items-center gap-2 rounded-lg border border-[#CBD7E3] bg-white px-3.5 sm:px-4 py-2 text-sm font-medium text-[#1F2333] transition-colors hover:bg-[#F7F8FC]"
                 >
                   <Download className="h-4 w-4" />
-                  Ekspor
+                  <span>Ekspor</span>
                   <ChevronDown className="h-4 w-4" />
                 </button>
                 {exportOpen && (
-                  <div className="absolute right-0 z-30 mt-2 w-52 rounded-lg border border-[#ECEEF5] bg-white p-1.5 shadow-lg">
+                  <div className="absolute right-0 z-30 mt-2 w-52 rounded-xl border border-[#ECEEF5] bg-white p-1.5 shadow-lg">
                     <button type="button" onClick={exportCsv} className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-[#4B5163] hover:bg-[#EEF7FD]">
                       <FileText className="h-4 w-4" /> Unduh CSV
                     </button>
@@ -681,7 +681,7 @@ function DaftarDokumenContent() {
             {canUpload && (
               <Link
                 href="/dokumen/upload"
-                className="flex items-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#2A92D6] active:scale-[0.98]"
+                className="flex items-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-semibold text-white shadow-xs transition-all hover:bg-[#2A92D6] active:scale-[0.98]"
               >
                 <UploadCloud className="h-4 w-4" />
                 <span>Upload Dokumen</span>
@@ -738,179 +738,179 @@ function DaftarDokumenContent() {
               ))}
             </div>
 
-        {/* Daftar */}
-        <div className={cardClass}>
-          {/* Toolbar */}
-          <div className="space-y-4 border-b border-[#ECEEF5] p-5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-              <div className="relative flex-1">
-                <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9AA0B2]" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value)
-                    setPage(1)
-                  }}
-                  placeholder="Cari kode arsip, no. payment (PPL), doc voucher, judul dokumen..."
-                  className={`${inputClass} pl-10 pr-9`}
-                />
-                {searchQuery && (
-                  <button type="button" onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9AA0B2] hover:text-[#1F2333]">
-                    <X className="h-4 w-4" />
-                  </button>
+            {/* Daftar */}
+            <div className={cardClass}>
+              {/* Toolbar */}
+              <div className="space-y-4 border-b border-[#ECEEF5] p-4 sm:p-5">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                  <div className="relative flex-1 min-w-0">
+                    <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9AA0B2]" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value)
+                        setPage(1)
+                      }}
+                      placeholder="Cari kode arsip, no. payment (PPL), doc voucher, judul dokumen..."
+                      className={`${inputClass} pl-10 pr-9`}
+                    />
+                    {searchQuery && (
+                      <button type="button" onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9AA0B2] hover:text-[#1F2333]">
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+                    <select
+                      value={selectedKategori}
+                      onChange={(e) => {
+                        setSelectedKategori(e.target.value)
+                        setPage(1)
+                      }}
+                      className={`${inputClass} flex-1 sm:flex-none sm:w-auto cursor-pointer`}
+                    >
+                      <option value="semua">Semua Kategori</option>
+                      {kategoriList.map((k) => (
+                        <option key={k.id} value={k.nama}>
+                          {k.nama}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setShowFilterLanjutan((v) => !v)}
+                      className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                        showFilterLanjutan || selectedPemegang !== 'semua' || selectedLokasi !== 'semua' || startDateFilter || endDateFilter
+                          ? 'border-[#3BA4E8] bg-[#EEF7FD] text-[#1E86C8]'
+                          : 'border-[#E3E6F0] bg-white text-[#4B5163] hover:bg-[#F7F8FC]'
+                      }`}
+                    >
+                      <span>Filter</span>
+                      {(selectedPemegang !== 'semua' || selectedLokasi !== 'semua' || startDateFilter || endDateFilter) && (
+                        <span className="h-2 w-2 rounded-full bg-[#3BA4E8]" />
+                      )}
+                    </button>
+                    <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className={`${inputClass} flex-1 sm:flex-none sm:w-auto cursor-pointer`}>
+                      <option value="terbaru">Terbaru</option>
+                      <option value="terlama">Terlama</option>
+                      <option value="kadaluarsa">Kedaluwarsa Terdekat</option>
+                      <option value="judul_az">Judul A–Z</option>
+                    </select>
+                    <div className="flex shrink-0 rounded-lg bg-[#F4F5FA] p-1 border border-[#E3E6F0]">
+                      {(['table', 'grid'] as const).map((mode) => {
+                        const Icon = mode === 'table' ? List : LayoutGrid
+                        return (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() => setViewMode(mode)}
+                            title={mode === 'table' ? 'Tampilan tabel' : 'Tampilan kartu'}
+                            className={`rounded-md p-1.5 transition-colors ${viewMode === mode ? 'bg-white text-[#1E86C8] shadow-xs' : 'text-[#6B7185] hover:text-[#1F2333]'}`}
+                          >
+                            <Icon className="h-4 w-4" />
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filter Lanjutan (Pemegang, Lokasi, dan Rentang Tanggal) - Blueprint 3.7 */}
+                {showFilterLanjutan && (
+                  <div className="grid gap-3 rounded-lg border border-[#E3E6F0] bg-[#F8FAFC] p-4 text-xs sm:grid-cols-2 lg:grid-cols-4 animate-in fade-in duration-150">
+                    <div>
+                      <label className="block text-[11px] font-medium uppercase tracking-wider text-[#64748B] mb-1">
+                        Pemegang Dokumen
+                      </label>
+                      <select
+                        value={selectedPemegang}
+                        onChange={(e) => {
+                          setSelectedPemegang(e.target.value)
+                          setPage(1)
+                        }}
+                        className="w-full h-9 rounded-md border border-[#CBD7E3] bg-white px-2.5 text-xs text-[#111827]"
+                      >
+                        <option value="semua">Semua Pemegang</option>
+                        {uniquePemegang.map((p) => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium uppercase tracking-wider text-[#64748B] mb-1">
+                        Lokasi Fisik
+                      </label>
+                      <select
+                        value={selectedLokasi}
+                        onChange={(e) => {
+                          setSelectedLokasi(e.target.value)
+                          setPage(1)
+                        }}
+                        className="w-full h-9 rounded-md border border-[#CBD7E3] bg-white px-2.5 text-xs text-[#111827]"
+                      >
+                        <option value="semua">Semua Lokasi</option>
+                        {uniqueLokasi.map((l) => (
+                          <option key={l} value={l}>{l}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium uppercase tracking-wider text-[#64748B] mb-1">
+                        Tanggal Dokumen Dari
+                      </label>
+                      <input
+                        type="date"
+                        value={startDateFilter}
+                        onChange={(e) => {
+                          setStartDateFilter(e.target.value)
+                          setPage(1)
+                        }}
+                        className="w-full h-9 rounded-md border border-[#CBD7E3] bg-white px-2.5 text-xs text-[#111827]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium uppercase tracking-wider text-[#64748B] mb-1">
+                        Sampai Tanggal
+                      </label>
+                      <input
+                        type="date"
+                        value={endDateFilter}
+                        onChange={(e) => {
+                          setEndDateFilter(e.target.value)
+                          setPage(1)
+                        }}
+                        className="w-full h-9 rounded-md border border-[#CBD7E3] bg-white px-2.5 text-xs text-[#111827]"
+                      />
+                    </div>
+                  </div>
                 )}
-              </div>
-              <div className="flex items-center gap-2.5">
-                <select
-                  value={selectedKategori}
-                  onChange={(e) => {
-                    setSelectedKategori(e.target.value)
-                    setPage(1)
-                  }}
-                  className={`${inputClass} w-auto cursor-pointer`}
-                >
-                  <option value="semua">Semua Kategori</option>
-                  {kategoriList.map((k) => (
-                    <option key={k.id} value={k.nama}>
-                      {k.nama}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => setShowFilterLanjutan((v) => !v)}
-                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                    showFilterLanjutan || selectedPemegang !== 'semua' || selectedLokasi !== 'semua' || startDateFilter || endDateFilter
-                      ? 'border-[#1E3A5F] bg-[#EEF7FD] text-[#1E3A5F]'
-                      : 'border-[#E3E6F0] bg-white text-[#4B5163] hover:bg-[#F7F8FC]'
-                  }`}
-                >
-                  <span>Filter</span>
-                  {(selectedPemegang !== 'semua' || selectedLokasi !== 'semua' || startDateFilter || endDateFilter) && (
-                    <span className="h-2 w-2 rounded-full bg-[#1E3A5F]" />
-                  )}
-                </button>
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className={`${inputClass} w-auto cursor-pointer`}>
-                  <option value="terbaru">Terbaru</option>
-                  <option value="terlama">Terlama</option>
-                  <option value="kadaluarsa">Kedaluwarsa Terdekat</option>
-                  <option value="judul_az">Judul A–Z</option>
-                </select>
-                <div className="flex shrink-0 rounded-lg bg-[#F4F5FA] p-1">
-                  {(['table', 'grid'] as const).map((mode) => {
-                    const Icon = mode === 'table' ? List : LayoutGrid
+
+                <div className="flex gap-2 overflow-x-auto pb-1 pt-0.5 no-scrollbar -mx-1 px-1">
+                  {statusTabs.map((tab) => {
+                    const active = selectedStatus === tab.id
                     return (
                       <button
-                        key={mode}
+                        key={tab.id}
                         type="button"
-                        onClick={() => setViewMode(mode)}
-                        title={mode === 'table' ? 'Tampilan tabel' : 'Tampilan kartu'}
-                        className={`rounded-md p-1.5 transition-colors ${viewMode === mode ? 'bg-white text-[#1E86C8] shadow-sm' : 'text-[#6B7185] hover:text-[#1F2333]'}`}
+                        onClick={() => {
+                          setSelectedStatus(tab.id)
+                          setPage(1)
+                        }}
+                        className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs sm:text-sm font-medium transition-all ${
+                          active ? 'bg-[#3BA4E8] text-white shadow-xs' : 'bg-[#F4F5FA] text-[#4B5163] hover:bg-[#EEF7FD] hover:text-[#1E86C8]'
+                        }`}
                       >
-                        <Icon className="h-4 w-4" />
+                        {tab.label}
+                        <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${active ? 'bg-white/25 text-white' : 'bg-white text-[#6B7185] border border-[#E3E6F0]'}`}>{counts[tab.id]}</span>
                       </button>
                     )
                   })}
                 </div>
               </div>
-            </div>
-
-            {/* Filter Lanjutan (Pemegang, Lokasi, dan Rentang Tanggal) - Blueprint 3.7 */}
-            {showFilterLanjutan && (
-              <div className="grid gap-3 rounded-lg border border-[#E3E6F0] bg-[#F8FAFC] p-4 text-xs sm:grid-cols-2 lg:grid-cols-4 animate-in fade-in duration-150">
-                <div>
-                  <label className="block text-[11px] font-medium uppercase tracking-wider text-[#64748B] mb-1">
-                    Pemegang Dokumen
-                  </label>
-                  <select
-                    value={selectedPemegang}
-                    onChange={(e) => {
-                      setSelectedPemegang(e.target.value)
-                      setPage(1)
-                    }}
-                    className="w-full h-9 rounded-md border border-[#CBD7E3] bg-white px-2.5 text-xs text-[#111827]"
-                  >
-                    <option value="semua">Semua Pemegang</option>
-                    {uniquePemegang.map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium uppercase tracking-wider text-[#64748B] mb-1">
-                    Lokasi Fisik
-                  </label>
-                  <select
-                    value={selectedLokasi}
-                    onChange={(e) => {
-                      setSelectedLokasi(e.target.value)
-                      setPage(1)
-                    }}
-                    className="w-full h-9 rounded-md border border-[#CBD7E3] bg-white px-2.5 text-xs text-[#111827]"
-                  >
-                    <option value="semua">Semua Lokasi</option>
-                    {uniqueLokasi.map((l) => (
-                      <option key={l} value={l}>{l}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium uppercase tracking-wider text-[#64748B] mb-1">
-                    Tanggal Dokumen Dari
-                  </label>
-                  <input
-                    type="date"
-                    value={startDateFilter}
-                    onChange={(e) => {
-                      setStartDateFilter(e.target.value)
-                      setPage(1)
-                    }}
-                    className="w-full h-9 rounded-md border border-[#CBD7E3] bg-white px-2.5 text-xs text-[#111827]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium uppercase tracking-wider text-[#64748B] mb-1">
-                    Sampai Tanggal
-                  </label>
-                  <input
-                    type="date"
-                    value={endDateFilter}
-                    onChange={(e) => {
-                      setEndDateFilter(e.target.value)
-                      setPage(1)
-                    }}
-                    className="w-full h-9 rounded-md border border-[#CBD7E3] bg-white px-2.5 text-xs text-[#111827]"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-2 overflow-x-auto">
-              {statusTabs.map((tab) => {
-                const active = selectedStatus === tab.id
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedStatus(tab.id)
-                      setPage(1)
-                    }}
-                    className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                      active ? 'bg-[#3BA4E8] text-white' : 'bg-[#F4F5FA] text-[#4B5163] hover:bg-[#EEF7FD] hover:text-[#1E86C8]'
-                    }`}
-                  >
-                    {tab.label}
-                    <span className={`rounded-md px-1.5 text-xs ${active ? 'bg-white/25' : 'bg-white text-[#6B7185]'}`}>{counts[tab.id]}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
 
           {/* Konten */}
           {filteredDocs.length === 0 ? (
