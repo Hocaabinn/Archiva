@@ -87,6 +87,14 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
   const [isKatalogOpen, setIsKatalogOpen] = useState(true)
   const [isCollapsed, setIsCollapsed] = useState(false)
 
+  // Baca cache dari localStorage setelah mount di client agar tidak menyebabkan hydration mismatch SSR
+  useEffect(() => {
+    const savedRole = localStorage.getItem('archiva_user_role') as UserRole | null
+    if (savedRole) setProfileRole(savedRole)
+    const savedName = localStorage.getItem('archiva_user_name')
+    if (savedName) setUserName(savedName)
+  }, [])
+
   useEffect(() => {
     async function loadUser() {
       try {
@@ -99,10 +107,20 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
             .single()
 
           if (profile) {
-            setProfileRole((profile.role as UserRole) || 'user')
-            setUserName(profile.nama_lengkap || user.email?.split('@')[0] || 'Pengguna')
+            const role = (profile.role as UserRole) || 'user'
+            const name = profile.nama_lengkap || user.email?.split('@')[0] || 'Pengguna'
+            setProfileRole(role)
+            setUserName(name)
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('archiva_user_role', role)
+              localStorage.setItem('archiva_user_name', name)
+            }
           } else {
-            setUserName(user.email?.split('@')[0] || 'Pengguna')
+            const name = user.email?.split('@')[0] || 'Pengguna'
+            setUserName(name)
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('archiva_user_name', name)
+            }
           }
         } else {
           setUserName('Tamu')
@@ -123,6 +141,10 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
     } catch (err) {
       console.error('Logout error:', err)
     } finally {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('archiva_user_role')
+        localStorage.removeItem('archiva_user_name')
+      }
       window.location.href = '/login'
     }
   }
@@ -213,7 +235,7 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
               <div className="flex items-center justify-between rounded-lg px-1 py-1">
                 <div className="min-w-0">
                   <p className="text-[15px] font-semibold text-[#1F2333] truncate">Arsip Instansi</p>
-                  <p className="text-xs text-[#8A90A2] truncate">{roleTitle}</p>
+                  <p className="text-xs text-[#8A90A2] truncate" suppressHydrationWarning>{roleTitle}</p>
                 </div>
                 <ChevronsUpDown className="w-4 h-4 text-[#6B7185] shrink-0" />
               </div>
@@ -337,12 +359,12 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
               </button>
               <span className="hidden sm:block w-px h-7 bg-[#E3E6F0]" />
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-[#3BA4E8] text-white text-sm font-semibold flex items-center justify-center">
+                <div className="w-9 h-9 rounded-full bg-[#3BA4E8] text-white text-sm font-semibold flex items-center justify-center" suppressHydrationWarning>
                   {getInitials(userName) || '?'}
                 </div>
-                <div className="hidden sm:block leading-tight">
-                  <p className="text-sm font-semibold text-[#1F2333] max-w-[160px] truncate">{userName}</p>
-                  <p className="text-xs text-[#8A90A2]">{roleTitle}</p>
+                <div className="hidden sm:block leading-tight" suppressHydrationWarning>
+                  <p className="text-sm font-semibold text-[#1F2333] max-w-[160px] truncate" suppressHydrationWarning>{userName}</p>
+                  <p className="text-xs text-[#8A90A2]" suppressHydrationWarning>{roleTitle}</p>
                 </div>
               </div>
               <button type="button" className="p-1 text-[#6B7185] hover:text-[#1F2333]" title="Menu lainnya">
