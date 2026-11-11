@@ -14,6 +14,7 @@
     "@types/qrcode": "^1.5.6",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
+    "jsqr": "^1.4.0",
     "lucide-react": "^1.67.0",
     "next": "16.4.4",
     "pdf-lib": "^1.17.1",
