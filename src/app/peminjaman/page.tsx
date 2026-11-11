@@ -733,39 +733,52 @@ function PeminjamanContent() {
       {/* ================= MODAL AJUKAN PEMINJAMAN ================= */}
       {isAjukanModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-xs sm:items-center sm:p-4"
           onClick={() => !submittingAjukan && setIsAjukanModalOpen(false)}
         >
           <div
-            className="w-full max-w-lg bg-white border-2 border-[#1E2429] shadow-2xl p-6 space-y-4 font-sans text-xs"
+            className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl animate-in fade-in slide-in-from-bottom-4 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="border-b border-[#D8D2C4] pb-3">
-              <h3 className="font-serif font-bold text-lg text-[#1A1D21]">
-                Formulir Pengajuan Peminjaman Dokumen Inaktif
-              </h3>
-              <p className="font-mono text-xs text-[#5B6166] mt-0.5">
-                Sesuai ketentuan Blueprint 3.6: Dokumen tetap berstatus Inaktif dan berada di Gudang Inaktif.
-              </p>
+            <div className="flex items-start justify-between gap-3 border-b border-[#ECEEF5] p-5">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EAF5FD] text-[#3BA4E8]">
+                  <BookOpenCheck className="h-5 w-5" />
+                </span>
+                <div>
+                  <h3 className="text-base font-semibold text-[#1F2333]">Ajukan Peminjaman</h3>
+                  <p className="mt-0.5 text-xs text-[#6B7185]">
+                    Dokumen tetap berstatus Inaktif dan berada di Gudang Inaktif.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !submittingAjukan && setIsAjukanModalOpen(false)}
+                className="rounded-lg p-1.5 text-[#6B7185] hover:bg-[#F4F5FA] hover:text-[#1F2333]"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
 
-            <form onSubmit={handleAjukanSubmit} className="space-y-4">
+            <form onSubmit={handleAjukanSubmit} className="space-y-4 p-5">
               <div>
-                <label className="block font-mono font-bold text-[#1A1D21] mb-1">
-                  PILIH DOKUMEN INAKTIF <span className="text-red-600">*</span>
+                <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">
+                  Dokumen Inaktif <span className="text-[#D64545]">*</span>
                 </label>
                 {inactiveDocs.length === 0 ? (
-                  <p className="p-3 bg-[#F7F3EB] border border-[#D8D2C4] font-mono text-xs text-[#5B6166]">
-                    Tidak ada dokumen dengan status Inaktif yang tersedia saat ini.
-                  </p>
+                  <div className="flex items-center gap-2 rounded-lg border border-[#ECEEF5] bg-[#F8FAFC] p-3 text-xs text-[#6B7185]">
+                    <Info className="h-4 w-4 shrink-0 text-[#3BA4E8]" />
+                    Tidak ada dokumen berstatus Inaktif yang tersedia saat ini.
+                  </div>
                 ) : (
                   <select
                     value={selectedDocId}
                     onChange={(e) => setSelectedDocId(e.target.value)}
                     required
-                    className="w-full p-2 border border-[#D8D2C4] font-mono text-xs text-[#1A1D21] bg-white focus:outline-hidden focus:border-[#1E2429]"
+                    className={`${inputClass} cursor-pointer`}
                   >
-                    <option value="">-- Pilih Dokumen Inaktif --</option>
+                    <option value="">Pilih dokumen inaktif...</option>
                     {inactiveDocs.map((doc) => (
                       <option key={doc.id} value={doc.id}>
                         {doc.kode_arsip} — {doc.judul} ({doc.lokasi_saat_ini || 'Gudang Inaktif'})
@@ -776,39 +789,35 @@ function PeminjamanContent() {
               </div>
 
               <div>
-                <label className="block font-mono font-bold text-[#1A1D21] mb-1">
-                  KEPERLUAN PEMINJAMAN <span className="text-red-600">*</span>
+                <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">
+                  Keperluan Peminjaman <span className="text-[#D64545]">*</span>
                 </label>
                 <textarea
                   value={keperluan}
                   onChange={(e) => setKeperluan(e.target.value)}
                   required
                   rows={4}
-                  placeholder="Jelaskan kebutuhan operasional peminjaman dokumen inaktif ini..."
-                  className="w-full p-2.5 border border-[#D8D2C4] font-sans text-xs text-[#1A1D21] focus:outline-hidden focus:border-[#1E2429]"
+                  placeholder="Jelaskan kebutuhan operasional peminjaman dokumen ini..."
+                  className={`${inputClass} resize-none`}
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#D8D2C4]">
+              <div className="flex flex-col-reverse gap-2 border-t border-[#ECEEF5] pt-4 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   disabled={submittingAjukan}
                   onClick={() => setIsAjukanModalOpen(false)}
-                  className="px-4 py-2 border border-[#D8D2C4] text-[#1A1D21] hover:bg-[#F7F3EB] font-mono font-semibold"
+                  className="rounded-lg border border-[#E3E6F0] bg-white px-4 py-2 text-sm font-medium text-[#4B5163] hover:bg-[#F7F8FC]"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={submittingAjukan || inactiveDocs.length === 0}
-                  className="px-5 py-2 bg-[#1F5C55] hover:bg-[#184843] text-white font-mono font-bold flex items-center gap-1.5 disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 rounded-lg bg-[#3BA4E8] px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#2A92D6] disabled:opacity-50"
                 >
-                  {submittingAjukan ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <BookOpenCheck className="w-4 h-4" />
-                  )}
-                  <span>Kirim Pengajuan</span>
+                  {submittingAjukan ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  Kirim Pengajuan
                 </button>
               </div>
             </form>
@@ -819,56 +828,53 @@ function PeminjamanContent() {
       {/* ================= MODAL TOLAK PEMINJAMAN ================= */}
       {rejectingLoan && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-xs sm:items-center sm:p-4"
           onClick={() => !submittingReject && setRejectingLoan(null)}
         >
           <div
-            className="w-full max-w-md bg-white border-2 border-red-700 shadow-2xl p-6 space-y-4 font-sans text-xs"
+            className="w-full max-w-md rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl animate-in fade-in slide-in-from-bottom-4 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="border-b border-[#D8D2C4] pb-3">
-              <h3 className="font-serif font-bold text-lg text-red-900">
-                Tolak Pengajuan Peminjaman
-              </h3>
-              <p className="font-mono text-xs text-[#5B6166] mt-0.5">
-                Dokumen: <strong>{rejectingLoan.dokumen?.kode_arsip}</strong>
-              </p>
+            <div className="flex items-start gap-3 border-b border-[#ECEEF5] p-5">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FDECEC] text-[#D64545]">
+                <XCircle className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <h3 className="text-base font-semibold text-[#1F2333]">Tolak Pengajuan Peminjaman</h3>
+                <p className="mt-0.5 break-all text-xs text-[#6B7185]">
+                  Dokumen: <span className="font-mono font-medium text-[#1F2333]">{rejectingLoan.dokumen?.kode_arsip}</span>
+                </p>
+              </div>
             </div>
 
-            <form onSubmit={handleRejectSubmit} className="space-y-4">
+            <form onSubmit={handleRejectSubmit} className="space-y-4 p-5">
               <div>
-                <label className="block font-mono font-bold text-[#1A1D21] mb-1">
-                  ALASAN PENOLAKAN
-                </label>
+                <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">Alasan Penolakan</label>
                 <textarea
                   value={alasanTolak}
                   onChange={(e) => setAlasanTolak(e.target.value)}
                   rows={3}
-                  placeholder="Tuliskan alasan penolakan pengajuan peminjaman ini..."
-                  className="w-full p-2.5 border border-[#D8D2C4] font-sans text-xs text-[#1A1D21] focus:outline-hidden focus:border-red-700"
+                  placeholder="Tuliskan alasan penolakan pengajuan ini..."
+                  className={`${inputClass} resize-none focus:border-[#D64545] focus:ring-[#D64545]/15`}
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#D8D2C4]">
+              <div className="flex flex-col-reverse gap-2 border-t border-[#ECEEF5] pt-4 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   disabled={submittingReject}
                   onClick={() => setRejectingLoan(null)}
-                  className="px-4 py-2 border border-[#D8D2C4] text-[#1A1D21] hover:bg-[#F7F3EB] font-mono font-semibold"
+                  className="rounded-lg border border-[#E3E6F0] bg-white px-4 py-2 text-sm font-medium text-[#4B5163] hover:bg-[#F7F8FC]"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={submittingReject}
-                  className="px-5 py-2 bg-red-800 hover:bg-red-900 text-white font-mono font-bold flex items-center gap-1.5 disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 rounded-lg bg-[#D64545] px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#C03A3A] disabled:opacity-50"
                 >
-                  {submittingReject ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <XCircle className="w-4 h-4" />
-                  )}
-                  <span>Tolak Pengajuan</span>
+                  {submittingReject ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                  Tolak Pengajuan
                 </button>
               </div>
             </form>
@@ -884,8 +890,9 @@ export default function PeminjamanPage() {
     <Suspense
       fallback={
         <AppLayout>
-          <div className="p-12 text-center font-mono text-xs text-[#5B6166]">
-            Memuat modul peminjaman arsip...
+          <div className="flex flex-col items-center justify-center gap-3 py-24 text-[#6B7185]">
+            <Loader2 className="h-8 w-8 animate-spin text-[#3BA4E8]" />
+            <p className="text-sm font-medium">Memuat modul peminjaman...</p>
           </div>
         </AppLayout>
       }
@@ -894,4 +901,3 @@ export default function PeminjamanPage() {
     </Suspense>
   )
 }
-
