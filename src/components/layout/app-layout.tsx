@@ -14,8 +14,6 @@ import {
   ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
-  Search,
-  Bell,
   MoreVertical,
   Menu,
   X,
@@ -28,6 +26,7 @@ import {
 } from 'lucide-react'
 import { UserRole } from '@/types'
 import { createClient } from '@/lib/supabase/client'
+import { NotificationBell } from './notification-bell'
 
 interface SubNavItem {
   label: string
@@ -542,14 +541,7 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
             <div className="hidden md:block" />
 
             <div className="flex items-center gap-4 shrink-0">
-              <button
-                type="button"
-                className="relative p-1.5 text-[#4B5163] hover:text-[#1F2333] transition-colors"
-                title="Notifikasi"
-              >
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#E5484D] ring-2 ring-white" />
-              </button>
+              <NotificationBell supabase={supabase} />
               <span className="hidden sm:block w-px h-7 bg-[#E3E6F0]" />
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-[#3BA4E8] text-white text-sm font-semibold flex items-center justify-center" suppressHydrationWarning>
