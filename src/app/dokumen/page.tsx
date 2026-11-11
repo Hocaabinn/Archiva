@@ -40,12 +40,15 @@ interface DocRow {
   id: string
   kode_arsip: string
   nomor_dokumen: string
+  nomor_ppl?: string
   judul: string
   kategori_id: string
   kategori: string
   deskripsi: string
   status: DokumenStatus
   lokasi_saat_ini: string
+  pemegang_saat_ini?: string
+  pemegang_nama?: string
   tanggal_dokumen: string // yyyy-mm-dd
   tanggal_kadaluarsa: string | null // yyyy-mm-dd
   file_size: number | null
@@ -73,49 +76,11 @@ interface FormState {
 const PRIVILEGED: UserRole[] = ['admin', 'pic_arsip', 'atasan']
 const PAGE_SIZE = 8
 
-const fallbackKategori: Kategori[] = [
-  { id: 'k-lgl', nama: 'Kontrak & Legal' },
-  { id: 'k-keu', nama: 'Keuangan' },
-  { id: 'k-sdm', nama: 'SDM & Kepegawaian' },
-  { id: 'k-ops', nama: 'Operasional & Logistik' },
-]
-
-const demoDocuments: DocRow[] = [
-  {
-    id: '1', kode_arsip: 'ARS-2026-0001', nomor_dokumen: '042/LEG-KTR/PL/I/2026',
-    judul: 'Kontrak Kerja Sama Vendor PT Prima Logistik 2026', kategori_id: 'k-lgl', kategori: 'Kontrak & Legal',
-    deskripsi: '', status: 'aktif', lokasi_saat_ini: 'Ruang Arsip Aktif - Rak A1',
-    tanggal_dokumen: '2026-01-03', tanggal_kadaluarsa: '2029-11-03', file_size: 4_800_000,
-    file_path: '', bucket: 'arsip-aktif', pemilik_id: 'demo',
-  },
-  {
-    id: '2', kode_arsip: 'ARS-2026-0002', nomor_dokumen: '118/KEU-AUD/X/2026',
-    judul: 'Laporan Keuangan & Audit Neraca Kas Triwulan III 2026', kategori_id: 'k-keu', kategori: 'Keuangan',
-    deskripsi: '', status: 'menunggu_persetujuan', lokasi_saat_ini: 'Meja Verifikasi PIC',
-    tanggal_dokumen: '2026-10-18', tanggal_kadaluarsa: null, file_size: 12_300_000,
-    file_path: '', bucket: 'arsip-aktif', pemilik_id: 'demo',
-  },
-  {
-    id: '3', kode_arsip: 'ARS-2026-0003', nomor_dokumen: '007/SK-DIR/SDM/2026',
-    judul: 'Surat Keputusan Direksi Tentang Kebijakan Mutasi & Promosi 2026', kategori_id: 'k-sdm', kategori: 'SDM & Kepegawaian',
-    deskripsi: '', status: 'aktif', lokasi_saat_ini: 'Ruang Direksi Lt. 3',
-    tanggal_dokumen: '2023-12-15', tanggal_kadaluarsa: '2026-12-15', file_size: 2_100_000,
-    file_path: '', bucket: 'arsip-aktif', pemilik_id: 'demo',
-  },
-  {
-    id: '4', kode_arsip: 'ARS-2023-0045', nomor_dokumen: 'BA-240/TIK-LOG/XI/2023',
-    judul: 'Berita Acara Pengadaan Server & Komponen Basis Data Utama 2023', kategori_id: 'k-ops', kategori: 'Operasional & Logistik',
-    deskripsi: '', status: 'inaktif', lokasi_saat_ini: 'Gudang Inaktif - Kotak B-12',
-    tanggal_dokumen: '2023-11-01', tanggal_kadaluarsa: '2026-11-01', file_size: 8_400_000,
-    file_path: '', bucket: 'arsip-inaktif', pemilik_id: 'demo',
-  },
-  {
-    id: '5', kode_arsip: 'ARS-2026-0004', nomor_dokumen: 'NDA-099/LGL/2026',
-    judul: 'Dokumen Perjanjian Kerahasiaan Data Klien (NDA) Multinasional', kategori_id: 'k-lgl', kategori: 'Kontrak & Legal',
-    deskripsi: '', status: 'aktif', lokasi_saat_ini: 'Ruang Arsip Aktif - Rak A2',
-    tanggal_dokumen: '2026-02-12', tanggal_kadaluarsa: '2029-02-12', file_size: 1_900_000,
-    file_path: '', bucket: 'arsip-aktif', pemilik_id: 'demo',
-  },
+// Blueprint 3.1: 3 Kategori resmi (Keuangan, SDM, Kontrak)
+const blueprintKategori: Kategori[] = [
+  { id: 'keu', nama: 'Keuangan' },
+  { id: 'sdm', nama: 'SDM' },
+  { id: 'ktr', nama: 'Kontrak' },
 ]
 
 const statusPill: Record<DokumenStatus, { label: string; className: string }> = {
@@ -127,9 +92,12 @@ const statusPill: Record<DokumenStatus, { label: string; className: string }> = 
 }
 
 const DOC_SELECT = `
-  id, kode_arsip, nomor_dokumen, judul, deskripsi, status, kategori_id,
-  file_path, bucket, file_size, lokasi_saat_ini, tanggal_dokumen,
-  tanggal_kadaluarsa, pemilik_id, kategori_dokumen ( nama )
+  id, kode_arsip, nomor_dokumen, nomor_ppl, judul, deskripsi, status, kategori_id,
+  file_path, bucket, ukuran_file, lokasi_saat_ini, tanggal_dokumen,
+  tanggal_kadaluarsa, pemilik_id, pemegang_saat_ini,
+  kategori_dokumen ( id, nama, kode ),
+  pemegang:profiles!dokumen_pemegang_saat_ini_fkey ( id, nama_lengkap, email ),
+  pemilik:profiles!dokumen_pemilik_id_fkey ( id, nama_lengkap, email )
 `
 
 // ============================================================
@@ -162,15 +130,18 @@ function mapRow(d: any): DocRow {
     id: d.id,
     kode_arsip: d.kode_arsip,
     nomor_dokumen: d.nomor_dokumen || '',
+    nomor_ppl: d.nomor_ppl || '',
     judul: d.judul,
     kategori_id: d.kategori_id || '',
     kategori: d.kategori_dokumen?.nama || 'Umum',
     deskripsi: d.deskripsi || '',
     status: d.status,
     lokasi_saat_ini: d.lokasi_saat_ini || '-',
+    pemegang_saat_ini: d.pemegang_saat_ini || d.pemilik_id,
+    pemegang_nama: (d.pemegang as any)?.nama_lengkap || (d.pemegang as any)?.email || (d.pemilik as any)?.nama_lengkap || (d.pemilik as any)?.email || 'Pengaju',
     tanggal_dokumen: d.tanggal_dokumen || '',
     tanggal_kadaluarsa: d.tanggal_kadaluarsa || null,
-    file_size: d.file_size ?? null,
+    file_size: d.ukuran_file ?? d.file_size ?? null,
     file_path: d.file_path || '',
     bucket: d.bucket || 'arsip-aktif',
     pemilik_id: d.pemilik_id,
@@ -244,23 +215,26 @@ function Field({ label, required, children, hint }: { label: string; required?: 
 // HALAMAN
 // ============================================================
 function DaftarDokumenContent() {
-  const searchParams = useSearchParams()
-  const roleParam = searchParams.get('demo_role') as UserRole | null
   const [supabase] = useState(() => createClient())
 
   // Data
   const [documents, setDocuments] = useState<DocRow[]>([])
-  const [kategoriList, setKategoriList] = useState<Kategori[]>(fallbackKategori)
+  const [kategoriList, setKategoriList] = useState<Kategori[]>(blueprintKategori)
   const [isLoading, setIsLoading] = useState(true)
-  const [isDemo, setIsDemo] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [profileRole, setProfileRole] = useState<UserRole>('user')
-  const role: UserRole = isDemo ? roleParam || 'admin' : profileRole
+  const role: UserRole = profileRole
 
   // Filter & tampilan
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('semua')
   const [selectedKategori, setSelectedKategori] = useState('semua')
+  const [selectedPemegang, setSelectedPemegang] = useState('semua')
+  const [selectedLokasi, setSelectedLokasi] = useState('semua')
+  const [startDateFilter, setStartDateFilter] = useState('')
+  const [endDateFilter, setEndDateFilter] = useState('')
+  const [showFilterLanjutan, setShowFilterLanjutan] = useState(false)
   const [sortBy, setSortBy] = useState('terbaru')
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table')
   const [page, setPage] = useState(1)
@@ -284,6 +258,7 @@ function DaftarDokumenContent() {
 
   // ---------------- READ ----------------
   const loadDocuments = useCallback(async () => {
+    setErrorMessage(null)
     const { data, error } = await supabase.from('dokumen').select(DOC_SELECT).order('created_at', { ascending: false })
     if (error) throw error
     setDocuments((data || []).map(mapRow))
@@ -292,10 +267,10 @@ function DaftarDokumenContent() {
   useEffect(() => {
     async function init() {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
-          setIsDemo(true)
-          setDocuments(demoDocuments)
+        const { data: { user }, error: authErr } = await supabase.auth.getUser()
+        if (authErr || !user) {
+          setErrorMessage('Anda belum masuk atau sesi telah berakhir. Silakan masuk terlebih dahulu untuk mengakses daftar dokumen.')
+          setDocuments([])
           return
         }
         setUserId(user.id)
@@ -309,9 +284,9 @@ function DaftarDokumenContent() {
 
         await loadDocuments()
       } catch (err) {
-        console.warn('Gagal memuat dokumen dari Supabase, beralih ke mode demo:', err)
-        setIsDemo(true)
-        setDocuments(demoDocuments)
+        console.error('Gagal memuat dokumen dari Supabase:', err)
+        setErrorMessage(err instanceof Error ? err.message : 'Gagal terhubung ke Supabase live.')
+        setDocuments([])
       } finally {
         setIsLoading(false)
       }
@@ -323,27 +298,68 @@ function DaftarDokumenContent() {
   const isPrivileged = PRIVILEGED.includes(role)
   const canCreate = role === 'user'
   const isOwnerPending = (doc: DocRow) => doc.pemilik_id === userId && doc.status === 'menunggu_persetujuan'
-  const canEdit = (doc: DocRow) => isDemo ? canCreate : isPrivileged || isOwnerPending(doc)
-  const canDelete = (doc: DocRow) =>
-    isDemo ? role === 'admin' || role === 'pic_arsip' : role === 'admin' || role === 'pic_arsip' || isOwnerPending(doc)
+  const canEdit = (doc: DocRow) => isPrivileged || isOwnerPending(doc)
+  const canDelete = (doc: DocRow) => role === 'admin' || role === 'pic_arsip' || isOwnerPending(doc)
 
-  // ---------------- FILTER ----------------
+  // ---------------- DAFTAR PILIHAN FILTER UNIK ----------------
+  const uniquePemegang = useMemo(() => {
+    const set = new Set<string>()
+    documents.forEach((d) => {
+      if (d.pemegang_nama) set.add(d.pemegang_nama)
+    })
+    return Array.from(set).sort()
+  }, [documents])
+
+  const uniqueLokasi = useMemo(() => {
+    const set = new Set<string>()
+    documents.forEach((d) => {
+      if (d.lokasi_saat_ini && d.lokasi_saat_ini !== '-') set.add(d.lokasi_saat_ini)
+    })
+    return Array.from(set).sort()
+  }, [documents])
+
+  // ---------------- FILTER & PENCARIAN ----------------
+  // Blueprint 3.7:
+  // "Pencarian utama berdasarkan kode arsip (termasuk nomor payment / PPL dan doc voucher di dalamnya),
+  // serta pencarian tambahan berdasarkan judul.
+  // Filter: status, kategori, tanggal, pemegang, dan lokasi."
   const filteredDocs = useMemo(() => {
-    const q = searchQuery.toLowerCase()
+    const q = searchQuery.toLowerCase().trim()
     return documents
       .filter((doc) => {
+        // 1. Pencarian utama & tambahan
         const matchSearch =
           !q ||
           doc.kode_arsip.toLowerCase().includes(q) ||
-          doc.judul.toLowerCase().includes(q) ||
-          doc.nomor_dokumen.toLowerCase().includes(q) ||
-          doc.lokasi_saat_ini.toLowerCase().includes(q)
+          (doc.nomor_ppl && doc.nomor_ppl.toLowerCase().includes(q)) ||
+          (doc.nomor_dokumen && doc.nomor_dokumen.toLowerCase().includes(q)) ||
+          doc.judul.toLowerCase().includes(q)
+
+        // 2. Filter Kategori
         const matchKategori = selectedKategori === 'semua' || doc.kategori === selectedKategori
+
+        // 3. Filter Status
         const sisa = sisaHari(doc.tanggal_kadaluarsa)
         const matchStatus =
           selectedStatus === 'semua' ||
           (selectedStatus === 'kritis' ? doc.status === 'aktif' && sisa !== null && sisa < 90 : doc.status === selectedStatus)
-        return matchSearch && matchKategori && matchStatus
+
+        // 4. Filter Pemegang
+        const matchPemegang = selectedPemegang === 'semua' || doc.pemegang_nama === selectedPemegang
+
+        // 5. Filter Lokasi
+        const matchLokasi = selectedLokasi === 'semua' || doc.lokasi_saat_ini === selectedLokasi
+
+        // 6. Filter Rentang Tanggal Dokumen
+        let matchTanggal = true
+        if (startDateFilter && doc.tanggal_dokumen) {
+          matchTanggal = matchTanggal && doc.tanggal_dokumen >= startDateFilter
+        }
+        if (endDateFilter && doc.tanggal_dokumen) {
+          matchTanggal = matchTanggal && doc.tanggal_dokumen <= endDateFilter
+        }
+
+        return matchSearch && matchKategori && matchStatus && matchPemegang && matchLokasi && matchTanggal
       })
       .sort((a, b) => {
         if (sortBy === 'terlama') return a.kode_arsip.localeCompare(b.kode_arsip)
@@ -351,7 +367,7 @@ function DaftarDokumenContent() {
         if (sortBy === 'kadaluarsa') return (sisaHari(a.tanggal_kadaluarsa) ?? 99999) - (sisaHari(b.tanggal_kadaluarsa) ?? 99999)
         return b.kode_arsip.localeCompare(a.kode_arsip)
       })
-  }, [documents, searchQuery, selectedStatus, selectedKategori, sortBy])
+  }, [documents, searchQuery, selectedStatus, selectedKategori, selectedPemegang, selectedLokasi, startDateFilter, endDateFilter, sortBy])
 
   const totalPages = Math.max(1, Math.ceil(filteredDocs.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
@@ -416,60 +432,12 @@ function DaftarDokumenContent() {
     e.preventDefault()
     if (!form.judul.trim()) return setFormError('Judul dokumen wajib diisi.')
     if (!form.kategori_id) return setFormError('Pilih kategori dokumen.')
-    if (formMode === 'create' && !isDemo && !form.file) return setFormError('Pilih berkas dokumen yang akan diunggah.')
+    if (formMode === 'create' && !form.file) return setFormError('Pilih berkas dokumen yang akan diunggah.')
 
     setIsSaving(true)
     setFormError(null)
 
-    // ----- Mode demo: simpan di state lokal saja -----
-    if (isDemo) {
-      if (formMode === 'create') {
-        const nextNo = documents.length + 1
-        const newDoc: DocRow = {
-          id: `demo-${Date.now()}`,
-          kode_arsip: `ARS-${new Date().getFullYear()}-${String(nextNo).padStart(4, '0')}`,
-          nomor_dokumen: form.nomor_dokumen,
-          judul: form.judul.trim(),
-          kategori_id: form.kategori_id,
-          kategori: kategoriName(form.kategori_id),
-          deskripsi: form.deskripsi,
-          status: 'menunggu_persetujuan',
-          lokasi_saat_ini: form.lokasi_saat_ini || 'Meja Pengaju',
-          tanggal_dokumen: form.tanggal_dokumen,
-          tanggal_kadaluarsa: null,
-          file_size: form.file?.size ?? null,
-          file_path: '',
-          bucket: 'arsip-aktif',
-          pemilik_id: 'demo',
-        }
-        setDocuments((prev) => [newDoc, ...prev])
-        showToast('success', `Dokumen ${newDoc.kode_arsip} ditambahkan (mode demo).`)
-      } else if (editing) {
-        setDocuments((prev) =>
-          prev.map((d) =>
-            d.id === editing.id
-              ? {
-                  ...d,
-                  judul: form.judul.trim(),
-                  nomor_dokumen: form.nomor_dokumen,
-                  kategori_id: form.kategori_id,
-                  kategori: kategoriName(form.kategori_id),
-                  deskripsi: form.deskripsi,
-                  tanggal_dokumen: form.tanggal_dokumen,
-                  lokasi_saat_ini: form.lokasi_saat_ini,
-                  status: form.status,
-                }
-              : d
-          )
-        )
-        showToast('success', `Dokumen ${editing.kode_arsip} diperbarui (mode demo).`)
-      }
-      setIsSaving(false)
-      setFormMode(null)
-      return
-    }
-
-    // ----- Mode live: Supabase -----
+    // Mode live: Supabase
     try {
       if (formMode === 'create' && form.file && userId) {
         const safeName = form.file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
@@ -487,7 +455,7 @@ function DaftarDokumenContent() {
             status: 'menunggu_persetujuan',
             file_path: filePath,
             bucket: 'arsip-aktif',
-            file_size: form.file.size,
+            ukuran_file: form.file.size,
             mime_type: form.file.type || null,
             pemilik_id: userId,
             pemegang_saat_ini: userId,
@@ -534,14 +502,6 @@ function DaftarDokumenContent() {
   const handleDelete = async () => {
     if (!deleting) return
     setIsDeleting(true)
-
-    if (isDemo) {
-      setDocuments((prev) => prev.filter((d) => d.id !== deleting.id))
-      showToast('success', `Dokumen ${deleting.kode_arsip} dihapus (mode demo).`)
-      setIsDeleting(false)
-      setDeleting(null)
-      return
-    }
 
     try {
       const { data, error } = await supabase.from('dokumen').delete().eq('id', deleting.id).select('id')
@@ -620,7 +580,7 @@ function DaftarDokumenContent() {
   const cardClass = 'bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)]'
 
   return (
-    <AppLayout currentRole={isDemo ? role : undefined}>
+    <AppLayout currentRole={role}>
       <div className="mx-auto max-w-7xl space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -669,13 +629,18 @@ function DaftarDokumenContent() {
           </div>
         </div>
 
-        {isDemo && (
-          <div className="flex items-start gap-3 rounded-xl border border-[#BFE2F8] bg-[#EAF5FD] px-4 py-3 text-sm text-[#1E86C8]">
-            <Info className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>
-              <span className="font-semibold">Mode demo.</span> Anda belum masuk atau koneksi Supabase gagal, jadi perubahan hanya tersimpan sementara di
-              browser dan hilang saat halaman dimuat ulang.
-            </p>
+        {errorMessage && (
+          <div className="flex items-start gap-3 rounded-xl border border-[#FDECEC] bg-[#FFF5F5] px-4 py-3 text-sm text-[#D64545]">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="flex-1">
+              <p className="font-semibold">Koneksi Supabase Gagal / Belum Masuk</p>
+              <p className="mt-0.5">{errorMessage}</p>
+              {!userId && (
+                <Link href="/login" className="mt-2 inline-flex items-center text-xs font-semibold text-[#1E86C8] hover:underline">
+                  Masuk ke Akun Anda &rarr;
+                </Link>
+              )}
+            </div>
           </div>
         )}
 
@@ -708,7 +673,7 @@ function DaftarDokumenContent() {
                     setSearchQuery(e.target.value)
                     setPage(1)
                   }}
-                  placeholder="Cari kode arsip, judul, nomor dokumen, lokasi..."
+                  placeholder="Cari kode arsip, no. payment (PPL), doc voucher, judul dokumen..."
                   className={`${inputClass} pl-10 pr-9`}
                 />
                 {searchQuery && (
@@ -717,7 +682,7 @@ function DaftarDokumenContent() {
                   </button>
                 )}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <select
                   value={selectedKategori}
                   onChange={(e) => {
@@ -733,6 +698,20 @@ function DaftarDokumenContent() {
                     </option>
                   ))}
                 </select>
+                <button
+                  type="button"
+                  onClick={() => setShowFilterLanjutan((v) => !v)}
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                    showFilterLanjutan || selectedPemegang !== 'semua' || selectedLokasi !== 'semua' || startDateFilter || endDateFilter
+                      ? 'border-[#1E3A5F] bg-[#EEF7FD] text-[#1E3A5F]'
+                      : 'border-[#E3E6F0] bg-white text-[#4B5163] hover:bg-[#F7F8FC]'
+                  }`}
+                >
+                  <span>Filter</span>
+                  {(selectedPemegang !== 'semua' || selectedLokasi !== 'semua' || startDateFilter || endDateFilter) && (
+                    <span className="h-2 w-2 rounded-full bg-[#1E3A5F]" />
+                  )}
+                </button>
                 <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className={`${inputClass} w-auto cursor-pointer`}>
                   <option value="terbaru">Terbaru</option>
                   <option value="terlama">Terlama</option>
@@ -757,6 +736,79 @@ function DaftarDokumenContent() {
                 </div>
               </div>
             </div>
+
+            {/* Filter Lanjutan (Pemegang, Lokasi, dan Rentang Tanggal) - Blueprint 3.7 */}
+            {showFilterLanjutan && (
+              <div className="grid gap-3 rounded-lg border border-[#E3E6F0] bg-[#F8FAFC] p-4 text-xs sm:grid-cols-2 lg:grid-cols-4 animate-in fade-in duration-150">
+                <div>
+                  <label className="block text-[11px] font-medium uppercase tracking-wider text-[#64748B] mb-1">
+                    Pemegang Dokumen
+                  </label>
+                  <select
+                    value={selectedPemegang}
+                    onChange={(e) => {
+                      setSelectedPemegang(e.target.value)
+                      setPage(1)
+                    }}
+                    className="w-full h-9 rounded-md border border-[#CBD7E3] bg-white px-2.5 text-xs text-[#111827]"
+                  >
+                    <option value="semua">Semua Pemegang</option>
+                    {uniquePemegang.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium uppercase tracking-wider text-[#64748B] mb-1">
+                    Lokasi Fisik
+                  </label>
+                  <select
+                    value={selectedLokasi}
+                    onChange={(e) => {
+                      setSelectedLokasi(e.target.value)
+                      setPage(1)
+                    }}
+                    className="w-full h-9 rounded-md border border-[#CBD7E3] bg-white px-2.5 text-xs text-[#111827]"
+                  >
+                    <option value="semua">Semua Lokasi</option>
+                    {uniqueLokasi.map((l) => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium uppercase tracking-wider text-[#64748B] mb-1">
+                    Tanggal Dokumen Dari
+                  </label>
+                  <input
+                    type="date"
+                    value={startDateFilter}
+                    onChange={(e) => {
+                      setStartDateFilter(e.target.value)
+                      setPage(1)
+                    }}
+                    className="w-full h-9 rounded-md border border-[#CBD7E3] bg-white px-2.5 text-xs text-[#111827]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium uppercase tracking-wider text-[#64748B] mb-1">
+                    Sampai Tanggal
+                  </label>
+                  <input
+                    type="date"
+                    value={endDateFilter}
+                    onChange={(e) => {
+                      setEndDateFilter(e.target.value)
+                      setPage(1)
+                    }}
+                    className="w-full h-9 rounded-md border border-[#CBD7E3] bg-white px-2.5 text-xs text-[#111827]"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-2 overflow-x-auto">
               {statusTabs.map((tab) => {
@@ -802,7 +854,7 @@ function DaftarDokumenContent() {
                     <th className="px-5 py-3 font-normal">Dokumen</th>
                     <th className="px-4 py-3 font-normal">Kategori</th>
                     <th className="px-4 py-3 font-normal">Status</th>
-                    <th className="px-4 py-3 font-normal">Lokasi</th>
+                    <th className="px-4 py-3 font-normal">Pemegang & Lokasi</th>
                     <th className="px-4 py-3 font-normal">Retensi</th>
                     <th className="px-5 py-3 text-right font-normal">Aksi</th>
                   </tr>
@@ -819,9 +871,10 @@ function DaftarDokumenContent() {
                             <Link href={`/dokumen/${doc.id}`} className="block max-w-[320px] truncate font-semibold text-[#1F2333] hover:text-[#1E86C8]">
                               {doc.judul}
                             </Link>
-                            <span className="block text-xs text-[#8A90A2]">
+                            <span className="block font-mono text-xs text-[#64748B]">
                               #{doc.kode_arsip}
-                              {doc.nomor_dokumen && ` • ${doc.nomor_dokumen}`}
+                              {doc.nomor_ppl && ` • PPL: ${doc.nomor_ppl}`}
+                              {doc.nomor_dokumen && ` • Doc: ${doc.nomor_dokumen}`}
                             </span>
                           </div>
                         </div>
@@ -830,7 +883,13 @@ function DaftarDokumenContent() {
                       <td className="whitespace-nowrap px-4 py-3.5">
                         <StampBadge status={doc.status} />
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3.5 text-[#4B5163]">{doc.lokasi_saat_ini}</td>
+                      <td className="whitespace-nowrap px-4 py-3.5 text-xs text-[#4B5163]">
+                        <span className="font-medium text-[#111827] block">{doc.pemegang_nama || 'Pengaju'}</span>
+                        <span className="text-[#64748B] flex items-center gap-1 mt-0.5">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          {doc.lokasi_saat_ini}
+                        </span>
+                      </td>
                       <td className="whitespace-nowrap px-4 py-3.5">
                         <RetensiCell doc={doc} />
                       </td>
@@ -1004,7 +1063,7 @@ function DaftarDokumenContent() {
               </Field>
 
               {formMode === 'create' && (
-                <Field label="Berkas Dokumen" required={!isDemo}>
+                <Field label="Berkas Dokumen" required>
                   <label className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-[#BFE2F8] bg-[#F5FAFE] px-4 py-6 text-center transition-colors hover:border-[#3BA4E8]">
                     <UploadCloud className="h-7 w-7 text-[#3BA4E8]" />
                     {form.file ? (
