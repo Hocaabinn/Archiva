@@ -28,11 +28,13 @@ export async function POST(
     }
 
     // 1. Verifikasi pengguna login
+    const authHeader = request.headers.get('authorization')
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined
     const supabase = await createClient()
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser()
+    } = await supabase.auth.getUser(token)
 
     if (authError || !user) {
       return NextResponse.json(
@@ -41,18 +43,18 @@ export async function POST(
       )
     }
 
-    // 2. Cek peran pengguna: Hanya Atasan (dan Admin) yang berhak membatalkan dokumen
+    // 2. Cek peran pengguna: Hanya Atasan yang berhak membatalkan dokumen (Blueprint 6.6 / 6.7)
     const { data: profile } = await supabase
       .from('profiles')
       .select('id, nama, nama_lengkap, role')
       .eq('id', user.id)
       .single()
 
-    if (!profile || (profile.role !== 'atasan' && profile.role !== 'admin')) {
+    if (!profile || profile.role !== 'atasan') {
       return NextResponse.json(
         {
           error:
-            'Akses Ditolak: Sesuai Blueprint 6.7, hanya Atasan yang berhak membatalkan dokumen arsip.',
+            'Akses Ditolak: Sesuai Blueprint 6.6, hanya Atasan (atasan) yang berhak membatalkan dokumen arsip.',
         },
         { status: 403 }
       )
