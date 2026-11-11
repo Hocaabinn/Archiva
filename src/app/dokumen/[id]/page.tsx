@@ -22,7 +22,6 @@ import {
   XCircle,
   History,
   Lock,
-  Printer,
   Paperclip,
   Pencil,
   RotateCcw,
@@ -391,13 +390,6 @@ export default function DetailDokumenPage({ params }: PageProps) {
           </Link>
 
           <div className="flex items-center gap-2 font-mono text-xs">
-            <button
-              onClick={() => window.print()}
-              className="px-3 py-1.5 bg-white border border-[#D8D2C4] hover:border-[#1A1D21] text-[#1A1D21] font-semibold flex items-center gap-1.5 transition-colors"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Cetak Lembar</span>
-            </button>
             {doc.status === 'aktif' && (
               <>
                 <Link
