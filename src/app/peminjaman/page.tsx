@@ -313,6 +313,7 @@ function PeminjamanContent() {
     })
   }, [loans, filterStatus, searchQuery])
 
+  const isPicArsip = currentUserRole === 'pic_arsip'
   const isPicOrAdmin = currentUserRole === 'pic_arsip' || currentUserRole === 'admin'
 
   return (
@@ -557,8 +558,8 @@ function PeminjamanContent() {
                         {/* Kolom Aksi */}
                         <td className="p-3 align-top text-center font-mono text-xs">
                           <div className="flex flex-col items-center gap-1.5">
-                            {/* Tindakan PIC: Setujui / Tolak saat Diajukan */}
-                            {loan.status === 'Diajukan' && isPicOrAdmin && (
+                            {/* Tindakan PIC: Setujui / Tolak saat Diajukan (Hanya PIC Arsip) */}
+                            {loan.status === 'Diajukan' && isPicArsip && (
                               <div className="flex items-center gap-1">
                                 <button
                                   type="button"
