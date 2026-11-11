@@ -79,9 +79,20 @@ export async function POST(request: NextRequest) {
 
     // 2. ATURAN KERAS BLUEPRINT: Hanya dokumen Aktif yang boleh diserahterimakan!
     if (doc.status !== 'aktif') {
+      const statusIndo =
+        doc.status === 'menunggu_persetujuan'
+          ? 'Menunggu Persetujuan'
+          : doc.status === 'inaktif'
+          ? 'Inaktif'
+          : doc.status === 'ditolak'
+          ? 'Ditolak'
+          : doc.status === 'dibatalkan'
+          ? 'Dibatalkan'
+          : doc.status
+
       return NextResponse.json(
         {
-          error: `Dokumen "${doc.kode_arsip}" tidak dapat diserahterimakan karena berstatus '${doc.status}'. Hanya dokumen Aktif yang dapat diproses serah terima.`,
+          error: `Dokumen "${doc.kode_arsip}" tidak dapat diserahterimakan karena berstatus '${statusIndo}'. Hanya dokumen Aktif yang dapat diproses serah terima.`,
         },
         { status: 400 }
       )
