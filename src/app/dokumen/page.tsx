@@ -665,13 +665,13 @@ function DaftarDokumenContent() {
                 </div>
               )}
             </div>
-            {canCreate && (
+            {canUpload && (
               <Link
                 href="/dokumen/upload"
-                className="flex items-center gap-2 rounded-lg bg-[#1F5C55] px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#184843]"
+                className="flex items-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#2A92D6] active:scale-[0.98]"
               >
-                <Plus className="h-4 w-4" />
-                Tambah Dokumen
+                <UploadCloud className="h-4 w-4" />
+                <span>Upload Dokumen</span>
               </Link>
             )}
           </div>
