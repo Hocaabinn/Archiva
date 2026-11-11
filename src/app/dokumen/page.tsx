@@ -334,9 +334,11 @@ function DaftarDokumenContent() {
     init()
   }, [supabase, loadDocuments])
 
-  // ---------------- PERMISSION ----------------
+  // ---------------- PERMISSION SESUAI ROLE ----------------
   const isPrivileged = PRIVILEGED.includes(role)
-  const canCreate = role === 'user'
+  // Pengaju (user) — BOLEH upload dokumen miliknya sendiri
+  // Admin, PIC Arsip, Atasan, Accounting, Viewer — TIDAK boleh upload
+  const canUpload = role === 'user'
   const isOwnerPending = (doc: DocRow) => doc.pemilik_id === userId && doc.status === 'menunggu_persetujuan'
   const canEdit = (doc: DocRow) => isPrivileged || isOwnerPending(doc)
   const canDelete = (doc: DocRow) => role === 'admin' || role === 'pic_arsip' || isOwnerPending(doc)
