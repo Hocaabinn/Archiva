@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { Suspense, useState, useMemo, useEffect } from 'react'
+import { Suspense, useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { AppLayout, useAppUser } from '@/components/layout/app-layout'
 import { UserRole, DokumenStatus } from '@/types'
@@ -36,17 +36,9 @@ interface DocumentItem {
   waktu: string
   sisa_hari: number | null
   ukuran_file: string
+  created_at: string | null
+  tanggal_kadaluarsa: string | null
 }
-
-// Arsip masuk vs berpindah ke inaktif per bulan (6 bulan terakhir)
-const monthlyArchive = [
-  { bulan: 'JUN', label: 'Jun 2026', masuk: 102, inaktif: 44 },
-  { bulan: 'JUL', label: 'Jul 2026', masuk: 141, inaktif: 62 },
-  { bulan: 'AGU', label: 'Agu 2026', masuk: 120, inaktif: 70 },
-  { bulan: 'SEP', label: 'Sep 2026', masuk: 168, inaktif: 59 },
-  { bulan: 'OKT', label: 'Okt 2026', masuk: 74, inaktif: 41 },
-  { bulan: 'NOV', label: 'Nov 2026', masuk: 115, inaktif: 68 },
-]
 
 const statusPill: Record<DocStatus, { label: string; className: string }> = {
   aktif: { label: 'Aktif', className: 'bg-[#E7F6EC] text-[#2F9E5B]' },
@@ -110,30 +102,138 @@ function StatCard({
   )
 }
 
-function ArchiveBarChart() {
-  const [hovered, setHovered] = useState<number | null>(3)
-  const max = 200
-  const ticks = [200, 150, 100, 50, 0]
-  const totalMasuk = monthlyArchive.reduce((s, m) => s + m.masuk, 0)
+const BULAN_PENDEK = ['JAN', 'FEB', 'MAR', 'APR', 'MEI', 'JUN', 'JUL', 'AGU', 'SEP', 'OKT', 'NOV', 'DES']
+const RENTANG_BULAN = [3, 6, 12] as const
+type RentangBulan = (typeof RENTANG_BULAN)[number]
+
+/** Kelompokkan dokumen per bulan: masuk (created_at) & berpindah ke inaktif (tanggal_kadaluarsa). */
+function hitungArsipBulanan(documents: DocumentItem[], jumlahBulan: number) {
+  const now = new Date()
+  const buckets = Array.from({ length: jumlahBulan }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (jumlahBulan - 1 - i), 1)
+    return {
+      key: `${d.getFullYear()}-${d.getMonth()}`,
+      bulan: BULAN_PENDEK[d.getMonth()],
+      label: d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }),
+      masuk: 0,
+      inaktif: 0,
+    }
+  })
+  const index = new Map(buckets.map((b, i) => [b.key, i]))
+  const keyOf = (iso: string) => {
+    const d = new Date(iso)
+    return `${d.getFullYear()}-${d.getMonth()}`
+  }
+  for (const doc of documents) {
+    if (doc.created_at) {
+      const i = index.get(keyOf(doc.created_at))
+      if (i !== undefined) buckets[i].masuk += 1
+    }
+    if (doc.status === 'inaktif' && doc.tanggal_kadaluarsa) {
+      const i = index.get(keyOf(doc.tanggal_kadaluarsa))
+      if (i !== undefined) buckets[i].inaktif += 1
+    }
+  }
+  return buckets
+}
+
+function skalaAtas(nilai: number) {
+  if (nilai <= 4) return 4
+  const pangkat = Math.pow(10, Math.floor(Math.log10(nilai)))
+  const langkah = [1, 2, 2.5, 5, 10].map((m) => m * pangkat).find((m) => m * 4 >= nilai) ?? pangkat * 10
+  return langkah * 4
+}
+
+function ArchiveBarChart({ documents, live }: { documents: DocumentItem[]; live: boolean }) {
+  const [rentang, setRentang] = useState<RentangBulan>(6)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [hovered, setHovered] = useState<number | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [menuOpen])
+
+  const data = useMemo(() => hitungArsipBulanan(documents, rentang), [documents, rentang])
+  const max = skalaAtas(Math.max(0, ...data.map((m) => Math.max(m.masuk, m.inaktif))))
+  const ticks = [4, 3, 2, 1, 0].map((n) => (max / 4) * n)
+  const totalMasuk = data.reduce((s, m) => s + m.masuk, 0)
+
+  // Tren: bulan berjalan dibanding bulan sebelumnya
+  const kini = data[data.length - 1]?.masuk ?? 0
+  const lalu = data[data.length - 2]?.masuk ?? 0
+  const tren = lalu === 0 ? (kini > 0 ? 100 : 0) : Math.round(((kini - lalu) / lalu) * 100)
+  const trenNaik = tren >= 0
 
   return (
     <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-5 h-full flex flex-col">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-[#1F2333]">Arsip Masuk</h2>
-        <button
-          type="button"
-          className="flex items-center gap-1.5 rounded-md bg-[#F4F5FA] px-3 py-1.5 text-xs text-[#4B5163]"
-        >
-          6 Bulan <ChevronDown className="w-3.5 h-3.5" />
-        </button>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-[#1F2333]">Arsip Masuk</h2>
+          {live && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E6F4EA] px-2 py-0.5 text-[10px] font-semibold text-[#137333]" title="Data diperbarui otomatis">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#34A853] opacity-75" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#34A853]" />
+              </span>
+              Live
+            </span>
+          )}
+        </div>
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-haspopup="listbox"
+            aria-expanded={menuOpen}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              menuOpen ? 'bg-[#EAF5FD] text-[#1E86C8]' : 'bg-[#F4F5FA] text-[#4B5163] hover:bg-[#EEF7FD] hover:text-[#1E86C8]'
+            }`}
+          >
+            {rentang} Bulan
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {menuOpen && (
+            <div role="listbox" className="absolute right-0 z-20 mt-1.5 w-36 rounded-lg border border-[#ECEEF5] bg-white p-1 shadow-lg">
+              {RENTANG_BULAN.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  role="option"
+                  aria-selected={rentang === n}
+                  onClick={() => {
+                    setRentang(n)
+                    setMenuOpen(false)
+                    setHovered(null)
+                  }}
+                  className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-xs ${
+                    rentang === n ? 'bg-[#EAF5FD] font-semibold text-[#1E86C8]' : 'text-[#4B5163] hover:bg-[#F7F8FC]'
+                  }`}
+                >
+                  {n} Bulan Terakhir
+                  {rentang === n && <Check className="h-3.5 w-3.5" />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm">
           <span className="font-bold text-[#1F2333]">{totalMasuk.toLocaleString('id-ID')} berkas</span>
-          <span className="ml-2 inline-flex items-center text-xs text-[#2F9E5B]">
-            <ArrowUp className="w-3 h-3" />
-            +10%
+          <span
+            className={`ml-2 inline-flex items-center text-xs ${trenNaik ? 'text-[#2F9E5B]' : 'text-[#D64545]'}`}
+            title="Bulan ini dibanding bulan lalu"
+          >
+            {trenNaik ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+            {trenNaik ? '+' : ''}
+            {tren}%
           </span>
         </p>
         <div className="flex items-center gap-4 text-xs text-[#6B7185]">
@@ -150,12 +250,12 @@ function ArchiveBarChart() {
         {/* Sumbu Y */}
         <div className="flex flex-col justify-between text-[11px] text-[#6B7185] pb-6 w-7 text-right">
           {ticks.map((t) => (
-            <span key={t}>{t}</span>
+            <span key={t}>{Number.isInteger(t) ? t : t.toFixed(1)}</span>
           ))}
         </div>
 
         {/* Area grafik */}
-        <div className="relative flex-1">
+        <div className="relative flex-1" onMouseLeave={() => setHovered(null)}>
           <div className="absolute inset-0 bottom-6 flex flex-col justify-between pointer-events-none">
             {ticks.map((t) => (
               <div key={t} className="border-t border-dashed border-[#E6E8F0]" />
@@ -163,32 +263,34 @@ function ArchiveBarChart() {
           </div>
 
           <div className="absolute inset-0 flex items-stretch justify-around">
-            {monthlyArchive.map((m, i) => (
+            {data.map((m, i) => (
               <div
-                key={m.bulan}
+                key={m.key}
                 className="relative flex flex-col items-center flex-1"
                 onMouseEnter={() => setHovered(i)}
+                onClick={() => setHovered(i)}
               >
-                <div className="relative flex-1 w-full flex items-end justify-center gap-1.5 pb-0">
+                <div className="relative flex-1 w-full flex items-end justify-center gap-1 sm:gap-1.5">
                   {hovered === i && (
                     <div
                       className="absolute z-10 -translate-x-1/2 left-1/2 rounded-md border border-[#ECEEF5] bg-white px-2.5 py-1.5 shadow-md whitespace-nowrap"
-                      style={{ bottom: `calc(${(m.masuk / max) * 100}% + 8px)` }}
+                      style={{ bottom: `calc(${(Math.max(m.masuk, m.inaktif) / max) * 100}% + 8px)` }}
                     >
-                      <p className="text-[10px] text-[#8A90A2]">{m.label}</p>
-                      <p className="text-xs font-bold text-[#1F2333]">{m.masuk} berkas</p>
+                      <p className="text-[10px] capitalize text-[#8A90A2]">{m.label}</p>
+                      <p className="text-xs font-bold text-[#1F2333]">{m.masuk} masuk</p>
+                      <p className="text-[11px] text-[#6B7185]">{m.inaktif} non-aktif</p>
                     </div>
                   )}
                   <div
-                    className="w-3 sm:w-4 rounded-t-[4px] bg-[#3BA4E8] transition-opacity"
-                    style={{ height: `${(m.masuk / max) * 100}%`, opacity: hovered === null || hovered === i ? 1 : 0.85 }}
+                    className={`${rentang === 12 ? 'w-1.5 sm:w-2.5' : 'w-3 sm:w-4'} rounded-t-[4px] bg-[#3BA4E8] transition-all duration-500`}
+                    style={{ height: `${(m.masuk / max) * 100}%`, opacity: hovered === null || hovered === i ? 1 : 0.6 }}
                   />
                   <div
-                    className="w-3 sm:w-4 rounded-t-[4px] bg-[#BFE2F8]"
-                    style={{ height: `${(m.inaktif / max) * 100}%` }}
+                    className={`${rentang === 12 ? 'w-1.5 sm:w-2.5' : 'w-3 sm:w-4'} rounded-t-[4px] bg-[#BFE2F8] transition-all duration-500`}
+                    style={{ height: `${(m.inaktif / max) * 100}%`, opacity: hovered === null || hovered === i ? 1 : 0.6 }}
                   />
                 </div>
-                <span className="h-6 flex items-end text-[11px] text-[#6B7185]">{m.bulan}</span>
+                <span className="h-6 flex items-end text-[10px] sm:text-[11px] text-[#6B7185]">{m.bulan}</span>
               </div>
             ))}
           </div>
@@ -310,6 +412,7 @@ function DashboardBody() {
   const [statusFilter, setStatusFilter] = useState<'semua' | DocStatus>('semua')
   const [filterOpen, setFilterOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [isLive, setIsLive] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -376,6 +479,8 @@ function DashboardBody() {
             waktu: waktuStr,
             sisa_hari: diff,
             ukuran_file: sizeStr,
+            created_at: d.created_at || null,
+            tanggal_kadaluarsa: d.tanggal_kadaluarsa || null,
           }
         })
 
@@ -522,7 +627,7 @@ function DashboardBody() {
           <StatCard title="Gudang Inaktif" value={`${totalInaktif} berkas`} trend="+12%" trendUp note="dapat dipinjam" href="/dokumen" />
         </div>
         <div className="xl:col-span-6">
-          <ArchiveBarChart />
+          <ArchiveBarChart documents={documents} live={isLive} />
         </div>
       </div>
 
