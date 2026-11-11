@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import QRCode from 'qrcode'
 import { Copy, Check, FileDown, Loader2 } from 'lucide-react'
+import { KodeArsip } from './kode-arsip'
 
 interface DocumentQRProps {
   kodeArsip: string
@@ -183,8 +184,8 @@ export function DocumentQR({
       className={`rounded-xl border border-[#BAE6FD] bg-[#F0F9FF]/40 p-5 shadow-xs flex flex-col items-center justify-between text-center space-y-4 ${className}`}
     >
       <div>
-        <span className="font-sans text-[11px] text-[#0284C7] uppercase tracking-wider block font-bold">
-          LABEL QR CODE FISIK
+        <span className="font-sans text-sm text-[#0284C7] block font-semibold">
+          Label QR Code
         </span>
         <span className="text-xs text-[#64748B] mt-0.5 block">
           Tempelkan pada Map Berkas
@@ -209,9 +210,7 @@ export function DocumentQR({
           </div>
         )}
         <div className="mt-3 text-center w-full">
-          <span className="font-mono font-bold text-xs text-[#1F2333] block tracking-wide select-all break-all px-1">
-            {kodeArsip}
-          </span>
+          <KodeArsip kode={kodeArsip} className="font-mono font-bold text-xs text-[#1F2333] block tracking-wide select-all px-1" />
         </div>
       </div>
 
