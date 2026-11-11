@@ -628,237 +628,198 @@ export default function DetailDokumenPage({ params }: PageProps) {
           </div>
         )}
 
-        {/* ======================================================== */}
-        {/* LEMBAR RESMI ARSIP FISIK                                 */}
-        {/* ======================================================== */}
-        <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 sm:p-8 space-y-6 shadow-sm">
-          {/* Kepala Lembar Dokumen */}
-          <div className="border-b border-[#E2E8F0] pb-5 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="text-xs px-2.5 py-0.5 bg-[#E0F2FE] text-[#0284C7] font-semibold rounded-md">
-                  LEMBAR REGISTER ARSIP RESMI
-                </span>
-                <span className="text-xs text-[#64748B]">
-                  Sistem Kearsipan Elektronik SIG
-                </span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-sans font-bold text-[#1F2333] mt-1 leading-tight">
-                {doc.judul}
-              </h1>
-              <p className="text-xs text-[#64748B] mt-1.5 font-mono">
-                No. Registrasi / Doc Voucher: <strong className="text-[#1F2333]">{doc.nomor_dokumen || '-'}</strong>
-                {doc.nomor_ppl ? ` • No. PPL (Payment): ${doc.nomor_ppl}` : ''}
-              </p>
-            </div>
-
-            <div className="flex flex-col items-end gap-2 shrink-0">
-              <StampBadge status={doc.status} className="scale-105 origin-right" />
-              <span className="text-xs text-[#64748B]">
-                Klasifikasi: <strong className="text-[#1F2333]">{doc.kategori_nama}</strong>
-              </span>
-            </div>
-          </div>
-
-          {/* Grid Informasi Metadata & Barcode */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Kolom 1 & 2: Rincian Metadata Berkas */}
-            <div className="md:col-span-2 space-y-4">
-              <div className="rounded-xl border border-[#E2E8F0] divide-y divide-[#E2E8F0] overflow-hidden text-xs font-sans">
-                <div className="grid grid-cols-3 p-3.5 bg-[#F8FAFC]">
-                  <span className="text-[#64748B] font-medium">Kode Arsip SIG</span>
-                  <span className="col-span-2 font-mono font-bold text-[#0284C7] break-all">{doc.kode_arsip}</span>
-                </div>
-                <div className="grid grid-cols-3 p-3.5 bg-white">
-                  <span className="text-[#64748B] font-medium">Pengaju (Pemilik)</span>
-                  <span className="col-span-2 text-[#1F2333] font-semibold">{doc.pemilik_nama}</span>
-                </div>
-                <div className="grid grid-cols-3 p-3.5 bg-[#F8FAFC]">
-                  <span className="text-[#64748B] font-medium">Pemegang Saat Ini</span>
-                  <span className="col-span-2 text-[#1F2333] font-semibold">{doc.pemegang_nama}</span>
-                </div>
-                <div className="grid grid-cols-3 p-3.5 bg-white">
-                  <span className="text-[#64748B] font-medium">Lokasi Fisik Berkas</span>
-                  <span className="col-span-2 text-[#1F2333] font-semibold flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-[#3BA4E8]" />
-                    <span>{doc.lokasi_saat_ini}</span>
+        {/* Konten utama */}
+        <div className="grid gap-5 lg:grid-cols-3">
+          <div className="space-y-5 lg:col-span-2">
+            {/* Masa retensi */}
+            <div className={`${cardClass} p-5`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                      isAkanKadaluarsa ? 'bg-[#FDECEC] text-[#D64545]' : 'bg-[#EAF5FD] text-[#3BA4E8]'
+                    }`}
+                  >
+                    <Clock className="h-5 w-5" />
                   </span>
-                </div>
-                <div className="grid grid-cols-3 p-3.5 bg-[#F8FAFC]">
-                  <span className="text-[#64748B] font-medium">Penandatangan</span>
-                  <span className="col-span-2 text-[#1F2333]">{doc.penandatangan || '-'}</span>
-                </div>
-                <div className="grid grid-cols-3 p-3.5 bg-white">
-                  <span className="text-[#64748B] font-medium">Tanggal Dokumen</span>
-                  <span className="col-span-2 text-[#1F2333]">
-                    {new Date(doc.tanggal_dokumen).toLocaleDateString('id-ID', {
-                      day: '2-digit',
-                      month: 'long',
-                      year: 'numeric',
-                    })}
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 p-3.5 bg-[#F8FAFC]">
-                  <span className="text-[#64748B] font-medium">Masa Retensi Aktif</span>
-                  <span className="col-span-2 text-[#1F2333]">
+                  <div>
+                    <p className="text-xs font-medium text-[#8A90A2]">Masa Retensi Aktif</p>
                     {doc.status === 'aktif' && doc.tanggal_kadaluarsa ? (
-                      <span className={isKritis ? 'font-bold text-red-600' : 'text-emerald-700 font-semibold'}>
-                        {sisaHari} Hari Lagi (s.d. {new Date(doc.tanggal_kadaluarsa).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })})
-                      </span>
+                      <p className={`text-base font-semibold ${isAkanKadaluarsa ? 'text-[#D64545]' : 'text-[#1F2333]'}`}>
+                        {sisaHari} hari lagi
+                        <span className="ml-1.5 text-sm font-normal text-[#8A90A2]">
+                          s.d. {formatTanggal(doc.tanggal_kadaluarsa)}
+                        </span>
+                      </p>
                     ) : doc.status === 'inaktif' ? (
-                      <span className="text-[#8C9399]">Masa Aktif Berakhir (Inaktif)</span>
+                      <p className="text-base font-semibold text-[#6B7185]">Masa aktif berakhir</p>
                     ) : (
-                      <span className="text-[#8C9399]">Menunggu Pengesahan Atasan</span>
+                      <p className="text-base font-semibold text-[#6B7185]">Menunggu pengesahan Atasan</p>
                     )}
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 p-3.5 bg-white">
-                  <span className="text-[#64748B] font-medium">Verifikator PIC</span>
-                  <span className="col-span-2 text-[#1F2333]">
-                    {doc.verifikator_nama || (doc.verifikasi_pic_oleh ? 'Terverifikasi PIC' : 'Belum diverifikasi')}
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 p-3.5 bg-[#F8FAFC]">
-                  <span className="text-[#64748B] font-medium">Approver Atasan</span>
-                  <span className="col-span-2 text-[#1F2333]">
-                    {doc.approver_nama || (doc.disetujui_oleh ? 'Disahkan Atasan' : 'Belum disahkan')}
-                  </span>
-                </div>
-                {doc.deskripsi && (
-                  <div className="grid grid-cols-3 p-3.5 bg-white">
-                    <span className="text-[#64748B] font-medium">Deskripsi / Ringkasan</span>
-                    <span className="col-span-2 text-[#1F2333] leading-relaxed">{doc.deskripsi}</span>
                   </div>
-                )}
+                </div>
               </div>
-
-              {/* Rangkuman Berkas Digital Utama */}
-              <div className="p-4 bg-[#F0F9FF] border border-[#BAE6FD] rounded-xl flex items-center justify-between gap-3 shadow-2xs">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="p-2.5 bg-white border border-[#BAE6FD] rounded-lg shrink-0 text-[#0284C7]">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <span className="font-mono text-xs font-bold text-[#1F2333] block truncate">
-                      {doc.file_path.split('/').pop()?.replace(/^\d+_/, '')}
-                    </span>
-                    <span className="text-[11px] text-[#64748B]">
-                      {doc.ukuran_file ? `${(doc.ukuran_file / 1024 / 1024).toFixed(2)} MB` : '-'} • Bucket: {doc.bucket}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleDownload}
-                  disabled={currentUserRole === 'viewer'}
-                  className="px-4 py-2 bg-[#3BA4E8] hover:bg-[#2A92D6] active:bg-[#1E80C2] text-white text-xs font-semibold rounded-lg shadow-sm flex items-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0 cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>{currentUserRole === 'viewer' ? 'Unduh Dikunci' : 'Unduh Berkas'}</span>
-                </button>
-              </div>
-
-              {/* Berkas Lampiran Pendukung */}
-              {lampiranList.length > 0 && (
-                <div className="border border-[#E2E8F0] rounded-xl p-4 bg-white space-y-3 text-xs font-sans">
-                  <div className="flex items-center gap-2 border-b border-[#E2E8F0] pb-2">
-                    <Paperclip className="w-4 h-4 text-[#0284C7]" />
-                    <span className="font-bold text-[#1F2333]">
-                      Berkas Lampiran Pendukung ({lampiranList.length})
-                    </span>
-                  </div>
-                  <div className="divide-y divide-[#E2E8F0] border border-[#E2E8F0] rounded-lg overflow-hidden bg-[#F8FAFC]">
-                    {lampiranList.map((lamp) => (
-                      <div
-                        key={lamp.id}
-                        className="p-3 flex items-center justify-between gap-2 hover:bg-[#F0F9FF]/50 transition-colors"
-                      >
-                        <div className="truncate">
-                          <span className="font-semibold text-[#1F2333] block truncate">{lamp.nama_file}</span>
-                          <span className="text-[11px] text-[#64748B]">
-                            {(lamp.file_size / 1024).toFixed(0)} KB • {lamp.mime_type || 'file'}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDownloadLampiran(lamp.id)}
-                          disabled={currentUserRole === 'viewer'}
-                          className="px-3 py-1.5 bg-white border border-[#CBD7E3] hover:border-[#3BA4E8] text-[#1F2333] font-medium text-xs rounded-md flex items-center gap-1.5 disabled:opacity-40 transition-colors cursor-pointer shadow-2xs"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>Unduh</span>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+              {doc.status === 'aktif' && sisaHari !== null && (
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#F1F3F8]">
+                  <div
+                    className={`h-full rounded-full ${isAkanKadaluarsa ? 'bg-[#EA4335]' : 'bg-[#3BA4E8]'}`}
+                    style={{ width: `${Math.min(100, Math.max(3, (sisaHari / (365 * 3)) * 100))}%` }}
+                  />
                 </div>
               )}
             </div>
 
-            {/* Kolom 3: Label QR Code Fisik Resmi */}
-            <div>
-              <DocumentQR
-                kodeArsip={doc.kode_arsip}
-                judul={doc.judul}
-                nomorDokumen={doc.nomor_dokumen || undefined}
-                nomorPpl={doc.nomor_ppl || undefined}
-                size={170}
-              />
-            </div>
-          </div>
-
-          {/* ======================================================== */}
-          {/* BUKU LOG MUTASI & RIWAYAT AKTIVITAS                      */}
-          {/* ======================================================== */}
-          <div className="border-t border-[#E2E8F0] pt-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <History className="w-4 h-4 text-[#3BA4E8]" />
-              <h3 className="font-sans font-bold text-base text-[#1F2333]">
-                Buku Log Mutasi & Riwayat Dokumen
-              </h3>
-            </div>
-
-            {logList.length === 0 ? (
-              <p className="text-xs text-[#64748B] italic">
-                Belum ada riwayat aktivitas tercatat untuk dokumen ini.
-              </p>
-            ) : (
-              <div className="rounded-xl border border-[#E2E8F0] divide-y divide-[#E2E8F0] overflow-hidden bg-white text-xs font-sans">
-                {logList.map((log) => {
-                  const userDisplay = (log as any).user?.nama_lengkap || (log as any).user?.email || 'Sistem'
+            {/* Informasi dokumen */}
+            <div className={cardClass}>
+              <div className="border-b border-[#ECEEF5] px-5 py-4">
+                <h2 className="text-base font-semibold text-[#1F2333]">Informasi Dokumen</h2>
+              </div>
+              <dl className="grid gap-x-6 gap-y-4 p-5 sm:grid-cols-2">
+                {metaRows.map((row) => {
+                  const Icon = row.icon
                   return (
-                    <div
-                      key={log.id}
-                      className="p-3.5 flex items-start justify-between gap-3 hover:bg-[#F8FAFC] transition-colors"
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#3BA4E8] mt-1 shrink-0" />
-                        <div>
-                          <span className="font-bold text-[#1F2333] uppercase text-[11px] block">
-                            {log.aksi.replace(/_/g, ' ')}
-                          </span>
-                          <span className="text-[#64748B] text-xs leading-relaxed">
-                            {log.keterangan}
-                          </span>
-                          <span className="block text-[11px] text-[#8C9399] mt-0.5">
-                            Oleh: {userDisplay}
-                          </span>
-                        </div>
-                      </div>
-                      <span className="font-mono text-[11px] text-[#8C9399] shrink-0">
-                        {new Date(log.created_at).toLocaleString('id-ID', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                    <div key={row.label} className="flex items-start gap-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#F3FAFF] text-[#3BA4E8]">
+                        <Icon className="h-4 w-4" />
                       </span>
+                      <div className="min-w-0">
+                        <dt className="text-xs text-[#8A90A2]">{row.label}</dt>
+                        <dd className="break-words text-sm font-medium text-[#1F2333]">{row.value}</dd>
+                      </div>
                     </div>
                   )
                 })}
+              </dl>
+              {doc.deskripsi && (
+                <div className="border-t border-[#ECEEF5] px-5 py-4">
+                  <p className="text-xs text-[#8A90A2]">Deskripsi / Ringkasan</p>
+                  <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-[#4B5163]">{doc.deskripsi}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Berkas digital */}
+            <div className={cardClass}>
+              <div className="border-b border-[#ECEEF5] px-5 py-4">
+                <h2 className="text-base font-semibold text-[#1F2333]">Berkas Digital</h2>
               </div>
-            )}
+              <div className="space-y-3 p-5">
+                <div className="flex flex-col gap-3 rounded-xl border border-[#ECEEF5] bg-[#F8FBFE] p-3.5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-[#3BA4E8] shadow-sm">
+                      <FileText className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-[#1F2333]">{namaFile}</p>
+                      <p className="text-xs text-[#8A90A2]">
+                        {doc.ukuran_file ? `${(doc.ukuran_file / 1024 / 1024).toFixed(2)} MB` : '-'} · {doc.bucket}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDownload}
+                    disabled={currentUserRole === 'viewer'}
+                    className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#2A92D6] disabled:cursor-not-allowed disabled:bg-[#C9D3DE]"
+                  >
+                    {currentUserRole === 'viewer' ? <Lock className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+                    {currentUserRole === 'viewer' ? 'Unduh Dikunci' : 'Unduh Berkas'}
+                  </button>
+                </div>
+
+                {lampiranList.length > 0 && (
+                  <div>
+                    <p className="mb-2 mt-1 flex items-center gap-1.5 text-xs font-medium text-[#8A90A2]">
+                      <Paperclip className="h-3.5 w-3.5" />
+                      Lampiran Pendukung ({lampiranList.length})
+                    </p>
+                    <div className="divide-y divide-[#ECEEF5] rounded-xl border border-[#ECEEF5]">
+                      {lampiranList.map((lamp) => (
+                        <div key={lamp.id} className="flex items-center justify-between gap-3 px-3.5 py-2.5 transition-colors hover:bg-[#F7FBFE]">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm text-[#1F2333]">{lamp.nama_file}</p>
+                            <p className="text-xs text-[#9AA0B2]">
+                              {(lamp.file_size / 1024).toFixed(0)} KB · {lamp.mime_type || 'file'}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadLampiran(lamp.id)}
+                            disabled={currentUserRole === 'viewer'}
+                            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-[#E3E6F0] bg-white px-3 py-1.5 text-xs font-medium text-[#4B5163] hover:border-[#3BA4E8] hover:text-[#1E86C8] disabled:opacity-40"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            Unduh
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Riwayat */}
+            <div className={cardClass}>
+              <div className="flex items-center gap-2 border-b border-[#ECEEF5] px-5 py-4">
+                <History className="h-4 w-4 text-[#3BA4E8]" />
+                <h2 className="text-base font-semibold text-[#1F2333]">Riwayat Dokumen</h2>
+              </div>
+              {logList.length === 0 ? (
+                <p className="px-5 py-8 text-center text-sm text-[#8A90A2]">
+                  Belum ada riwayat aktivitas untuk dokumen ini.
+                </p>
+              ) : (
+                <ol className="relative px-5 py-4">
+                  {logList.map((log, idx) => {
+                    const userDisplay = log.user?.nama_lengkap || log.user?.email || 'Sistem'
+                    const last = idx === logList.length - 1
+                    return (
+                      <li key={log.id} className="relative flex gap-3 pb-5 last:pb-0">
+                        {!last && <span className="absolute left-[7px] top-4 bottom-0 w-px bg-[#E3E6F0]" />}
+                        <span
+                          className={`relative mt-1 h-[15px] w-[15px] shrink-0 rounded-full border-[3px] ${
+                            idx === 0 ? 'border-[#BCE1F9] bg-[#3BA4E8]' : 'border-white bg-[#C9D3DE] ring-1 ring-[#E3E6F0]'
+                          }`}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+                            <p className="text-sm font-semibold capitalize text-[#1F2333]">
+                              {log.aksi.replace(/_/g, ' ').toLowerCase()}
+                            </p>
+                            <span className="shrink-0 text-xs text-[#9AA0B2]">
+                              {new Date(log.created_at).toLocaleString('id-ID', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                          {log.keterangan && (
+                            <p className="mt-0.5 break-words text-sm leading-relaxed text-[#4B5163]">{log.keterangan}</p>
+                          )}
+                          <p className="mt-0.5 text-xs text-[#9AA0B2]">oleh {userDisplay}</p>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ol>
+              )}
+            </div>
+          </div>
+
+          {/* Kolom kanan: label QR */}
+          <div className="lg:sticky lg:top-24 lg:self-start">
+            <DocumentQR
+              kodeArsip={doc.kode_arsip}
+              judul={doc.judul}
+              nomorDokumen={doc.nomor_dokumen || undefined}
+              nomorPpl={doc.nomor_ppl || undefined}
+              size={170}
+              className="bg-white"
+            />
           </div>
         </div>
       </div>
