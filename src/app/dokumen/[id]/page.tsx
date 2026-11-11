@@ -681,7 +681,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
                   </div>
                   <div className="min-w-0">
                     <span className="font-mono text-xs font-bold text-[#1A1D21] block truncate">
-                      {doc.file_path.split('/').pop()}
+                      {doc.file_path.split('/').pop()?.replace(/^\d+_/, '')}
                     </span>
                     <span className="font-mono text-[11px] text-[#5B6166]">
                       {doc.ukuran_file ? `${(doc.ukuran_file / 1024 / 1024).toFixed(2)} MB` : '-'} • Bucket: {doc.bucket}
