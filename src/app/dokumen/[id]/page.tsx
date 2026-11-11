@@ -1,34 +1,68 @@
 'use client'
 
-import { useEffect, useState, use } from 'react'
+import { use, useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { DocumentQR } from '@/components/documents/qr-code'
+import { UserRole, DokumenStatus, Lampiran, LogAktivitas } from '@/types'
 import {
   ArrowLeft,
+  QrCode,
   Download,
-  History,
   FileText,
-  Paperclip,
+  Calendar,
+  MapPin,
+  User,
+  ShieldCheck,
+  AlertTriangle,
+  FileDown,
   CheckCircle2,
   XCircle,
-  AlertCircle,
+  History,
+  Lock,
+  Paperclip,
+  Pencil,
   RotateCcw,
-  MapPin,
-  QrCode,
-  BookOpenCheck,
+  AlertCircle,
+  Info,
+  Clock,
+  Send,
   Loader2,
+  BookOpenCheck,
+  Upload,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { DokumenStatus, UserRole } from '@/types'
-import { StampBadge } from '@/components/ui/stamp-badge'
+import { KodeArsip } from '@/components/documents/kode-arsip'
+
+const STATUS_PILL: Record<DokumenStatus, { label: string; className: string; icon: React.ComponentType<{ className?: string }> }> = {
+  aktif: { label: 'Aktif', className: 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]', icon: CheckCircle2 },
+  menunggu_persetujuan: { label: 'Menunggu Persetujuan', className: 'bg-[#FEF7E0] text-[#B06000] border-[#FEEFC3]', icon: Clock },
+  inaktif: { label: 'Inaktif', className: 'bg-[#EEF0F4] text-[#4B5163] border-[#DADCE0]', icon: Info },
+  ditolak: { label: 'Ditolak', className: 'bg-[#FDECEC] text-[#D64545] border-[#F5C2C2]', icon: AlertCircle },
+  dibatalkan: { label: 'Dibatalkan', className: 'bg-[#FDECEC] text-[#A82828] border-[#F5C2C2]', icon: XCircle },
+}
+
+function formatTanggal(value: string | null | undefined, month: 'short' | 'long' = 'short') {
+  if (!value) return '-'
+  return new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month, year: 'numeric' })
+}
 
 interface PageProps {
   params: Promise<{ id: string }>
 }
 
-interface DocDetail {
+interface LogItem {
+  id: string
+  dokumen_id?: string
+  user_id?: string
+  aksi: string
+  keterangan?: string
+  created_at: string
+  user?: { nama_lengkap?: string; email?: string }
+}
+
+interface DetailDokumen {
   id: string
   kode_arsip: string
   nomor_dokumen: string | null
@@ -52,29 +86,12 @@ interface DocDetail {
   tanggal_masuk: string
   tanggal_disetujui: string | null
   tanggal_kadaluarsa: string | null
-  barcode_path: string | null
-  alasan_penolakan: string | null
   verifikasi_pic_oleh: string | null
   verifikator_nama?: string
   disetujui_oleh: string | null
   approver_nama?: string
-}
-
-interface LampiranItem {
-  id: string
-  nama_file: string
-  file_path: string
-  file_size: number
-  mime_type: string | null
+  alasan_penolakan: string | null
   created_at: string
-}
-
-interface LogItem {
-  id: string
-  aksi: string
-  keterangan: string
-  created_at: string
-  user?: { nama_lengkap?: string; email?: string }
 }
 
 export default function DetailDokumenPage({ params }: PageProps) {
