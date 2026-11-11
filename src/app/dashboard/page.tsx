@@ -1,11 +1,12 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { Suspense, useState, useMemo } from 'react'
+import { Suspense, useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { AppLayout, useAppUser } from '@/components/layout/app-layout'
 import { UserRole, DokumenStatus } from '@/types'
 import { StampBadge } from '@/components/ui/stamp-badge'
+import { createClient } from '@/lib/supabase/client'
 import {
   ArrowUp,
   ArrowDown,
@@ -17,11 +18,10 @@ import {
   Printer,
   Upload,
   Check,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react'
 
-// ============================================================
-// DATA CONTOH (sesuai PRD & DESIGN.md)
-// ============================================================
 type DocStatus = DokumenStatus
 
 interface DocumentItem {
@@ -36,69 +36,6 @@ interface DocumentItem {
   sisa_hari: number | null
   ukuran_file: string
 }
-
-const sampleDocuments: DocumentItem[] = [
-  {
-    id: '1',
-    kode_arsip: 'ARS-2026-0001',
-    judul: 'Kontrak Kerja Sama Vendor PT Prima Logistik 2026',
-    nomor_surat: '042/LEG-KTR/PL/I/2026',
-    kategori: 'Kontrak & Legal',
-    status: 'aktif',
-    pemegang: 'Bambang S.',
-    waktu: '12 mnt lalu',
-    sisa_hari: 1095,
-    ukuran_file: '4.8 MB',
-  },
-  {
-    id: '2',
-    kode_arsip: 'ARS-2026-0002',
-    judul: 'Laporan Keuangan & Audit Neraca Kas Triwulan III 2026',
-    nomor_surat: '118/KEU-AUD/X/2026',
-    kategori: 'Keuangan',
-    status: 'menunggu_persetujuan',
-    pemegang: 'Siti Aminah',
-    waktu: '45 mnt lalu',
-    sisa_hari: null,
-    ukuran_file: '12.3 MB',
-  },
-  {
-    id: '3',
-    kode_arsip: 'ARS-2026-0003',
-    judul: 'SK Direksi Tentang Kebijakan Mutasi & Promosi 2026',
-    nomor_surat: '007/SK-DIR/SDM/2026',
-    kategori: 'SDM & Kepegawaian',
-    status: 'aktif',
-    pemegang: 'Hendra M.',
-    waktu: '2 jam lalu',
-    sisa_hari: 42,
-    ukuran_file: '2.1 MB',
-  },
-  {
-    id: '4',
-    kode_arsip: 'ARS-2023-0045',
-    judul: 'Berita Acara Pengadaan Server & Basis Data Utama 2023',
-    nomor_surat: 'BA-240/TIK-LOG/XI/2023',
-    kategori: 'Operasional & Logistik',
-    status: 'inaktif',
-    pemegang: 'Sistem (Gudang)',
-    waktu: 'Kemarin',
-    sisa_hari: 0,
-    ukuran_file: '8.4 MB',
-  },
-  {
-    id: '5',
-    kode_arsip: 'ARS-2026-0004',
-    judul: 'Perjanjian Kerahasiaan Data Klien (NDA) Multinasional',
-    nomor_surat: 'NDA-099/LGL/2026',
-    kategori: 'Kontrak & Legal',
-    status: 'aktif',
-    pemegang: 'Bambang S.',
-    waktu: '2 hari lalu',
-    sisa_hari: 1045,
-    ukuran_file: '1.9 MB',
-  },
-]
 
 // Arsip masuk vs berpindah ke inaktif per bulan (6 bulan terakhir)
 const monthlyArchive = [
@@ -255,15 +192,16 @@ function ArchiveBarChart() {
   )
 }
 
-function CategoryDonut() {
+function CategoryDonut({ documents }: { documents: DocumentItem[] }) {
   const data = useMemo(() => {
+    if (documents.length === 0) return []
     const counts = new Map<string, number>()
-    sampleDocuments.forEach((d) => counts.set(d.kategori, (counts.get(d.kategori) || 0) + 1))
-    const total = sampleDocuments.length
+    documents.forEach((d) => counts.set(d.kategori, (counts.get(d.kategori) || 0) + 1))
+    const total = documents.length
     return Array.from(counts.entries())
       .sort((a, b) => b[1] - a[1])
       .map(([label, count], i) => ({ label, count, pct: Math.round((count / total) * 100), color: DONUT_COLORS[i % DONUT_COLORS.length] }))
-  }, [])
+  }, [documents])
 
   const size = 200
   const cx = size / 2
@@ -279,62 +217,61 @@ function CategoryDonut() {
     <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-5 h-full flex flex-col">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-[#1F2333]">Kategori Arsip</h2>
-        <button
-          type="button"
-          className="flex items-center gap-1.5 rounded-md bg-[#F4F5FA] px-3 py-1.5 text-xs text-[#4B5163]"
-        >
-          Semua <ChevronDown className="w-3.5 h-3.5" />
-        </button>
+        <span className="text-xs text-[#8A90A2]">{documents.length} Dokumen</span>
       </div>
 
       <div className="flex-1 flex items-center justify-center py-4">
-        <svg viewBox={`-40 -10 ${size + 80} ${size + 20}`} className="w-full max-w-[280px]">
-          <g transform={`rotate(-90 ${cx} ${cx})`}>
-            {segments.map((s) => (
-              <circle
-                key={s.label}
-                cx={cx}
-                cy={cx}
-                r={r}
-                fill="none"
-                stroke={s.color}
-                strokeWidth={stroke}
-                strokeDasharray={`${s.dash} ${circumference - s.dash}`}
-                strokeDashoffset={-s.offset}
-              />
-            ))}
-          </g>
-          {segments.map((s) => {
-            const mid = (s.start + s.pct / 200) * 2 * Math.PI - Math.PI / 2
-            const x1 = cx + Math.cos(mid) * (r + stroke / 2)
-            const y1 = cx + Math.sin(mid) * (r + stroke / 2)
-            const x2 = cx + Math.cos(mid) * (r + stroke / 2 + 14)
-            const y2 = cx + Math.sin(mid) * (r + stroke / 2 + 14)
-            const right = Math.cos(mid) >= 0
-            const x3 = x2 + (right ? 10 : -10)
-            return (
-              <g key={`label-${s.label}`}>
-                <polyline points={`${x1},${y1} ${x2},${y2} ${x3},${y2}`} fill="none" stroke="#9AA0B2" strokeWidth={0.8} />
-                <text
-                  x={x3 + (right ? 3 : -3)}
-                  y={y2 + 4}
-                  textAnchor={right ? 'start' : 'end'}
-                  className="fill-[#4B5163]"
-                  fontSize={11}
-                >
-                  {s.pct}%
-                </text>
-              </g>
-            )
-          })}
-        </svg>
+        {data.length === 0 ? (
+          <p className="text-xs text-[#8A90A2]">Belum ada arsip untuk ditampilkan</p>
+        ) : (
+          <svg viewBox={`-40 -10 ${size + 80} ${size + 20}`} className="w-full max-w-[280px]">
+            <g transform={`rotate(-90 ${cx} ${cx})`}>
+              {segments.map((s) => (
+                <circle
+                  key={s.label}
+                  cx={cx}
+                  cy={cx}
+                  r={r}
+                  fill="none"
+                  stroke={s.color}
+                  strokeWidth={stroke}
+                  strokeDasharray={`${s.dash} ${circumference - s.dash}`}
+                  strokeDashoffset={-s.offset}
+                />
+              ))}
+            </g>
+            {segments.map((s) => {
+              const mid = (s.start + s.pct / 200) * 2 * Math.PI - Math.PI / 2
+              const x1 = cx + Math.cos(mid) * (r + stroke / 2)
+              const y1 = cx + Math.sin(mid) * (r + stroke / 2)
+              const x2 = cx + Math.cos(mid) * (r + stroke / 2 + 14)
+              const y2 = cx + Math.sin(mid) * (r + stroke / 2 + 14)
+              const right = Math.cos(mid) >= 0
+              const x3 = x2 + (right ? 10 : -10)
+              return (
+                <g key={`label-${s.label}`}>
+                  <polyline points={`${x1},${y1} ${x2},${y2} ${x3},${y2}`} fill="none" stroke="#9AA0B2" strokeWidth={0.8} />
+                  <text
+                    x={x3 + (right ? 3 : -3)}
+                    y={y2 + 4}
+                    textAnchor={right ? 'start' : 'end'}
+                    className="fill-[#4B5163]"
+                    fontSize={11}
+                  >
+                    {s.pct}%
+                  </text>
+                </g>
+              )
+            })}
+          </svg>
+        )}
       </div>
 
       <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-xs text-[#4B5163]">
         {data.map((d) => (
           <span key={d.label} className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
-            {d.label}
+            {d.label} ({d.count})
           </span>
         ))}
       </div>
@@ -359,18 +296,103 @@ function DashboardBody() {
   const { name } = useAppUser()
   const firstName = name.split(' ')[0] || name
 
+  const [supabase] = useState(() => createClient())
+  const [documents, setDocuments] = useState<DocumentItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
   const [statusFilter, setStatusFilter] = useState<'semua' | DocStatus>('semua')
   const [filterOpen, setFilterOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
 
-  const totalAktif = sampleDocuments.filter((d) => d.status === 'aktif').length
-  const totalMenunggu = sampleDocuments.filter((d) => d.status === 'menunggu_persetujuan').length
-  const totalKritis = sampleDocuments.filter((d) => d.status === 'aktif' && d.sisa_hari !== null && d.sisa_hari < 90).length
-  const totalInaktif = sampleDocuments.filter((d) => d.status === 'inaktif').length
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const { data: { user }, error: authErr } = await supabase.auth.getUser()
+        if (authErr || !user) {
+          setErrorMsg('Anda belum masuk. Silakan masuk terlebih dahulu untuk melihat dasbor.')
+          setLoading(false)
+          return
+        }
+
+        const { data, error } = await supabase
+          .from('dokumen')
+          .select(`
+            id,
+            kode_arsip,
+            nomor_dokumen,
+            judul,
+            status,
+            ukuran_file,
+            created_at,
+            tanggal_kadaluarsa,
+            kategori_dokumen ( nama ),
+            pemegang:profiles!dokumen_pemegang_saat_ini_fkey ( nama_lengkap, email ),
+            pemilik:profiles!dokumen_pemilik_id_fkey ( nama_lengkap, email )
+          `)
+          .order('created_at', { ascending: false })
+
+        if (error) throw error
+
+        const mapped: DocumentItem[] = (data || []).map((d: any) => {
+          const diff = d.tanggal_kadaluarsa
+            ? Math.max(0, Math.ceil((new Date(d.tanggal_kadaluarsa).getTime() - Date.now()) / 86_400_000))
+            : null
+          const bytes = d.ukuran_file
+          let sizeStr = '-'
+          if (bytes) {
+            sizeStr = bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(0)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+          }
+
+          let waktuStr = 'Baru saja'
+          if (d.created_at) {
+            const msDiff = Date.now() - new Date(d.created_at).getTime()
+            const mins = Math.floor(msDiff / 60000)
+            const hours = Math.floor(mins / 60)
+            const days = Math.floor(hours / 24)
+            if (mins < 60) waktuStr = `${Math.max(1, mins)} mnt lalu`
+            else if (hours < 24) waktuStr = `${hours} jam lalu`
+            else if (days === 1) waktuStr = 'Kemarin'
+            else waktuStr = `${days} hari lalu`
+          }
+
+          const pemegangNama =
+            d.pemegang?.nama_lengkap || d.pemegang?.email || d.pemilik?.nama_lengkap || d.pemilik?.email || 'Pengaju'
+
+          return {
+            id: d.id,
+            kode_arsip: d.kode_arsip,
+            judul: d.judul,
+            nomor_surat: d.nomor_dokumen || '-',
+            kategori: d.kategori_dokumen?.nama || 'Keuangan',
+            status: d.status as DocStatus,
+            pemegang: pemegangNama,
+            waktu: waktuStr,
+            sisa_hari: diff,
+            ukuran_file: sizeStr,
+          }
+        })
+
+        setDocuments(mapped)
+      } catch (err) {
+        console.error('Gagal memuat dashboard:', err)
+        setErrorMsg(err instanceof Error ? err.message : 'Gagal memuat data dari Supabase live.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [supabase])
+
+  const totalAktif = documents.filter((d) => d.status === 'aktif').length
+  const totalMenunggu = documents.filter((d) => d.status === 'menunggu_persetujuan').length
+  const totalKritis = documents.filter((d) => d.status === 'aktif' && d.sisa_hari !== null && d.sisa_hari < 90).length
+  const totalInaktif = documents.filter((d) => d.status === 'inaktif').length
 
   const activities = useMemo(
-    () => sampleDocuments.filter((d) => statusFilter === 'semua' || d.status === statusFilter),
-    [statusFilter]
+    () => documents.filter((d) => statusFilter === 'semua' || d.status === statusFilter),
+    [documents, statusFilter]
   )
 
   const filterOptions: { id: 'semua' | DocStatus; label: string }[] = [
@@ -382,8 +404,30 @@ function DashboardBody() {
     { id: 'dibatalkan', label: 'Dibatalkan' },
   ]
 
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto py-16 flex flex-col items-center justify-center gap-3 text-[#6B7185]">
+        <Loader2 className="w-8 h-8 animate-spin text-[#3BA4E8]" />
+        <p className="text-sm font-medium">Memuat ringkasan arsip dokumen...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
+      {errorMsg && (
+        <div className="flex items-start gap-3 rounded-xl border border-[#FDECEC] bg-[#FFF5F5] px-4 py-3 text-sm text-[#D64545]">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold">Koneksi Supabase Gagal / Belum Masuk</p>
+            <p className="mt-0.5">{errorMsg}</p>
+            <Link href="/login" className="mt-2 inline-flex items-center text-xs font-semibold text-[#1E86C8] hover:underline">
+              Masuk ke Akun Anda &rarr;
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Header sapaan */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
@@ -542,7 +586,7 @@ function DashboardBody() {
         </div>
 
         <div className="xl:col-span-4">
-          <CategoryDonut />
+          <CategoryDonut documents={documents} />
         </div>
       </div>
     </div>
