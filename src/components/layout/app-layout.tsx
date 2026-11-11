@@ -12,7 +12,6 @@ import {
   Settings,
   LogOut,
   ChevronDown,
-  ChevronsUpDown,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
@@ -20,6 +19,12 @@ import {
   MoreVertical,
   Menu,
   X,
+  ShieldCheck,
+  ClipboardCheck,
+  BadgeCheck,
+  UserRound,
+  Calculator,
+  Eye,
 } from 'lucide-react'
 import { UserRole } from '@/types'
 import { createClient } from '@/lib/supabase/client'
@@ -56,6 +61,47 @@ const roleTitles: Record<UserRole, string> = {
   user: 'Pengaju',
   accounting: 'Accounting',
   viewer: 'Viewer',
+}
+
+const roleBadgeStyles: Record<UserRole, { icon: React.ComponentType<{ className?: string }>; pill: string; iconBox: string }> = {
+  admin: { icon: ShieldCheck, pill: 'bg-[#EEF0F4] text-[#374151] border-[#D1D5DB]', iconBox: 'bg-[#374151] text-white' },
+  pic_arsip: { icon: ClipboardCheck, pill: 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]', iconBox: 'bg-[#34A853] text-white' },
+  atasan: { icon: BadgeCheck, pill: 'bg-[#FEF7E0] text-[#B06000] border-[#FEEFC3]', iconBox: 'bg-[#F29900] text-white' },
+  user: { icon: UserRound, pill: 'bg-[#EAF5FD] text-[#1E86C8] border-[#BCE1F9]', iconBox: 'bg-[#3BA4E8] text-white' },
+  accounting: { icon: Calculator, pill: 'bg-[#F3E8FD] text-[#7E3FBF] border-[#E2CCF9]', iconBox: 'bg-[#9D5CE0] text-white' },
+  viewer: { icon: Eye, pill: 'bg-[#F1F3F4] text-[#5F6368] border-[#DADCE0]', iconBox: 'bg-[#80868B] text-white' },
+}
+
+/** Kartu identitas workspace + lencana peran aktif di sidebar. */
+function RoleCard({ role, roleTitle, compact = false }: { role: UserRole; roleTitle: string; compact?: boolean }) {
+  const style = roleBadgeStyles[role] || roleBadgeStyles.user
+  const Icon = style.icon
+  if (compact) {
+    return (
+      <div className="flex justify-center pt-4" title={`Arsip Instansi — ${roleTitle}`}>
+        <span className={`flex h-9 w-9 items-center justify-center rounded-lg shadow-sm ${style.iconBox}`} suppressHydrationWarning>
+          <Icon className="h-[18px] w-[18px]" />
+        </span>
+      </div>
+    )
+  }
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-[#ECEEF5] bg-[#F8FBFE] p-2.5">
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg shadow-sm ${style.iconBox}`} suppressHydrationWarning>
+        <Icon className="h-[18px] w-[18px]" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[14px] font-semibold leading-tight text-[#1F2333]">Arsip Instansi</p>
+        <span
+          className={`mt-1 inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${style.pill}`}
+          suppressHydrationWarning
+        >
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
+          <span className="truncate">{roleTitle}</span>
+        </span>
+      </div>
+    </div>
+  )
 }
 
 const AppUserContext = createContext<AppUser>({
@@ -238,14 +284,8 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
                 </button>
               </div>
 
-              <div className="px-5 pt-5 pb-3">
-                <div className="flex items-center justify-between rounded-lg px-1 py-1">
-                  <div className="min-w-0">
-                    <p className="text-[15px] font-semibold text-[#1F2333] truncate">Arsip Instansi</p>
-                    <p className="text-xs text-[#8A90A2] truncate" suppressHydrationWarning>{roleTitle}</p>
-                  </div>
-                  <ChevronsUpDown className="w-4 h-4 text-[#6B7185] shrink-0" />
-                </div>
+              <div className="px-4 pt-4 pb-3">
+                <RoleCard role={currentRole} roleTitle={roleTitle} />
               </div>
 
               <nav className="px-3 pb-4 space-y-1 flex-1 overflow-y-auto">
@@ -376,15 +416,11 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
           </div>
 
           {/* Workspace / Peran aktif */}
-          {!isCollapsed && (
-            <div className="px-5 pt-5 pb-3">
-              <div className="flex items-center justify-between rounded-lg px-1 py-1">
-                <div className="min-w-0">
-                  <p className="text-[15px] font-semibold text-[#1F2333] truncate">Arsip Instansi</p>
-                  <p className="text-xs text-[#8A90A2] truncate" suppressHydrationWarning>{roleTitle}</p>
-                </div>
-                <ChevronsUpDown className="w-4 h-4 text-[#6B7185] shrink-0" />
-              </div>
+          {isCollapsed ? (
+            <RoleCard role={currentRole} roleTitle={roleTitle} compact />
+          ) : (
+            <div className="px-4 pt-4 pb-3">
+              <RoleCard role={currentRole} roleTitle={roleTitle} />
             </div>
           )}
 
