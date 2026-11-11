@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { AppLayout } from '@/components/layout/app-layout'
 import { StampBadge } from '@/components/ui/stamp-badge'
 import { createClient } from '@/lib/supabase/client'
+import { KodeArsip } from '@/components/documents/kode-arsip'
 import {
   Scan,
   Camera,
@@ -656,7 +657,7 @@ export default function SerahTerimaPage() {
                   <div className="grid grid-cols-2 gap-3 rounded-lg bg-[#F8FAFC] p-3.5 border border-[#E2E8F0] text-xs">
                     <div>
                       <span className="text-[#64748B] block">Kode Arsip SIG:</span>
-                      <span className="font-mono font-bold text-[#1E3A5F]">{scannedDoc.kode_arsip}</span>
+                      <KodeArsip kode={scannedDoc.kode_arsip} className="block font-mono font-bold text-[#1E3A5F]" />
                     </div>
                     <div>
                       <span className="text-[#64748B] block">Kategori:</span>
@@ -814,11 +815,9 @@ export default function SerahTerimaPage() {
                       key={item.id}
                       className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#CBD7E3] bg-[#F8FAFC] p-4.5 hover:bg-[#F0F5FA] transition-colors"
                     >
-                      <div className="space-y-1.5 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-bold text-[#1E3A5F]">
-                            {item.dokumen?.kode_arsip}
-                          </span>
+                      <div className="space-y-1.5 flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <KodeArsip kode={item.dokumen?.kode_arsip} className="font-mono text-xs font-bold text-[#1E3A5F]" />
                           <span className="rounded bg-[#FFF4DE] px-2 py-0.5 text-[10px] font-semibold text-[#C98A1B]">
                             Menunggu Konfirmasi
                           </span>
@@ -918,9 +917,9 @@ export default function SerahTerimaPage() {
                         <td className="py-3 px-3">
                           <Link
                             href={`/dokumen/${item.dokumen_id}`}
-                            className="font-mono font-bold text-[#1E3A5F] hover:underline block"
+                            className="font-mono font-bold text-[#1E3A5F] hover:underline block min-w-[120px] max-w-[200px]"
                           >
-                            {item.dokumen?.kode_arsip}
+                            <KodeArsip kode={item.dokumen?.kode_arsip} />
                           </Link>
                           <span className="text-[11px] text-[#4B5E76] line-clamp-1">
                             {item.dokumen?.judul}
