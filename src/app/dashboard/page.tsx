@@ -7,6 +7,7 @@ import { AppLayout, useAppUser } from '@/components/layout/app-layout'
 import { UserRole, DokumenStatus } from '@/types'
 import { StampBadge } from '@/components/ui/stamp-badge'
 import { createClient } from '@/lib/supabase/client'
+import { KodeArsip } from '@/components/documents/kode-arsip'
 import {
   ArrowUp,
   ArrowDown,
@@ -574,7 +575,7 @@ function DashboardBody() {
                           {statusPill[doc.status].label}
                         </span>
                       </td>
-                      <td className="py-2.5 pr-4 whitespace-nowrap text-[#4B5163]">#{doc.kode_arsip}</td>
+                      <td className="py-2.5 pr-4 min-w-[120px] max-w-[180px] text-[#4B5163]"><KodeArsip kode={doc.kode_arsip} prefix="#" className="block" /></td>
                       <td className="py-2.5 pr-4 whitespace-nowrap text-[#4B5163]">{doc.waktu}</td>
                       <td className="py-2.5 whitespace-nowrap text-right text-[#4B5163]">{doc.ukuran_file}</td>
                     </tr>
