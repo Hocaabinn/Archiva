@@ -358,86 +358,97 @@ export default function DetailDokumenPage({ params }: PageProps) {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex h-96 items-center justify-center">
-          <div className="flex items-center gap-3 text-sm text-[#64748B]">
-            <Loader2 className="w-5 h-5 animate-spin text-[#3BA4E8]" />
-            <span>Memuat lembar arsip dokumen...</span>
-          </div>
+        <div className="flex flex-col items-center justify-center gap-3 py-24 text-[#6B7185]">
+          <Loader2 className="h-8 w-8 animate-spin text-[#3BA4E8]" />
+          <p className="text-sm font-medium">Memuat detail dokumen...</p>
         </div>
       </AppLayout>
     )
   }
 
-  // Render Galat
-  if (error || !doc) {
+  if (errorMsg || !doc) {
     return (
       <AppLayout>
-        <div className="max-w-xl mx-auto py-12">
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-900 shadow-xs">
-            <h2 className="font-bold text-base mb-1">Dokumen Tidak Ditemukan</h2>
-            <p className="text-xs leading-relaxed text-red-700">{error || 'Dokumen yang diminta tidak tersedia.'}</p>
-            <div className="mt-4">
-              <Link
-                href="/dokumen"
-                className="inline-flex items-center gap-2 rounded-lg bg-white border border-red-200 px-3.5 py-1.5 text-xs font-medium text-red-800 hover:bg-red-100 transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Kembali ke Katalog Dokumen</span>
-              </Link>
-            </div>
-          </div>
+        <div className="mx-auto max-w-md py-16 text-center">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#FDECEC] text-[#D64545]">
+            <AlertCircle className="h-6 w-6" />
+          </span>
+          <p className="mt-3 text-sm font-semibold text-[#1F2333]">Dokumen tidak dapat dimuat</p>
+          <p className="mt-1 text-xs text-[#6B7185]">{errorMsg || 'Dokumen arsip tidak ditemukan.'}</p>
+          <Link
+            href="/dokumen"
+            className="mt-5 inline-flex items-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#2A92D6]"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Kembali ke Daftar Dokumen
+          </Link>
         </div>
       </AppLayout>
     )
   }
 
-  // Hak Aksi Cepat
   const isOwner = currentUserId === doc.pemilik_id
   const isPicArsip = currentUserRole === 'pic_arsip' || currentUserRole === 'admin'
-  const isAtasan = currentUserRole === 'atasan' || currentUserRole === 'admin'
+  const isAtasan = currentUserRole === 'atasan'
+  const status = STATUS_PILL[doc.status] || STATUS_PILL.inaktif
+  const StatusIcon = status.icon
+  const namaFile = doc.file_path.split('/').pop()?.replace(/^\d+_/, '') || 'Berkas dokumen'
+  const kodeBagian = doc.kode_arsip.split('_')
 
-  // Perhitungan Kadaluarsa
-  let sisaHari: number | null = null
-  let isKritis = false
-  if (doc.status === 'aktif' && doc.tanggal_kadaluarsa) {
-    const expTime = new Date(doc.tanggal_kadaluarsa).getTime()
-    const nowTime = new Date().getTime()
-    sisaHari = Math.ceil((expTime - nowTime) / (1000 * 60 * 60 * 24))
-    isKritis = sisaHari <= 30
-  }
+  const cardClass = 'rounded-xl border border-[#ECEEF5] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]'
+  const fieldInput =
+    'w-full rounded-lg border border-[#E3E6F0] bg-white px-3.5 py-2.5 text-sm text-[#1F2333] placeholder:text-[#A5ABBC] focus:border-[#3BA4E8] focus:outline-none focus:ring-2 focus:ring-[#3BA4E8]/15'
+
+  const metaRows: { icon: React.ComponentType<{ className?: string }>; label: string; value: React.ReactNode }[] = [
+    { icon: User, label: 'Pengaju (Pemilik)', value: doc.pemilik_nama },
+    { icon: User, label: 'Pemegang Saat Ini', value: doc.pemegang_nama },
+    { icon: MapPin, label: 'Lokasi Fisik', value: doc.lokasi_saat_ini },
+    { icon: Pencil, label: 'Penandatangan', value: doc.penandatangan || '-' },
+    { icon: Calendar, label: 'Tanggal Dokumen', value: formatTanggal(doc.tanggal_dokumen, 'long') },
+    {
+      icon: ShieldCheck,
+      label: 'Verifikator PIC',
+      value: doc.verifikator_nama || (doc.verifikasi_pic_oleh ? 'Terverifikasi PIC' : 'Belum diverifikasi'),
+    },
+    {
+      icon: CheckCircle2,
+      label: 'Approver Atasan',
+      value: doc.approver_nama || (doc.disetujui_oleh ? 'Disahkan Atasan' : 'Belum disahkan'),
+    },
+  ]
 
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-5xl mx-auto pb-16">
-        {/* Navigasi Atas & Tombol Cetak / Aksi */}
-        <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4">
+      <div className="mx-auto max-w-6xl space-y-5 pb-16">
+        {/* Navigasi atas & aksi */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Link
             href="/dokumen"
-            className="inline-flex items-center gap-2 text-xs font-medium text-[#64748B] hover:text-[#3BA4E8] transition-colors"
+            className="inline-flex items-center gap-2 text-sm font-medium text-[#6B7185] transition-colors hover:text-[#1E86C8]"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Kembali ke Katalog Dokumen</span>
+            <ArrowLeft className="h-4 w-4" />
+            Kembali ke Daftar Dokumen
           </Link>
 
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
             {doc.status === 'aktif' && (
               <>
                 <Link
                   href={`/serah-terima?kode=${doc.kode_arsip}`}
-                  className="px-3.5 py-2 bg-[#3BA4E8] hover:bg-[#2A92D6] active:bg-[#1E80C2] text-white font-semibold rounded-lg flex items-center gap-1.5 transition-all shadow-sm"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#2A92D6] sm:flex-none"
                 >
-                  <QrCode className="w-3.5 h-3.5" />
-                  <span>Serah Terima</span>
+                  <QrCode className="h-4 w-4" />
+                  Serah Terima
                 </Link>
                 {isAtasan && (
                   <button
                     type="button"
                     onClick={() => setModalType('batal')}
-                    className="px-3.5 py-2 bg-white border border-red-300 hover:bg-red-50 text-red-700 font-medium rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
-                    title="Pembatalan Dokumen Aktif oleh Atasan"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-[#F5C2C2] bg-white px-4 py-2 text-sm font-semibold text-[#D64545] transition-colors hover:bg-[#FDECEC] sm:flex-none"
+                    title="Pembatalan Dokumen Aktif oleh Atasan (Blueprint Bab 6.7)"
                   >
-                    <XCircle className="w-3.5 h-3.5 text-red-600" />
-                    <span>Batalkan Dokumen</span>
+                    <XCircle className="h-4 w-4" />
+                    Batalkan Dokumen
                   </button>
                 )}
               </>
@@ -445,154 +456,175 @@ export default function DetailDokumenPage({ params }: PageProps) {
             {doc.status === 'inaktif' && currentUserRole !== 'viewer' && (
               <Link
                 href={`/peminjaman?dokumen_id=${doc.id}`}
-                className="px-3.5 py-2 bg-[#3BA4E8] hover:bg-[#2A92D6] text-white font-semibold rounded-lg flex items-center gap-1.5 transition-all shadow-sm"
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#2A92D6] sm:flex-none"
               >
-                <BookOpenCheck className="w-3.5 h-3.5" />
-                <span>Ajukan Peminjaman</span>
+                <BookOpenCheck className="h-4 w-4" />
+                Ajukan Peminjaman
               </Link>
             )}
           </div>
         </div>
 
-        {/* Banner Dokumen Dibatalkan */}
-        {doc.status === 'dibatalkan' && (
-          <div className="p-5 rounded-2xl bg-red-50 border border-red-200 text-red-950 text-xs space-y-2 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="font-bold flex items-center gap-2 text-sm text-red-950 font-sans">
-                <XCircle className="w-4 h-4 text-red-700" />
-                DOKUMEN RESMI DIBATALKAN
+        {/* Kartu judul */}
+        <div className={`${cardClass} relative overflow-hidden`}>
+          <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#3BA4E8] to-[#7CC4F2]" />
+          <div className="flex flex-col gap-4 p-5 sm:p-6 md:flex-row md:items-start md:justify-between">
+            <div className="flex min-w-0 items-start gap-4">
+              <span className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#EAF5FD] text-[#3BA4E8] sm:flex">
+                <FileText className="h-6 w-6" />
               </span>
-              <span className="text-[11px] text-red-700 font-semibold px-2 py-0.5 bg-red-100 rounded">
-                Sesuai Ketentuan Blueprint Bab 6.7
-              </span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${status.className}`}>
+                    <StatusIcon className="h-3.5 w-3.5" />
+                    {status.label}
+                  </span>
+                  <span className="inline-flex items-center rounded-full border border-[#ECEEF5] bg-[#F7F8FC] px-2.5 py-0.5 text-xs font-medium text-[#4B5163]">
+                    {doc.kategori_nama}
+                  </span>
+                  {isAkanKadaluarsa && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-[#F5C2C2] bg-[#FDECEC] px-2.5 py-0.5 text-xs font-semibold text-[#D64545]">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      Akan Kadaluarsa
+                    </span>
+                  )}
+                </div>
+                <h1 className="mt-2 break-words text-xl font-bold leading-tight tracking-tight text-[#1F2333] sm:text-2xl">
+                  {doc.judul}
+                </h1>
+                <KodeArsip kode={doc.kode_arsip} className="block mt-1.5 font-mono text-sm text-[#1E86C8]" />
+              </div>
             </div>
-            <p className="leading-relaxed">
-              <strong>Alasan Pembatalan:</strong> {doc.alasan_penolakan || 'Tidak ada keterangan spesifik.'}
-            </p>
-            <p className="text-[11px] text-red-800/80">
-              Kode arsip ({doc.kode_arsip}) tetap tersimpan dan tidak dipakai ulang. Dokumen tetap dapat dilihat dengan penanda cap DIBATALKAN.
-            </p>
+          </div>
+
+          {/* Pecahan kode arsip */}
+          <div className="grid grid-cols-2 border-t border-[#ECEEF5] sm:grid-cols-4">
+            {[
+              { label: 'Tahun', value: kodeBagian.length === 4 ? kodeBagian[0] : '-' },
+              { label: 'Kode Perusahaan', value: kodeBagian.length === 4 ? kodeBagian[1] : '-' },
+              { label: 'No. Payment (PPL)', value: doc.nomor_ppl || (kodeBagian.length === 4 ? kodeBagian[2] : '-') },
+              { label: 'Doc Voucher', value: doc.nomor_dokumen || (kodeBagian.length === 4 ? kodeBagian[3] : '-') },
+            ].map((item, i) => (
+              <div
+                key={item.label}
+                className={`px-5 py-3.5 sm:px-6 ${i % 2 === 1 ? 'border-l border-[#ECEEF5]' : ''} ${i >= 2 ? 'border-t border-[#ECEEF5] sm:border-t-0' : ''} ${i === 2 ? 'sm:border-l' : ''}`}
+              >
+                <p className="text-[11px] font-medium uppercase tracking-wider text-[#9AA0B2]">{item.label}</p>
+                <p className="mt-0.5 break-all font-mono text-sm font-semibold text-[#1F2333]">{item.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Banner status */}
+        {doc.status === 'dibatalkan' && (
+          <div className="flex items-start gap-3 rounded-xl border border-[#F5C2C2] bg-[#FFF5F5] p-4">
+            <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#D64545]" />
+            <div className="min-w-0 text-sm">
+              <p className="font-semibold text-[#A82828]">Dokumen telah dibatalkan</p>
+              <p className="mt-1 text-[#4B5163]">
+                <span className="font-medium">Alasan:</span> {doc.alasan_penolakan || 'Tidak ada keterangan spesifik.'}
+              </p>
+              <p className="mt-1 text-xs text-[#8A90A2]">
+                Kode arsip tetap tersimpan dan tidak dipakai ulang (Blueprint Bab 6.7).
+              </p>
+            </div>
           </div>
         )}
 
-        {/* Banner Dokumen Inaktif */}
         {doc.status === 'inaktif' && (
-          <div className="p-5 rounded-2xl bg-[#F8FAFC] border border-[#CBD7E3] text-[#1F2333] text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-xs">
-            <div>
-              <span className="font-bold text-[#1F2333] text-sm block">
-                STATUS DOKUMEN: INAKTIF (GUDANG INAKTIF)
-              </span>
-              <span className="text-[#64748B] text-xs mt-0.5 block">
-                Masa retensi aktif dokumen telah berakhir. Berkas fisik tersimpan di Gudang Inaktif dan dapat dipinjam melalui PIC Arsip Inaktif.
-              </span>
+          <div className="flex flex-col gap-3 rounded-xl border border-[#BCE1F9] bg-[#F3FAFF] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <Info className="mt-0.5 h-5 w-5 shrink-0 text-[#3BA4E8]" />
+              <div className="text-sm">
+                <p className="font-semibold text-[#1F2333]">Dokumen berstatus Inaktif</p>
+                <p className="mt-0.5 text-[#4B5163]">
+                  Masa aktif telah berakhir. Berkas tersimpan di Gudang Inaktif dan dapat dipinjam melalui PIC Arsip.
+                </p>
+              </div>
             </div>
             {currentUserRole !== 'viewer' && (
               <Link
                 href={`/peminjaman?dokumen_id=${doc.id}`}
-                className="px-4 py-2 bg-[#3BA4E8] hover:bg-[#2A92D6] text-white font-semibold rounded-lg flex items-center gap-1.5 shrink-0 shadow-sm"
+                className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#2A92D6]"
               >
-                <BookOpenCheck className="w-3.5 h-3.5" />
-                <span>Pinjam Dokumen Ini</span>
+                <BookOpenCheck className="h-4 w-4" />
+                Pinjam Dokumen Ini
               </Link>
             )}
           </div>
         )}
 
-        {/* Banner Peringatan Dokumen Ditolak */}
         {doc.status === 'ditolak' && (
-          <div className="p-5 rounded-2xl bg-red-50 border border-red-200 text-red-900 text-xs space-y-2 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="font-bold flex items-center gap-2 text-sm text-red-950 font-sans">
-                <AlertCircle className="w-4 h-4 text-red-700" />
-                DOKUMEN DITOLAK
-              </span>
-              <span className="text-[11px] text-red-700 bg-red-100 px-2 py-0.5 rounded">
-                Alur pengajuan dikembalikan ke pembuat
-              </span>
+          <div className="flex flex-col gap-3 rounded-xl border border-[#F5C2C2] bg-[#FFF5F5] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#D64545]" />
+              <div className="text-sm">
+                <p className="font-semibold text-[#A82828]">Dokumen ditolak</p>
+                <p className="mt-0.5 text-[#4B5163]">
+                  <span className="font-medium">Alasan:</span> {doc.alasan_penolakan || 'Tidak ada keterangan spesifik.'}
+                </p>
+              </div>
             </div>
-            <p className="leading-relaxed">
-              <strong>Alasan Penolakan:</strong> {doc.alasan_penolakan || 'Tidak ada keterangan spesifik.'}
-            </p>
             {isOwner && (
-              <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setModalType('ajukan_ulang')}
+                className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#2A92D6]"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Perbaiki & Ajukan Ulang
+              </button>
+            )}
+          </div>
+        )}
+
+        {doc.status === 'menunggu_persetujuan' && (
+          <div className="flex flex-col gap-3 rounded-xl border border-[#FEEFC3] bg-[#FFFBEF] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <Clock className="mt-0.5 h-5 w-5 shrink-0 text-[#B06000]" />
+              <div className="text-sm">
+                <p className="font-semibold text-[#1F2333]">Menunggu persetujuan</p>
+                <p className="mt-0.5 text-[#4B5163]">
+                  {!doc.verifikasi_pic_oleh
+                    ? 'Tahap 1 — menunggu verifikasi kelengkapan format SIG oleh PIC Arsip.'
+                    : 'Tahap 2 — menunggu pengesahan akhir arsip aktif 3 tahun oleh Atasan.'}
+                </p>
+              </div>
+            </div>
+
+            {((!doc.verifikasi_pic_oleh && isPicArsip) || (doc.verifikasi_pic_oleh && isAtasan)) && (
+              <div className="flex shrink-0 items-center gap-2">
                 <button
-                  onClick={() => setModalType('ajukan_ulang')}
-                  className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                  type="button"
+                  onClick={() => setModalType('tolak')}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#F5C2C2] bg-white px-4 py-2 text-sm font-semibold text-[#D64545] hover:bg-[#FDECEC] sm:flex-none"
                 >
-                  <RotateCcw className="w-4 h-4" />
-                  <span>Perbaiki & Ajukan Ulang</span>
+                  <XCircle className="h-4 w-4" />
+                  Tolak
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModalType(doc.verifikasi_pic_oleh ? 'approve' : 'verifikasi')}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#2A92D6] sm:flex-none"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {doc.verifikasi_pic_oleh ? 'Sahkan Aktif (+3 Tahun)' : 'Loloskan Verifikasi'}
                 </button>
               </div>
             )}
           </div>
         )}
 
-        {/* Banner Tindakan Persetujuan Cepat (Untuk PIC / Atasan) */}
-        {doc.status === 'menunggu_persetujuan' && (
-          <div className="p-5 rounded-2xl bg-[#F0F9FF] border border-[#BAE6FD] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-xs shadow-xs">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="px-2.5 py-0.5 bg-[#FEF3C7] text-[#92400E] border border-[#FCD34D] rounded-full font-semibold text-[11px]">
-                  MENUNGGU PERSETUJUAN
-                </span>
-                <span className="font-semibold text-[#1F2333] text-sm">
-                  Alur Verifikasi Kearsipan
-                </span>
-              </div>
-              <p className="text-[#64748B] text-xs">
-                {!doc.verifikasi_pic_oleh
-                  ? 'Tahap 1: Menunggu verifikasi kelengkapan format SIG oleh PIC Arsip.'
-                  : 'Tahap 2: Menunggu pengesahan akhir arsip aktif 3 tahun oleh Atasan.'}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2.5 shrink-0">
-              {/* Tombol PIC */}
-              {!doc.verifikasi_pic_oleh && isPicArsip && (
-                <>
-                  <button
-                    onClick={() => setModalType('tolak')}
-                    className="px-3.5 py-2 border border-red-300 bg-white hover:bg-red-50 text-red-700 font-medium rounded-lg transition-colors cursor-pointer"
-                  >
-                    Tolak
-                  </button>
-                  <button
-                    onClick={() => setModalType('verifikasi')}
-                    className="px-4 py-2 bg-[#3BA4E8] hover:bg-[#2A92D6] text-white font-semibold rounded-lg flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Loloskan Verifikasi</span>
-                  </button>
-                </>
-              )}
-
-              {/* Tombol Atasan */}
-              {doc.verifikasi_pic_oleh && isAtasan && (
-                <>
-                  <button
-                    onClick={() => setModalType('tolak')}
-                    className="px-3.5 py-2 border border-red-300 bg-white hover:bg-red-50 text-red-700 font-medium rounded-lg transition-colors cursor-pointer"
-                  >
-                    Tolak
-                  </button>
-                  <button
-                    onClick={() => setModalType('approve')}
-                    className="px-4 py-2 bg-[#3BA4E8] hover:bg-[#2A92D6] text-white font-semibold rounded-lg flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Sahkan Aktif (+3 Tahun)</span>
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Notifikasi Akses Download Viewer */}
         {downloadNotice && (
-          <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center justify-between">
-            <span>{downloadNotice}</span>
-            <button onClick={() => setDownloadNotice(null)} className="font-bold text-red-600 hover:text-red-800">×</button>
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-[#F5C2C2] bg-[#FFF5F5] px-4 py-3 text-sm text-[#A82828]">
+            <span className="flex items-center gap-2">
+              <Lock className="h-4 w-4 shrink-0" />
+              {downloadNotice}
+            </span>
+            <button type="button" onClick={() => setDownloadNotice(null)} className="rounded-md p-1 hover:bg-black/5">
+              <XCircle className="h-4 w-4" />
+            </button>
           </div>
         )}
 
