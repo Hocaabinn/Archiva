@@ -336,9 +336,12 @@ function DaftarDokumenContent() {
 
   // ---------------- PERMISSION SESUAI ROLE ----------------
   const isPrivileged = PRIVILEGED.includes(role)
-  // Pengaju (user) — BOLEH upload dokumen miliknya sendiri
+  // Pengaju — boleh upload (dokumen sendiri)
   // Admin, PIC Arsip, Atasan, Accounting, Viewer — TIDAK boleh upload
   const canUpload = role === 'user'
+
+  // Viewer — TIDAK boleh unduh / ekspor berkas (hanya lihat)
+  const canExport = role !== 'viewer'
   const isOwnerPending = (doc: DocRow) => doc.pemilik_id === userId && doc.status === 'menunggu_persetujuan'
   // Pengaju: hanya boleh ubah/hapus dokumen miliknya yang berstatus menunggu_persetujuan
   // Admin: akses darurat kelola arsip sistem
@@ -613,9 +616,11 @@ function DaftarDokumenContent() {
 
   const ActionButtons = ({ doc }: { doc: DocRow }) => (
     <div className="flex items-center justify-end gap-1">
-      <button type="button" onClick={() => setQrDoc(doc)} title="Label QR" className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]">
-        <QrCode className="h-4 w-4" />
-      </button>
+      {role !== 'viewer' && (
+        <button type="button" onClick={() => setQrDoc(doc)} title="Label QR" className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]">
+          <QrCode className="h-4 w-4" />
+        </button>
+      )}
       <Link href={`/dokumen/${doc.id}`} title="Lihat detail" className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]">
         <Eye className="h-4 w-4" />
       </Link>
@@ -668,34 +673,36 @@ function DaftarDokumenContent() {
                 <span>Persetujuan Dokumen</span>
               </Link>
             )}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setExportOpen((v) => !v)}
-                className="flex items-center gap-2 rounded-lg border border-[#1F2333] bg-white px-4 py-2 text-sm font-medium text-[#1F2333] transition-colors hover:bg-[#F7F8FC]"
-              >
-                <Download className="h-4 w-4" />
-                Ekspor
-                <ChevronDown className="h-4 w-4" />
-              </button>
-              {exportOpen && (
-                <div className="absolute right-0 z-30 mt-2 w-52 rounded-lg border border-[#ECEEF5] bg-white p-1.5 shadow-lg">
-                  <button type="button" onClick={exportCsv} className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-[#4B5163] hover:bg-[#EEF7FD]">
-                    <FileText className="h-4 w-4" /> Unduh CSV
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setExportOpen(false)
-                      window.print()
-                    }}
-                    className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-[#4B5163] hover:bg-[#EEF7FD]"
-                  >
-                    <Printer className="h-4 w-4" /> Cetak Daftar
-                  </button>
-                </div>
-              )}
-            </div>
+            {canExport && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setExportOpen((v) => !v)}
+                  className="flex items-center gap-2 rounded-lg border border-[#1F2333] bg-white px-4 py-2 text-sm font-medium text-[#1F2333] transition-colors hover:bg-[#F7F8FC]"
+                >
+                  <Download className="h-4 w-4" />
+                  Ekspor
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+                {exportOpen && (
+                  <div className="absolute right-0 z-30 mt-2 w-52 rounded-lg border border-[#ECEEF5] bg-white p-1.5 shadow-lg">
+                    <button type="button" onClick={exportCsv} className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-[#4B5163] hover:bg-[#EEF7FD]">
+                      <FileText className="h-4 w-4" /> Unduh CSV
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExportOpen(false)
+                        window.print()
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-[#4B5163] hover:bg-[#EEF7FD]"
+                    >
+                      <Printer className="h-4 w-4" /> Cetak Daftar
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             {canUpload && (
               <Link
                 href="/dokumen/upload"
@@ -707,6 +714,16 @@ function DaftarDokumenContent() {
             )}
           </div>
         </div>
+
+        {/* Banner Khusus Viewer */}
+        {role === 'viewer' && (
+          <div className="flex items-center gap-2.5 rounded-xl border border-[#DADCE0] bg-[#F8F9FA] px-4 py-3 text-xs text-[#5F6368]">
+            <Info className="h-4 w-4 shrink-0 text-[#1E86C8]" />
+            <span>
+              <strong>Mode Hanya Baca:</strong> Anda masuk sebagai Viewer. Anda dapat menelusuri daftar dan pratinjau dokumen arsip. Fitur unggah berkas, pengunduhan berkas asli, dan perubahan data dinonaktifkan.
+            </span>
+          </div>
+        )}
 
         {errorMessage && (
           <div className="flex items-start gap-3 rounded-xl border border-[#FDECEC] bg-[#FFF5F5] px-4 py-3 text-sm text-[#D64545]">
