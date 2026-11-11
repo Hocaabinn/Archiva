@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const rawCode = (searchParams.get('code') || '').trim()
+    let rawCode = (searchParams.get('code') || '').trim()
 
     if (!rawCode) {
       return NextResponse.json(
@@ -40,9 +40,29 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Jika pemindaian membaca teks URL (misal http://localhost:3000/dokumen/... atau tautan sistem lain),
+    // sistem mengekstrak kode arsip murni dari segmen URL terakhir secara cerdas
+    if (rawCode.startsWith('http://') || rawCode.startsWith('https://')) {
+      try {
+        const parsed = new URL(rawCode)
+        const segments = parsed.pathname.split('/').filter(Boolean)
+        const lastSegment = segments[segments.length - 1]
+        if (lastSegment) {
+          rawCode = decodeURIComponent(lastSegment).trim()
+        }
+      } catch {
+        // Biarkan rawCode apa adanya jika gagal parse URL
+      }
+    }
+
+    // Hapus tanda petik bila terbawa dari scanner
+    rawCode = rawCode.replace(/^["']|["']$/g, '').trim()
+
     const admin = createAdminClient()
 
-    // 1. Cari exact match kode_arsip lebih dulu
+    // 1. Cari exact match kode_arsip lebih dulu (atau ID jika UUID)
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawCode)
+
     let { data: doc } = await admin
       .from('dokumen')
       .select(`
@@ -53,7 +73,7 @@ export async function GET(request: NextRequest) {
         pemegang:pemegang_saat_ini ( id, nama_lengkap, email, jabatan, nomor_pegawai ),
         pemilik:pemilik_id ( id, nama_lengkap, email )
       `)
-      .ilike('kode_arsip', rawCode)
+      .or(isUuid ? `id.eq.${rawCode},kode_arsip.ilike.${rawCode}` : `kode_arsip.ilike.${rawCode}`)
       .maybeSingle()
 
     // 2. Jika tidak ditemukan, coba cari berdasarkan nomor_ppl atau nomor_dokumen (doc voucher)
@@ -88,9 +108,20 @@ export async function GET(request: NextRequest) {
     // 3. ATURAN KERAS BLUEPRINT 3.5 & 8.3:
     // "Hanya dokumen Aktif yang dapat diserahterimakan. Melarang serah terima dokumen Inaktif sebagai dokumen aktif sampai diaktivasi ulang."
     if (doc.status !== 'aktif') {
+      const statusIndo =
+        doc.status === 'menunggu_persetujuan'
+          ? 'Menunggu Persetujuan'
+          : doc.status === 'inaktif'
+          ? 'Inaktif'
+          : doc.status === 'ditolak'
+          ? 'Ditolak'
+          : doc.status === 'dibatalkan'
+          ? 'Dibatalkan'
+          : doc.status
+
       return NextResponse.json(
         {
-          error: `Dokumen "${doc.kode_arsip}" ditemukan tetapi berstatus '${doc.status}'. Sesuai ketentuan kearsipan resmi, hanya dokumen berstatus Aktif yang dapat diserahterimakan fisik. Dokumen ${doc.status} tidak dapat diproses serah terima.`,
+          error: `Dokumen "${doc.kode_arsip}" ditemukan tetapi berstatus '${statusIndo}'. Sesuai ketentuan kearsipan resmi (Blueprint Bab 7, 3.5, & 8.3), hanya dokumen berstatus Aktif yang dapat diserahterimakan fisik. Dokumen ${statusIndo} tidak dapat diproses serah terima.`,
           found: true,
           status: doc.status,
           canTransfer: false,
