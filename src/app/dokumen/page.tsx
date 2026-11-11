@@ -636,7 +636,25 @@ function DaftarDokumenContent() {
             </div>
             <p className="mt-1 text-sm text-[#4B5163]" suppressHydrationWarning>{roleHeader.subtitle}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            {role === 'pic_arsip' && (
+              <Link
+                href="/persetujuan"
+                className="flex items-center gap-1.5 rounded-lg border border-[#137333]/30 bg-[#E6F4EA] px-3.5 py-2 text-sm font-medium text-[#137333] hover:bg-[#CEEAD6] transition-colors"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Verifikasi Dokumen</span>
+              </Link>
+            )}
+            {role === 'atasan' && (
+              <Link
+                href="/persetujuan"
+                className="flex items-center gap-1.5 rounded-lg border border-[#B06000]/30 bg-[#FEF7E0] px-3.5 py-2 text-sm font-medium text-[#B06000] hover:bg-[#FEEFC3] transition-colors"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Persetujuan Dokumen</span>
+              </Link>
+            )}
             <div className="relative">
               <button
                 type="button"
