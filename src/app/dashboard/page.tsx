@@ -63,6 +63,7 @@ const DONUT_COLORS = ['#3BA4E8', '#86C8F2', '#C4E4FA', '#E6F3FD']
 // ============================================================
 function StatCard({
   title,
+  subtitle,
   value,
   trend,
   trendUp,
@@ -70,6 +71,7 @@ function StatCard({
   href,
 }: {
   title: string
+  subtitle?: string
   value: string
   trend: string
   trendUp: boolean
@@ -80,7 +82,10 @@ function StatCard({
     <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden flex flex-col">
       <div className="p-5 flex-1">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-[#4B5163]">{title}</span>
+          <div className="min-w-0">
+            <span className="block text-sm text-[#4B5163]">{title}</span>
+            {subtitle && <span className="block text-[11px] text-[#9AA0B2]">{subtitle}</span>}
+          </div>
           <button type="button" className="text-[#8A90A2] hover:text-[#1F2333]" aria-label="Opsi">
             <MoreHorizontal className="w-4 h-4" />
           </button>
@@ -388,7 +393,7 @@ function DashboardBody() {
 
   const totalAktif = documents.filter((d) => d.status === 'aktif').length
   const totalMenunggu = documents.filter((d) => d.status === 'menunggu_persetujuan').length
-  const totalKritis = documents.filter((d) => d.status === 'aktif' && d.sisa_hari !== null && d.sisa_hari < 90).length
+  const totalAkanKadaluarsa = documents.filter((d) => d.status === 'aktif' && d.sisa_hari !== null && d.sisa_hari < 90).length
   const totalInaktif = documents.filter((d) => d.status === 'inaktif').length
 
   const activities = useMemo(
@@ -513,7 +518,7 @@ function DashboardBody() {
         <div className="xl:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
           <StatCard title="Arsip Aktif" value={`${totalAktif} berkas`} trend="+20,1%" trendUp note="+2 bulan ini" href="/dokumen" />
           <StatCard title="Antrean Persetujuan" value={`${totalMenunggu} berkas`} trend="+10,6%" trendUp note="+1 hari ini" href="/persetujuan" />
-          <StatCard title="Kedaluwarsa < 90 Hari" value={`${totalKritis} berkas`} trend="-10%" trendUp={false} note="H-42 terdekat" href="/dokumen" />
+          <StatCard title="Akan Kadaluarsa" subtitle="< 90 hari" value={`${totalAkanKadaluarsa} berkas`} trend="-10%" trendUp={false} note="H-42 terdekat" href="/dokumen" />
           <StatCard title="Gudang Inaktif" value={`${totalInaktif} berkas`} trend="+12%" trendUp note="dapat dipinjam" href="/dokumen" />
         </div>
         <div className="xl:col-span-6">
