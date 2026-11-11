@@ -40,7 +40,7 @@ export async function POST(
     const admin = createAdminClient()
     const { data: doc, error: docError } = await admin
       .from('dokumen')
-      .select('id, kode_arsip, judul, status, pemilik_id')
+      .select('id, kode_arsip, judul, status, pemilik_id, file_path')
       .eq('id', id)
       .single()
 
@@ -64,8 +64,56 @@ export async function POST(
       )
     }
 
-    // 4. Baca metadata yang diperbaiki jika ada
-    const body = await request.json().catch(() => ({}))
+    // 4. Baca metadata yang diperbaiki (JSON, atau multipart/form-data bila menyertakan berkas baru)
+    let body: Record<string, any> = {}
+    let berkasBaru: File | null = null
+    const contentType = request.headers.get('content-type') || ''
+    if (contentType.includes('multipart/form-data')) {
+      const form = await request.formData()
+      for (const key of ['judul', 'nomor_dokumen', 'nomor_ppl', 'penandatangan', 'kategori_id', 'deskripsi', 'lokasi_saat_ini']) {
+        const v = form.get(key)
+        if (typeof v === 'string') body[key] = v.trim()
+      }
+      const f = form.get('file')
+      if (f && typeof f !== 'string' && f.size > 0) berkasBaru = f
+    } else {
+      body = await request.json().catch(() => ({}))
+    }
+
+    // 4a. Unggah berkas pengganti (opsional). Berkas lama TIDAK dihapus agar jejak arsip tetap ada.
+    let fileUpdate: Record<string, unknown> = {}
+    let keteranganBerkas = ''
+    if (berkasBaru) {
+      const ext = (berkasBaru.name.split('.').pop() || '').toLowerCase()
+      if (!['pdf', 'png', 'jpg', 'jpeg'].includes(ext)) {
+        return NextResponse.json(
+          { error: 'Format berkas tidak didukung. Gunakan PDF, PNG, atau JPG.' },
+          { status: 400 }
+        )
+      }
+      const cleanFileName = berkasBaru.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+      const filePath = `${doc.pemilik_id}/${Date.now()}_${cleanFileName}`
+      const { error: uploadError } = await admin.storage
+        .from('arsip-aktif')
+        .upload(filePath, Buffer.from(await berkasBaru.arrayBuffer()), {
+          contentType: berkasBaru.type || 'application/pdf',
+          upsert: false,
+        })
+      if (uploadError) {
+        return NextResponse.json(
+          { error: `Gagal mengunggah berkas pengganti: ${uploadError.message}` },
+          { status: 500 }
+        )
+      }
+      fileUpdate = {
+        bucket: 'arsip-aktif',
+        file_path: filePath,
+        file_tipe: berkasBaru.type || 'application/pdf',
+        ukuran_file: berkasBaru.size,
+      }
+      keteranganBerkas = ` Berkas utama diganti dengan "${berkasBaru.name}" (berkas sebelumnya tetap tersimpan: ${doc.file_path || '-'}).`
+    }
+
     const updatePayload: Record<string, unknown> = {
       status: 'menunggu_persetujuan',
       verifikasi_pic_oleh: null,
@@ -74,6 +122,7 @@ export async function POST(
       tanggal_kadaluarsa: null,
       alasan_penolakan: null,
       updated_at: new Date().toISOString(),
+      ...fileUpdate,
     }
 
     if (body.judul && typeof body.judul === 'string' && body.judul.trim()) {
@@ -105,7 +154,7 @@ export async function POST(
       dokumen_id: doc.id,
       user_id: user.id,
       aksi: 'ajukan_ulang',
-      keterangan: `Dokumen diperbaiki dan diajukan ulang oleh ${pengajuNama}. Alur verifikasi diulang dari tahap 1.`,
+      keterangan: `Dokumen diperbaiki dan diajukan ulang oleh ${pengajuNama}. Alur verifikasi diulang dari tahap 1.${keteranganBerkas}`,
     })
 
     // 7. Kirim notifikasi ke semua PIC Arsip
