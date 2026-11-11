@@ -506,85 +506,87 @@ function VerifikasiContent() {
         </div>
       </div>
 
-      {/* ================= MODAL KONFIRMASI AKSI ================= */}
+      {/* ================= MODAL KONFIRMASI ================= */}
       {modalAction && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-xs sm:items-center sm:p-4"
           onClick={closeModal}
         >
           <div
-            className="w-full max-w-lg bg-white border-2 border-[#1E2429] shadow-2xl p-6 space-y-4"
+            className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl animate-in fade-in slide-in-from-bottom-4 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between border-b border-[#D8D2C4] pb-3">
-              <div className="flex items-center gap-2">
-                {isReject ? (
-                  <XCircle className="w-5 h-5 text-red-700" />
-                ) : (
-                  <CheckCircle2 className="w-5 h-5 text-[#1F5C55]" />
-                )}
-                <div>
-                  <h3 className="font-serif font-bold text-lg text-[#1A1D21]">
+            <div className="flex items-start justify-between gap-3 border-b border-[#ECEEF5] p-5">
+              <div className="flex min-w-0 items-start gap-3">
+                <span
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                    isReject ? 'bg-[#FDECEC] text-[#D64545]' : 'bg-[#EAF5FD] text-[#3BA4E8]'
+                  }`}
+                >
+                  {isReject ? <XCircle className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
+                </span>
+                <div className="min-w-0">
+                  <h3 className="text-base font-semibold text-[#1F2333]">
                     {isReject
                       ? 'Tolak Pengajuan Dokumen'
                       : modalAction.item.tahap === 'tahap_1_pic'
                       ? 'Verifikasi Tahap 1 (PIC Arsip)'
                       : 'Pengesahan Akhir (Atasan)'}
                   </h3>
-                  <p className="font-mono text-xs text-[#5B6166]">
-                    Kode Arsip: <strong>{modalAction.item.kode_arsip}</strong>
-                  </p>
+                  <KodeArsip kode={modalAction.item.kode_arsip} className="block mt-0.5 font-mono text-xs text-[#6B7185]" />
                 </div>
               </div>
               <button
                 type="button"
                 onClick={closeModal}
-                className="text-[#5B6166] hover:text-[#1A1D21]"
+                className="rounded-lg p-1.5 text-[#6B7185] hover:bg-[#F4F5FA] hover:text-[#1F2333]"
               >
-                <X className="w-5 h-5" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="bg-[#F7F3EB] p-3 text-xs font-mono space-y-1 border border-[#D8D2C4]">
-              <p className="font-bold text-[#1A1D21] font-sans">{modalAction.item.judul}</p>
-              <p className="text-[#5B6166]">
-                Pengaju: {modalAction.item.pengaju_nama} • Kategori: {modalAction.item.kategori_nama}
-              </p>
-              {!isReject && (
-                <p className="text-[#1F5C55] font-semibold flex items-center gap-1 pt-1">
-                  <ArrowRight className="w-3.5 h-3.5" />
-                  {modalAction.item.tahap === 'tahap_1_pic'
-                    ? 'Dokumen akan diteruskan ke antrean Persetujuan Akhir Atasan.'
-                    : 'Dokumen akan berstatus Aktif selama 3 tahun dan diterbitkan label QR resmi.'}
+            <div className="space-y-4 p-5">
+              <div className="rounded-xl border border-[#ECEEF5] bg-[#F8FBFE] p-3.5 text-sm">
+                <p className="font-semibold text-[#1F2333]">{modalAction.item.judul}</p>
+                <p className="mt-0.5 text-xs text-[#6B7185]">
+                  Pengaju: {modalAction.item.pengaju_nama} · Kategori: {modalAction.item.kategori_nama}
                 </p>
+                {!isReject && (
+                  <p className="mt-2 flex items-start gap-1.5 text-xs font-medium text-[#1E86C8]">
+                    <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    {modalAction.item.tahap === 'tahap_1_pic'
+                      ? 'Dokumen akan diteruskan ke antrean pengesahan Atasan.'
+                      : 'Dokumen akan berstatus Aktif selama 3 tahun dan label QR resmi diterbitkan.'}
+                  </p>
+                )}
+              </div>
+
+              {isReject && (
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">
+                    Alasan Penolakan <span className="text-[#D64545]">*</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={alasan}
+                    onChange={(e) => setAlasan(e.target.value)}
+                    placeholder="Tuliskan alasan penolakan secara jelas agar pengaju dapat memperbaiki dokumen..."
+                    className={`${inputClass} resize-none focus:border-[#D64545] focus:ring-[#D64545]/15`}
+                  />
+                  <p className="mt-1 text-xs text-[#8A90A2]">
+                    Dokumen akan berstatus Ditolak dan dikembalikan ke Pengaju beserta alasan ini.
+                  </p>
+                </div>
               )}
             </div>
 
-            {isReject && (
-              <div className="space-y-1">
-                <label className="block font-mono text-[11px] font-bold text-[#1A1D21] uppercase">
-                  Alasan Penolakan <span className="text-red-700">*</span>
-                </label>
-                <textarea
-                  rows={3}
-                  required
-                  value={alasan}
-                  onChange={(e) => setAlasan(e.target.value)}
-                  placeholder="Tuliskan alasan penolakan secara jelas agar pembuat dapat memperbaiki dokumen..."
-                  className="w-full p-2.5 border border-[#D8D2C4] bg-white font-sans text-xs focus:border-[#1A1D21] focus:outline-none"
-                />
-                <p className="text-[10px] text-[#5B6166] font-mono">
-                  Dokumen akan berstatus Ditolak dan dikembalikan ke Pengaju beserta alasan ini.
-                </p>
-              </div>
-            )}
-
-            <div className="pt-3 border-t border-[#D8D2C4] flex items-center justify-end gap-3 font-mono text-xs">
+            <div className="flex flex-col-reverse gap-2 border-t border-[#ECEEF5] p-5 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 disabled={isSubmittingAction}
                 onClick={closeModal}
-                className="px-4 py-2 border border-[#D8D2C4] hover:bg-[#F7F3EB] text-[#1A1D21]"
+                className="rounded-lg border border-[#E3E6F0] bg-white px-4 py-2 text-sm font-medium text-[#4B5163] hover:bg-[#F7F8FC]"
               >
                 Batal
               </button>
@@ -592,38 +594,41 @@ function VerifikasiContent() {
                 type="button"
                 disabled={confirmDisabled}
                 onClick={handleConfirmAction}
-                className={`px-5 py-2 text-white font-semibold transition-colors disabled:opacity-50 ${
-                  isReject ? 'bg-red-700 hover:bg-red-800' : 'bg-[#1F5C55] hover:bg-[#184843]'
+                className={`flex items-center justify-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold text-white shadow-sm transition-colors disabled:opacity-50 ${
+                  isReject ? 'bg-[#D64545] hover:bg-[#C03A3A]' : 'bg-[#3BA4E8] hover:bg-[#2A92D6]'
                 }`}
               >
+                {isSubmittingAction && <Loader2 className="h-4 w-4 animate-spin" />}
                 {isSubmittingAction
                   ? 'Memproses...'
                   : isReject
-                  ? 'Konfirmasi Tolak'
+                  ? 'Tolak Dokumen'
                   : modalAction.item.tahap === 'tahap_1_pic'
                   ? 'Loloskan Verifikasi'
-                  : 'Sahkan Menjadi Aktif (+3 Tahun)'}
+                  : 'Sahkan Menjadi Aktif'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ================= TOAST NOTIFIKASI ================= */}
+      {/* ================= TOAST ================= */}
       {toast && (
         <div
-          className={`fixed bottom-6 right-6 z-[60] flex max-w-md items-start gap-2.5 p-4 text-xs font-mono text-white shadow-xl ${
-            toast.type === 'success' ? 'bg-[#1F5C55]' : 'bg-red-800'
+          className={`fixed bottom-4 left-4 right-4 z-[60] flex items-start gap-3 rounded-xl border p-4 shadow-lg sm:bottom-6 sm:left-auto sm:right-6 sm:max-w-md animate-in fade-in slide-in-from-bottom-2 duration-200 ${
+            toast.type === 'success'
+              ? 'border-[#2F9E5B]/30 bg-[#E7F6EC] text-[#1E6B3E]'
+              : 'border-[#D64545]/30 bg-[#FDECEC] text-[#A82828]'
           }`}
         >
           {toast.type === 'success' ? (
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-300" />
+            <CheckCircle2 className="h-5 w-5 shrink-0 text-[#2F9E5B]" />
           ) : (
-            <XCircle className="w-4 h-4 shrink-0 text-red-300" />
+            <XCircle className="h-5 w-5 shrink-0 text-[#D64545]" />
           )}
-          <span className="flex-1 leading-relaxed">{toast.text}</span>
-          <button type="button" onClick={() => setToast(null)} className="text-white/70 hover:text-white">
-            <X className="w-4 h-4" />
+          <p className="flex-1 text-sm font-medium leading-relaxed">{toast.text}</p>
+          <button type="button" onClick={() => setToast(null)} className="rounded-md p-0.5 hover:bg-black/10">
+            <X className="h-4 w-4" />
           </button>
         </div>
       )}
@@ -635,8 +640,9 @@ export default function VerifikasiPage() {
   return (
     <Suspense
       fallback={
-        <div className="p-8 text-center text-xs font-mono text-[#5B6166]">
-          Memuat antrean persetujuan...
+        <div className="flex flex-col items-center justify-center gap-3 py-24 text-[#6B7185]">
+          <Loader2 className="h-8 w-8 animate-spin text-[#3BA4E8]" />
+          <p className="text-sm font-medium">Memuat antrean verifikasi...</p>
         </div>
       }
     >
