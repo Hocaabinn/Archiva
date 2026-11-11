@@ -827,161 +827,197 @@ export default function DetailDokumenPage({ params }: PageProps) {
       {/* ================= MODAL AKSI ================= */}
       {modalType && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-xs sm:items-center sm:p-4"
           onClick={() => !isSubmittingModal && setModalType(null)}
         >
           <div
-            className="w-full max-w-lg bg-white rounded-2xl border border-[#E2E8F0] shadow-2xl p-6 sm:p-7 space-y-5 font-sans text-xs"
+            className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl animate-in fade-in slide-in-from-bottom-4 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between border-b border-[#E2E8F0] pb-3.5">
-              <div>
-                <h3 className="font-bold text-base text-[#1F2333]">
-                  {modalType === 'verifikasi'
-                    ? 'Verifikasi Tahap 1 (PIC Arsip)'
-                    : modalType === 'approve'
-                    ? 'Pengesahan Akhir (Atasan)'
-                    : modalType === 'tolak'
-                    ? 'Tolak Pengajuan Dokumen'
-                    : modalType === 'batal'
-                    ? 'Pembatalan Dokumen Aktif (Atasan)'
-                    : 'Perbaiki & Ajukan Ulang Dokumen'}
-                </h3>
-                <p className="text-xs text-[#64748B] mt-0.5">
-                  Kode Arsip: <strong className="font-mono text-[#0284C7]">{doc.kode_arsip}</strong>
-                </p>
+            <div className="flex items-start justify-between gap-3 border-b border-[#ECEEF5] p-5">
+              <div className="flex min-w-0 items-start gap-3">
+                <span
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                    modalType === 'tolak' || modalType === 'batal'
+                      ? 'bg-[#FDECEC] text-[#D64545]'
+                      : 'bg-[#EAF5FD] text-[#3BA4E8]'
+                  }`}
+                >
+                  {modalType === 'tolak' || modalType === 'batal' ? (
+                    <XCircle className="h-5 w-5" />
+                  ) : modalType === 'ajukan_ulang' ? (
+                    <Send className="h-5 w-5" />
+                  ) : (
+                    <CheckCircle2 className="h-5 w-5" />
+                  )}
+                </span>
+                <div className="min-w-0">
+                  <h3 className="text-base font-semibold text-[#1F2333]">
+                    {modalType === 'verifikasi'
+                      ? 'Verifikasi Tahap 1 (PIC Arsip)'
+                      : modalType === 'approve'
+                      ? 'Pengesahan Akhir (Atasan)'
+                      : modalType === 'tolak'
+                      ? 'Tolak Pengajuan Dokumen'
+                      : modalType === 'batal'
+                      ? 'Pembatalan Dokumen Aktif'
+                      : 'Perbaiki & Ajukan Ulang'}
+                  </h3>
+                  <KodeArsip kode={doc.kode_arsip} className="block mt-0.5 font-mono text-xs text-[#6B7185]" />
+                </div>
               </div>
               <button
                 type="button"
-                onClick={() => setModalType(null)}
-                className="text-[#64748B] hover:text-[#1F2333] p-1 text-base cursor-pointer"
+                onClick={() => !isSubmittingModal && setModalType(null)}
+                className="rounded-lg p-1.5 text-[#6B7185] hover:bg-[#F4F5FA] hover:text-[#1F2333]"
               >
-                ✕
+                <XCircle className="h-5 w-5" />
               </button>
             </div>
 
-            {modalType === 'verifikasi' && (
-              <p className="leading-relaxed text-[#1F2333] text-sm">
-                Apakah Anda menyatakan bahwa dokumen <strong>{doc.judul}</strong> ({doc.kode_arsip}) telah diperiksa kelengkapan fisiknya dan sesuai standar penomoran SIG? Dokumen akan diteruskan ke antrean Persetujuan Akhir Atasan.
-              </p>
-            )}
-
-            {modalType === 'approve' && (
-              <div className="space-y-2 text-[#1F2333] text-sm leading-relaxed">
-                <p>
-                  Dengan mengesahkan dokumen ini, status dokumen akan berubah menjadi <strong>Aktif</strong> dengan masa retensi selama <strong>3 tahun</strong> ke depan, dan label QR resmi siap diterbitkan.
+            <div className="space-y-4 p-5 text-sm text-[#4B5163]">
+              {modalType === 'verifikasi' && (
+                <p className="leading-relaxed">
+                  Nyatakan bahwa dokumen <strong className="text-[#1F2333]">{doc.judul}</strong> telah diperiksa kelengkapan fisiknya dan sesuai standar penomoran SIG? Dokumen akan diteruskan ke antrean persetujuan Atasan.
                 </p>
-              </div>
-            )}
+              )}
 
-            {modalType === 'tolak' && (
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-[#1F2333] uppercase">
-                  Alasan Penolakan <span className="text-red-600">*</span>
-                </label>
-                <textarea
-                  rows={3}
-                  required
-                  value={alasanTolak}
-                  onChange={(e) => setAlasanTolak(e.target.value)}
-                  placeholder="Tuliskan alasan penolakan secara jelas..."
-                  className="w-full p-3 border border-[#CBD7E3] rounded-lg bg-white focus:border-[#3BA4E8] focus:ring-2 focus:ring-[#3BA4E8]/20 focus:outline-none text-xs"
-                />
-              </div>
-            )}
-
-            {modalType === 'batal' && (
-              <div className="space-y-3 font-sans">
-                <p className="leading-relaxed text-[#1F2333]">
-                  Sesuai ketentuan Blueprint Bab 6.7, pembatalan dokumen Aktif hanya dapat disahkan oleh Atasan. Kode arsip <strong>{doc.kode_arsip}</strong> akan tetap disimpan dan tidak akan dipakai ulang. Dokumen akan berstatus <strong>DIBATALKAN</strong>.
+              {modalType === 'approve' && (
+                <p className="leading-relaxed">
+                  Status dokumen akan menjadi <strong className="text-[#1F2333]">Aktif</strong> dengan masa retensi <strong className="text-[#1F2333]">3 tahun</strong>, dan label QR resmi siap diterbitkan.
                 </p>
+              )}
+
+              {modalType === 'tolak' && (
                 <div>
-                  <label className="block text-xs font-semibold text-[#1F2333] uppercase mb-1">
-                    Alasan Pembatalan Dokumen <span className="text-red-600">*</span>
+                  <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">
+                    Alasan Penolakan <span className="text-[#D64545]">*</span>
                   </label>
                   <textarea
                     rows={3}
                     required
-                    value={alasanBatal}
-                    onChange={(e) => setAlasanBatal(e.target.value)}
-                    placeholder="Tuliskan alasan resmi pembatalan dokumen aktif ini..."
-                    className="w-full p-3 border border-red-300 rounded-lg bg-white focus:border-red-600 focus:outline-none text-xs"
+                    value={alasanTolak}
+                    onChange={(e) => setAlasanTolak(e.target.value)}
+                    placeholder="Tuliskan alasan penolakan secara jelas..."
+                    className={`${fieldInput} resize-none focus:border-[#D64545] focus:ring-[#D64545]/15`}
                   />
                 </div>
-              </div>
-            )}
+              )}
 
-            {modalType === 'ajukan_ulang' && (
-              <div className="space-y-3 font-sans">
-                <p className="text-xs text-[#64748B]">
-                  Perbaiki metadata dokumen di bawah ini. Setelah diajukan ulang, alur verifikasi akan dimulai kembali dari tahap verifikasi PIC Arsip.
-                </p>
-                <div>
-                  <label className="block text-xs font-semibold text-[#1F2333] mb-1">
-                    Judul Dokumen <span className="text-red-600">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={editJudul}
-                    onChange={(e) => setEditJudul(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#CBD7E3] rounded-lg bg-white text-xs focus:border-[#3BA4E8] focus:outline-none"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
+              {modalType === 'batal' && (
+                <>
+                  <p className="leading-relaxed">
+                    Pembatalan dokumen Aktif hanya dapat disahkan oleh Atasan (Blueprint Bab 6.7). Kode arsip tetap disimpan dan tidak dipakai ulang; dokumen akan berstatus <strong className="text-[#1F2333]">Dibatalkan</strong>.
+                  </p>
                   <div>
-                    <label className="block text-xs font-semibold text-[#64748B] mb-1">
-                      No. Payment / PPL
+                    <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">
+                      Alasan Pembatalan <span className="text-[#D64545]">*</span>
                     </label>
+                    <textarea
+                      rows={3}
+                      required
+                      value={alasanBatal}
+                      onChange={(e) => setAlasanBatal(e.target.value)}
+                      placeholder="Tuliskan alasan resmi pembatalan dokumen ini..."
+                      className={`${fieldInput} resize-none focus:border-[#D64545] focus:ring-[#D64545]/15`}
+                    />
+                  </div>
+                </>
+              )}
+
+              {modalType === 'ajukan_ulang' && (
+                <>
+                  <p className="text-xs text-[#6B7185]">
+                    Perbaiki data di bawah ini. Setelah diajukan ulang, alur dimulai kembali dari verifikasi PIC Arsip.
+                  </p>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">
+                      Judul Dokumen <span className="text-[#D64545]">*</span>
+                    </label>
+                    <input type="text" value={editJudul} onChange={(e) => setEditJudul(e.target.value)} className={fieldInput} />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">No. Payment / PPL</label>
+                      <input
+                        type="text"
+                        value={editNomorPpl}
+                        onChange={(e) => setEditNomorPpl(e.target.value)}
+                        className={`${fieldInput} font-mono`}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">Doc Voucher</label>
+                      <input
+                        type="text"
+                        value={editNomorDokumen}
+                        onChange={(e) => setEditNomorDokumen(e.target.value)}
+                        className={`${fieldInput} font-mono`}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">Penandatangan</label>
                     <input
                       type="text"
-                      value={editNomorPpl}
-                      onChange={(e) => setEditNomorPpl(e.target.value)}
-                      className="w-full px-3 py-2 border border-[#CBD7E3] rounded-lg bg-white font-mono text-xs focus:border-[#3BA4E8] focus:outline-none"
+                      value={editPenandatangan}
+                      onChange={(e) => setEditPenandatangan(e.target.value)}
+                      className={fieldInput}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-[#64748B] mb-1">
-                      Doc Voucher
-                    </label>
-                    <input
-                      type="text"
-                      value={editNomorDokumen}
-                      onChange={(e) => setEditNomorDokumen(e.target.value)}
-                      className="w-full px-3 py-2 border border-[#CBD7E3] rounded-lg bg-white font-mono text-xs focus:border-[#3BA4E8] focus:outline-none"
-                    />
+                    <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">Lokasi Fisik Berkas</label>
+                    <input type="text" value={editLokasi} onChange={(e) => setEditLokasi(e.target.value)} className={fieldInput} />
                   </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-[#64748B] mb-1">
-                    Penandatangan
-                  </label>
-                  <input
-                    type="text"
-                    value={editPenandatangan}
-                    onChange={(e) => setEditPenandatangan(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#CBD7E3] rounded-lg bg-white text-xs focus:border-[#3BA4E8] focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-[#64748B] mb-1">
-                    Lokasi Fisik Berkas
-                  </label>
-                  <input
-                    type="text"
-                    value={editLokasi}
-                    onChange={(e) => setEditLokasi(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#CBD7E3] rounded-lg bg-white text-xs focus:border-[#3BA4E8] focus:outline-none"
-                  />
-                </div>
-              </div>
-            )}
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">
+                      Unggah Dokumen Perbaikan <span className="font-normal text-[#9AA0B2]">(opsional)</span>
+                    </label>
+                    {editFile ? (
+                      <div className="flex items-center gap-3 rounded-xl border border-[#BCE1F9] bg-[#F3FAFF] p-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#3BA4E8] shadow-sm">
+                          <FileText className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-[#1F2333]">{editFile.name}</p>
+                          <p className="text-xs text-[#8A90A2]">{(editFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEditFile(null)}
+                          className="rounded-md p-1 text-[#8A90A2] hover:bg-white hover:text-[#D64545]"
+                          title="Hapus berkas"
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border-2 border-dashed border-[#BCE1F9] bg-[#F8FBFE] px-4 py-5 text-center transition-colors hover:border-[#3BA4E8] hover:bg-[#F3FAFF]">
+                        <Upload className="h-5 w-5 text-[#3BA4E8]" />
+                        <span className="text-sm font-medium text-[#1E86C8]">Pilih berkas pengganti</span>
+                        <span className="text-xs text-[#8A90A2]">PDF, PNG, atau JPG</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg"
+                          className="sr-only"
+                          onChange={(e) => setEditFile(e.target.files?.[0] || null)}
+                        />
+                      </label>
+                    )}
+                    <p className="mt-1 text-xs text-[#8A90A2]">
+                      Kosongkan bila berkas tidak berubah. Berkas lama tetap tersimpan sebagai jejak arsip.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
 
-            <div className="pt-3.5 border-t border-[#E2E8F0] flex items-center justify-end gap-3 text-xs">
+            <div className="flex flex-col-reverse gap-2 border-t border-[#ECEEF5] p-5 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 disabled={isSubmittingModal}
                 onClick={() => setModalType(null)}
-                className="px-4 py-2 border border-[#CBD7E3] hover:bg-[#F8FAFC] text-[#1F2333] rounded-lg font-medium transition-colors cursor-pointer"
+                className="rounded-lg border border-[#E3E6F0] bg-white px-4 py-2 text-sm font-medium text-[#4B5163] hover:bg-[#F7F8FC]"
               >
                 Batal
               </button>
@@ -993,22 +1029,23 @@ export default function DetailDokumenPage({ params }: PageProps) {
                   (modalType === 'batal' && !alasanBatal.trim())
                 }
                 onClick={handleExecuteModal}
-                className={`px-5 py-2.5 text-white font-semibold rounded-lg transition-all shadow-sm cursor-pointer disabled:opacity-50 ${
+                className={`flex items-center justify-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold text-white shadow-sm transition-colors disabled:opacity-50 ${
                   modalType === 'tolak' || modalType === 'batal'
-                    ? 'bg-red-700 hover:bg-red-800'
-                    : 'bg-[#3BA4E8] hover:bg-[#2A92D6] active:bg-[#1E80C2]'
+                    ? 'bg-[#D64545] hover:bg-[#C03A3A]'
+                    : 'bg-[#3BA4E8] hover:bg-[#2A92D6]'
                 }`}
               >
+                {isSubmittingModal && <Loader2 className="h-4 w-4 animate-spin" />}
                 {isSubmittingModal
                   ? 'Memproses...'
                   : modalType === 'verifikasi'
-                  ? 'Konfirmasi Lolos Verifikasi'
+                  ? 'Loloskan Verifikasi'
                   : modalType === 'approve'
-                  ? 'Konfirmasi Sahkan Aktif'
+                  ? 'Sahkan Aktif'
                   : modalType === 'tolak'
-                  ? 'Konfirmasi Tolak'
+                  ? 'Tolak Dokumen'
                   : modalType === 'batal'
-                  ? 'Konfirmasi Batalkan Dokumen'
+                  ? 'Batalkan Dokumen'
                   : 'Kirim Ajukan Ulang'}
               </button>
             </div>
@@ -1016,21 +1053,23 @@ export default function DetailDokumenPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* ================= TOAST NOTIFIKASI ================= */}
+      {/* ================= TOAST ================= */}
       {toast && (
         <div
-          className={`fixed bottom-6 right-6 z-[60] flex max-w-md items-start gap-2.5 p-4 text-xs font-sans text-white shadow-xl rounded-xl ${
-            toast.type === 'success' ? 'bg-emerald-700' : 'bg-red-700'
+          className={`fixed bottom-4 left-4 right-4 z-[60] flex items-start gap-3 rounded-xl border p-4 shadow-lg sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-md animate-in fade-in slide-in-from-bottom-2 duration-200 ${
+            toast.type === 'success'
+              ? 'border-[#2F9E5B]/30 bg-[#E7F6EC] text-[#1E6B3E]'
+              : 'border-[#D64545]/30 bg-[#FDECEC] text-[#A82828]'
           }`}
         >
           {toast.type === 'success' ? (
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-200" />
+            <CheckCircle2 className="h-5 w-5 shrink-0 text-[#2F9E5B]" />
           ) : (
-            <XCircle className="w-4 h-4 shrink-0 text-red-200" />
+            <AlertCircle className="h-5 w-5 shrink-0 text-[#D64545]" />
           )}
-          <span className="flex-1 leading-relaxed">{toast.text}</span>
-          <button type="button" onClick={() => setToast(null)} className="text-white/70 hover:text-white cursor-pointer">
-            ✕
+          <p className="flex-1 text-sm font-medium leading-relaxed">{toast.text}</p>
+          <button type="button" onClick={() => setToast(null)} className="rounded-md p-0.5 hover:bg-black/10">
+            <XCircle className="h-4 w-4" />
           </button>
         </div>
       )}
