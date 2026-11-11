@@ -84,10 +84,15 @@ export async function GET(
     }
 
     // 6. Buat Signed URL Berumur Pendek (60 detik)
+    const rawFileName = doc.file_path.split('/').pop() || `${doc.kode_arsip}.pdf`
+    const cleanFileName = rawFileName.replace(/^\d+_/, '')
+
     const targetBucket = doc.bucket || 'arsip-aktif'
     const { data: signedData, error: signError } = await adminClient.storage
       .from(targetBucket)
-      .createSignedUrl(doc.file_path, 60)
+      .createSignedUrl(doc.file_path, 60, {
+        download: cleanFileName,
+      })
 
     if (signError || !signedData?.signedUrl) {
       console.error('Error saat membuat signed URL:', signError)

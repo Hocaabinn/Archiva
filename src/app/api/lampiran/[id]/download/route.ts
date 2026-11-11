@@ -91,7 +91,9 @@ export async function GET(
     const targetBucket = doc?.bucket || 'arsip-aktif'
     const { data: signedData, error: signError } = await adminClient.storage
       .from(targetBucket)
-      .createSignedUrl(lampiran.file_path, 60)
+      .createSignedUrl(lampiran.file_path, 60, {
+        download: lampiran.nama_file || true,
+      })
 
     if (signError || !signedData?.signedUrl) {
       return NextResponse.json(
