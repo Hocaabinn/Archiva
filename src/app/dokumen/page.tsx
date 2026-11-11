@@ -1271,7 +1271,7 @@ function DaftarDokumenContent() {
 
       {/* ================= MODAL QR ================= */}
       {qrDoc && (
-        <Modal title="Label QR Dokumen Fisik" subtitle={`#${qrDoc.kode_arsip}`} onClose={() => setQrDoc(null)} maxWidth="max-w-md">
+        <Modal title="Label QR Code" subtitle={`#${qrDoc.kode_arsip}`} onClose={() => setQrDoc(null)} maxWidth="max-w-md">
           <div className="p-6">
             <DocumentQR
               kodeArsip={qrDoc.kode_arsip}
