@@ -986,22 +986,26 @@ function DaftarDokumenContent() {
             <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4">
               {pagedDocs.map((doc) => (
                 <div key={doc.id} className="flex flex-col rounded-xl border border-[#ECEEF5] p-4 transition-shadow hover:shadow-md">
-                  <div className="flex items-start justify-between">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#EAF5FD] text-[#3BA4E8]">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#EAF5FD] text-[#3BA4E8]">
                       <FileText className="h-5 w-5" />
                     </span>
-                    <StampBadge status={doc.status} />
+                    <div className="flex flex-wrap items-center justify-end gap-1.5 max-w-[70%]">
+                      {role === 'user' && doc.pemilik_id === userId && (
+                        <span className="inline-flex shrink-0 items-center rounded-full bg-[#EBF5FB] px-2 py-0.5 text-[10px] font-semibold text-[#1E86C8] border border-[#3BA4E8]/20">
+                          Milik Anda
+                        </span>
+                      )}
+                      <StampBadge status={doc.status} />
+                    </div>
                   </div>
                   <Link href={`/dokumen/${doc.id}`} className="mt-3 line-clamp-2 font-semibold leading-snug text-[#1F2333] hover:text-[#1E86C8]">
                     {doc.judul}
                   </Link>
-                  <div className="mt-1 flex items-center gap-1.5">
-                    <p className="text-xs text-[#8A90A2]">#{doc.kode_arsip}</p>
-                    {role === 'user' && doc.pemilik_id === userId && (
-                      <span className="inline-flex shrink-0 items-center rounded bg-[#EBF5FB] px-1.5 py-0.5 text-[9px] font-medium text-[#1E86C8]">
-                        Milik Anda
-                      </span>
-                    )}
+                  <div className="mt-1.5 min-w-0">
+                    <p className="font-mono text-[11px] text-[#64748B] truncate select-all" title={`#${doc.kode_arsip}`}>
+                      #{doc.kode_arsip}
+                    </p>
                   </div>
                   <div className="mt-3 space-y-1.5 text-xs text-[#4B5163]">
                     <p className="flex items-center gap-1.5">
