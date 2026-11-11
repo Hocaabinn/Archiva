@@ -223,6 +223,21 @@ export default function SerahTerimaPage() {
     }
   }
 
+  // Ref ke versi terbaru handleSearchCode, agar loop kamera tidak memakai closure lama
+  const handleSearchCodeRef = useRef(handleSearchCode)
+  useEffect(() => {
+    handleSearchCodeRef.current = handleSearchCode
+  })
+
+  // Buka langsung dari tombol "Serah Terima" di detail dokumen: /serah-terima?kode=...
+  useEffect(() => {
+    const kode = new URLSearchParams(window.location.search).get('kode')?.trim()
+    if (kode) {
+      setScanCode(kode)
+      handleSearchCodeRef.current(kode)
+    }
+  }, [])
+
   // Handle Enter Key untuk Scanner USB Gaya Kasir
   const handleKeyDownScanner = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -246,8 +261,36 @@ export default function SerahTerimaPage() {
         videoRef.current.play()
       }
 
-      // Deteksi Barcode modern jika didukung browser
-      if ('BarcodeDetector' in window) {
+      const onDetected = (value: string) => {
+        stopCamera()
+        setScanCode(value)
+        handleSearchCodeRef.current(value)
+      }
+
+      // Deteksi Barcode modern jika didukung browser (Chrome / Android)
+      // Fallback: decode QR via jsQR (Safari iOS, Firefox, dsb.)
+      if (!('BarcodeDetector' in window)) {
+        const jsQR = (await import('jsqr')).default
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d', { willReadFrequently: true })
+        const decodeLoop = () => {
+          const video = videoRef.current
+          if (!streamRef.current || !video || !ctx) return
+          if (video.readyState >= 2 && video.videoWidth > 0) {
+            canvas.width = video.videoWidth
+            canvas.height = video.videoHeight
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+            const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
+            const result = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' })
+            if (result?.data) {
+              onDetected(result.data)
+              return
+            }
+          }
+          requestAnimationFrame(decodeLoop)
+        }
+        requestAnimationFrame(decodeLoop)
+      } else {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const barcodeDetector = new (window as any).BarcodeDetector({
           formats: ['qr_code', 'code_128', 'code_39', 'ean_13'],
@@ -260,9 +303,7 @@ export default function SerahTerimaPage() {
             if (barcodes.length > 0) {
               const detectedValue = barcodes[0].rawValue
               if (detectedValue) {
-                stopCamera()
-                setScanCode(detectedValue)
-                handleSearchCode(detectedValue)
+                onDetected(detectedValue)
                 return
               }
             }
