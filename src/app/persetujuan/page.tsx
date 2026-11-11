@@ -274,91 +274,68 @@ function VerifikasiContent() {
   const isReject = modalAction?.type === 'reject'
   const confirmDisabled = isSubmittingAction || (isReject && !alasan.trim())
 
+
+  const formatTanggal = (iso: string) =>
+    new Date(iso).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+
   return (
     <AppLayout currentRole={roleParam || undefined}>
       <div className="mx-auto max-w-7xl space-y-6 pb-16">
         {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between border-b border-[#D8D2C4] pb-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-mono text-xs px-2 py-0.5 bg-[#1F5C55] text-white font-bold">
-                ALUR BERJENJANG
-              </span>
-              <span className="font-mono text-xs text-[#5B6166]">
-                Blueprint Tabel 14: PIC Arsip → Atasan
-              </span>
-            </div>
-            <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-[#1A1D21]">
-              Antrean Verifikasi & Persetujuan Dokumen
-            </h1>
-            <p className="mt-1 text-xs text-[#5B6166] leading-relaxed">
-              Memverifikasi kelengkapan format SIG oleh PIC Arsip, dilanjutkan dengan pengesahan
-              arsip aktif 3 tahun oleh Atasan.
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold tracking-tight text-[#1F2333] sm:text-[28px]">Verifikasi Dokumen</h1>
+            <p className="mt-1 text-sm text-[#4B5163]">
+              Verifikasi kelengkapan format SIG oleh PIC Arsip, lalu pengesahan arsip aktif 3 tahun oleh Atasan.
             </p>
           </div>
           <Link
             href="/dokumen"
-            className="flex items-center gap-2 self-start border border-[#1E2429] bg-white px-3.5 py-1.5 text-xs font-mono font-semibold text-[#1A1D21] transition-colors hover:bg-[#F7F3EB]"
+            className="flex items-center justify-center gap-2 self-stretch rounded-lg border border-[#E3E6F0] bg-white px-4 py-2 text-sm font-medium text-[#4B5163] transition-colors hover:border-[#3BA4E8] hover:text-[#1E86C8] sm:self-start"
           >
             <FileText className="h-4 w-4" />
-            <span>Katalog Dokumen</span>
+            Daftar Dokumen
           </Link>
         </div>
 
-        {/* Kartu Ringkasan Statistik */}
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 font-mono text-xs">
+        {/* Kartu ringkasan */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {[
-            {
-              label: 'Menunggu PIC Arsip (Tahap 1)',
-              value: countTahap1,
-              icon: ClipboardCheck,
-              tone: 'border-l-4 border-amber-600 bg-white text-amber-900',
-            },
-            {
-              label: 'Menunggu Atasan (Tahap 2)',
-              value: countTahap2,
-              icon: UserCheck,
-              tone: 'border-l-4 border-blue-600 bg-white text-blue-900',
-            },
-            {
-              label: 'Disahkan (Sesi Ini)',
-              value: processed.disahkan,
-              icon: ShieldCheck,
-              tone: 'border-l-4 border-emerald-600 bg-white text-emerald-900',
-            },
-            {
-              label: 'Ditolak (Sesi Ini)',
-              value: processed.ditolak,
-              icon: XCircle,
-              tone: 'border-l-4 border-red-600 bg-white text-red-900',
-            },
+            { label: 'Menunggu PIC Arsip', hint: 'Tahap 1', value: countTahap1, icon: ClipboardCheck, color: 'text-[#B06000]', bar: 'bg-[#FBBC04]', iconBox: 'bg-[#FEF7E0] text-[#B06000]' },
+            { label: 'Menunggu Atasan', hint: 'Tahap 2', value: countTahap2, icon: UserCheck, color: 'text-[#1E86C8]', bar: 'bg-[#3BA4E8]', iconBox: 'bg-[#EAF5FD] text-[#3BA4E8]' },
+            { label: 'Disahkan', hint: 'Sesi ini', value: processed.disahkan, icon: ShieldCheck, color: 'text-[#137333]', bar: 'bg-[#34A853]', iconBox: 'bg-[#E6F4EA] text-[#137333]' },
+            { label: 'Ditolak', hint: 'Sesi ini', value: processed.ditolak, icon: XCircle, color: 'text-[#D64545]', bar: 'bg-[#EA4335]', iconBox: 'bg-[#FDECEC] text-[#D64545]' },
           ].map((s) => {
             const Icon = s.icon
             return (
               <div
                 key={s.label}
-                className={`border border-[#D8D2C4] p-4 flex items-center justify-between shadow-xs ${s.tone}`}
+                className="relative flex items-start justify-between gap-2 overflow-hidden rounded-2xl border border-[#ECEEF5] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all hover:shadow-sm sm:p-5"
               >
-                <div>
-                  <p className="text-[11px] text-[#5B6166]">{s.label}</p>
-                  <p className="mt-1.5 text-2xl font-bold tracking-tight text-[#1A1D21]">
-                    {s.value}
+                <span className={`absolute bottom-0 left-0 top-0 w-1 ${s.bar}`} />
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-medium text-[#64748B] sm:text-sm">{s.label}</p>
+                  <p className="truncate text-[11px] text-[#9AA0B2]">{s.hint}</p>
+                  <p className={`mt-1.5 text-2xl font-bold tracking-tight sm:text-[28px] ${s.color}`}>
+                    {isLoading ? '–' : s.value}
                   </p>
                 </div>
-                <Icon className="h-6 w-6 text-[#1A1D21]/60" />
+                <span className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:flex ${s.iconBox}`}>
+                  <Icon className="h-[18px] w-[18px]" />
+                </span>
               </div>
             )
           })}
         </div>
 
-        {/* Antrean Verifikasi */}
-        <div className="bg-white border-2 border-[#1E2429] shadow-sm">
-          {/* Tab & Pencarian */}
-          <div className="flex flex-col gap-3 border-b border-[#D8D2C4] p-4 lg:flex-row lg:items-center lg:justify-between bg-[#F7F3EB]/40">
-            <div className="flex font-mono text-xs border border-[#D8D2C4] bg-white">
+        {/* Antrean */}
+        <div className="rounded-xl border border-[#ECEEF5] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+          {/* Tab & pencarian */}
+          <div className="flex flex-col gap-3 border-b border-[#ECEEF5] p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
               {(
                 [
-                  { id: 'tahap_1_pic', label: 'Tahap 1 · Verifikasi PIC Arsip', count: countTahap1 },
+                  { id: 'tahap_1_pic', label: 'Tahap 1 · Verifikasi PIC', count: countTahap1 },
                   { id: 'tahap_2_atasan', label: 'Tahap 2 · Pengesahan Atasan', count: countTahap2 },
                 ] as const
               ).map((tab) => {
@@ -368,18 +345,14 @@ function VerifikasiContent() {
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-4 py-2 font-semibold transition-colors ${
+                    className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors ${
                       active
-                        ? 'bg-[#1E2429] text-white'
-                        : 'text-[#5B6166] hover:bg-[#F7F3EB] hover:text-[#1A1D21]'
+                        ? 'bg-[#3BA4E8] text-white'
+                        : 'bg-[#F4F5FA] text-[#4B5163] hover:bg-[#EEF7FD] hover:text-[#1E86C8]'
                     }`}
                   >
-                    <span>{tab.label}</span>
-                    <span
-                      className={`px-1.5 py-0.2 rounded text-[10px] ${
-                        active ? 'bg-white text-[#1E2429]' : 'bg-[#F7F3EB] text-[#5B6166]'
-                      }`}
-                    >
+                    {tab.label}
+                    <span className={`rounded-md px-1.5 text-xs ${active ? 'bg-white/25' : 'bg-white text-[#6B7185]'}`}>
                       {tab.count}
                     </span>
                   </button>
@@ -387,142 +360,142 @@ function VerifikasiContent() {
               })}
             </div>
 
-            <div className="relative w-full lg:max-w-xs font-mono text-xs">
-              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#5B6166]" />
+            <div className="relative w-full lg:max-w-sm">
+              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9AA0B2]" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari kode, judul, no. PPL..."
-                className="w-full border border-[#D8D2C4] bg-white py-1.5 pl-8 pr-3 text-xs placeholder:text-[#8C9399] focus:border-[#1A1D21] focus:outline-none"
+                placeholder="Cari kode arsip, no. PPL, doc voucher, judul..."
+                className={`${inputClass} pl-10 pr-9`}
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9AA0B2] hover:text-[#1F2333]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Daftar Dokumen */}
+          {/* Daftar */}
           {isLoading ? (
-            <div className="flex items-center justify-center gap-2 py-20 font-mono text-xs text-[#5B6166]">
-              <Loader2 className="h-4 w-4 animate-spin" /> Memuat antrean verifikasi...
+            <div className="flex flex-col items-center justify-center gap-3 py-20 text-[#6B7185]">
+              <Loader2 className="h-8 w-8 animate-spin text-[#3BA4E8]" />
+              <p className="text-sm font-medium">Memuat antrean verifikasi...</p>
             </div>
           ) : filteredItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-20 text-center font-mono">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F7F3EB] text-[#1F5C55] border border-[#D8D2C4]">
+            <div className="flex flex-col items-center justify-center gap-2 px-4 py-20 text-center">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#EAF5FD] text-[#3BA4E8]">
                 <Inbox className="h-6 w-6" />
               </span>
-              <p className="mt-2 font-bold text-sm text-[#1A1D21]">Antrean Kosong</p>
-              <p className="text-xs text-[#5B6166]">
-                Tidak ada berkas yang menunggu pada tahap ini.
+              <p className="mt-1 text-sm font-semibold text-[#1F2333]">Antrean kosong</p>
+              <p className="max-w-sm text-xs text-[#8A90A2]">
+                {searchQuery ? 'Tidak ada dokumen yang cocok dengan pencarian Anda.' : 'Tidak ada dokumen yang menunggu pada tahap ini.'}
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-[#D8D2C4]">
+            <div className="divide-y divide-[#ECEEF5]">
               {filteredItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="space-y-4 p-5 transition-colors hover:bg-[#F7F3EB]/30 font-sans"
-                >
-                  {/* Judul & Indikator */}
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div key={item.id} className="space-y-4 p-4 transition-colors hover:bg-[#F7FBFE] sm:p-5">
+                  {/* Judul & tahapan */}
+                  <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                     <div className="flex min-w-0 items-start gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center border border-[#1E2429] bg-[#F7F3EB] text-[#1E2429]">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EAF5FD] text-[#3BA4E8]">
                         <FileText className="h-5 w-5" />
                       </span>
                       <div className="min-w-0">
-                        <h3 className="font-serif font-bold text-base text-[#1A1D21] leading-snug">
+                        <Link
+                          href={`/dokumen/${item.id}`}
+                          className="break-words text-base font-semibold leading-snug text-[#1F2333] hover:text-[#1E86C8]"
+                        >
                           {item.judul}
-                        </h3>
-                        <p className="font-mono text-xs text-[#5B6166] mt-0.5">
-                          <strong className="text-[#1A1D21]">{item.kode_arsip}</strong>
-                          {item.nomor_ppl ? ` • No. PPL: ${item.nomor_ppl}` : ''}
-                          {item.nomor_dokumen ? ` • Doc Voucher: ${item.nomor_dokumen}` : ''}
-                        </p>
-                        <div className="mt-2 flex flex-wrap items-center gap-2 font-mono text-[11px]">
-                          <span className="px-2 py-0.5 bg-[#F7F3EB] border border-[#D8D2C4] text-[#1E2429]">
+                        </Link>
+                        <KodeArsip kode={item.kode_arsip} className="block mt-0.5 font-mono text-xs text-[#1E86C8]" />
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          <span className="inline-flex items-center rounded-full border border-[#ECEEF5] bg-[#F7F8FC] px-2.5 py-0.5 text-xs font-medium text-[#4B5163]">
                             {item.kategori_nama}
                           </span>
-                          <StampBadge status="menunggu_persetujuan" />
+                          <span className="inline-flex items-center gap-1 rounded-full border border-[#FEEFC3] bg-[#FEF7E0] px-2.5 py-0.5 text-xs font-semibold text-[#B06000]">
+                            <Clock className="h-3 w-3" />
+                            Menunggu Persetujuan
+                          </span>
                         </div>
                       </div>
                     </div>
-                    <StageProgress tahap={item.tahap} />
-                  </div>
-
-                  {/* Metadata Rinci */}
-                  <div className="grid grid-cols-1 gap-2.5 bg-[#F7F3EB]/40 border border-[#D8D2C4] p-3 text-xs font-mono sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="flex items-start gap-2">
-                      <User className="w-3.5 h-3.5 text-[#5B6166] mt-0.5 shrink-0" />
-                      <div>
-                        <span className="text-[#8C9399] block text-[10px]">PENGAJU</span>
-                        <span className="font-semibold text-[#1A1D21]">{item.pengaju_nama}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-2">
-                      <Calendar className="w-3.5 h-3.5 text-[#5B6166] mt-0.5 shrink-0" />
-                      <div>
-                        <span className="text-[#8C9399] block text-[10px]">TANGGAL PENGAJUAN</span>
-                        <span className="text-[#1A1D21]">
-                          {new Date(item.created_at).toLocaleDateString('id-ID', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric',
-                          })}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-2">
-                      <MapPin className="w-3.5 h-3.5 text-[#5B6166] mt-0.5 shrink-0" />
-                      <div>
-                        <span className="text-[#8C9399] block text-[10px]">LOKASI FISIK</span>
-                        <span className="text-[#1A1D21]">{item.lokasi_saat_ini}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-2">
-                      <HardDrive className="w-3.5 h-3.5 text-[#5B6166] mt-0.5 shrink-0" />
-                      <div>
-                        <span className="text-[#8C9399] block text-[10px]">UKURAN BERKAS</span>
-                        <span className="text-[#1A1D21]">
-                          {item.ukuran_file
-                            ? `${(item.ukuran_file / 1024 / 1024).toFixed(2)} MB`
-                            : '-'}
-                        </span>
-                      </div>
+                    <div className="overflow-x-auto pb-1 xl:pb-0">
+                      <StageProgress tahap={item.tahap} />
                     </div>
                   </div>
 
-                  {/* Aksi Persetujuan / Penolakan */}
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-1 font-mono text-xs">
+                  {/* Metadata */}
+                  <div className="grid grid-cols-2 gap-3 rounded-xl border border-[#ECEEF5] bg-[#F8FBFE] p-3.5 lg:grid-cols-4">
+                    {[
+                      { icon: User, label: 'Pengaju', value: item.pengaju_nama },
+                      { icon: Calendar, label: 'Tanggal Pengajuan', value: formatTanggal(item.created_at) },
+                      { icon: MapPin, label: 'Lokasi Fisik', value: item.lokasi_saat_ini },
+                      {
+                        icon: HardDrive,
+                        label: 'Ukuran Berkas',
+                        value: item.ukuran_file ? `${(item.ukuran_file / 1024 / 1024).toFixed(2)} MB` : '-',
+                      },
+                    ].map((m) => {
+                      const Icon = m.icon
+                      return (
+                        <div key={m.label} className="flex min-w-0 items-start gap-2">
+                          <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#3BA4E8]" />
+                          <div className="min-w-0">
+                            <p className="text-[11px] text-[#9AA0B2]">{m.label}</p>
+                            <p className="truncate text-sm font-medium text-[#1F2333]">{m.value}</p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {(item.nomor_ppl || item.nomor_dokumen) && (
+                      <div className="col-span-2 flex flex-wrap gap-x-6 gap-y-1 border-t border-[#ECEEF5] pt-3 text-xs lg:col-span-4">
+                        {item.nomor_ppl && (
+                          <span className="text-[#8A90A2]">
+                            No. PPL <span className="ml-1 font-mono font-medium text-[#1F2333]">{item.nomor_ppl}</span>
+                          </span>
+                        )}
+                        {item.nomor_dokumen && (
+                          <span className="text-[#8A90A2]">
+                            Doc Voucher <span className="ml-1 font-mono font-medium text-[#1F2333]">{item.nomor_dokumen}</span>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Aksi */}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <Link
                       href={`/dokumen/${item.id}`}
-                      className="inline-flex items-center gap-1.5 text-[#1F5C55] hover:underline font-semibold"
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-[#1E86C8] hover:underline"
                     >
-                      <Eye className="w-4 h-4" />
-                      <span>Periksa berkas & riwayat lengkap</span>
+                      <Eye className="h-4 w-4" />
+                      Periksa berkas & riwayat
                     </Link>
 
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => setModalAction({ item, type: 'reject' })}
-                        className="px-3.5 py-1.5 border border-red-700 bg-white hover:bg-red-50 text-red-800 font-semibold flex items-center gap-1.5 transition-colors"
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#F5C2C2] bg-white px-4 py-2 text-sm font-semibold text-[#D64545] transition-colors hover:bg-[#FDECEC] sm:flex-none"
                       >
-                        <XCircle className="w-3.5 h-3.5" />
-                        <span>Tolak</span>
+                        <XCircle className="h-4 w-4" />
+                        Tolak
                       </button>
-
                       <button
                         type="button"
                         onClick={() => setModalAction({ item, type: 'approve' })}
-                        className="px-4 py-1.5 bg-[#1F5C55] hover:bg-[#184843] text-white font-semibold flex items-center gap-1.5 transition-colors"
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#2A92D6] sm:flex-none"
                       >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>
-                          {item.tahap === 'tahap_1_pic'
-                            ? 'Verifikasi Lolos'
-                            : 'Setujui Akhir (+3 Tahun)'}
-                        </span>
+                        <CheckCircle2 className="h-4 w-4" />
+                        {item.tahap === 'tahap_1_pic' ? 'Verifikasi Lolos' : 'Sahkan (+3 Tahun)'}
                       </button>
                     </div>
                   </div>
