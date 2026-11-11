@@ -18,6 +18,8 @@ import {
   Search,
   Bell,
   MoreVertical,
+  Menu,
+  X,
 } from 'lucide-react'
 import { UserRole } from '@/types'
 import { createClient } from '@/lib/supabase/client'
@@ -86,6 +88,12 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isKatalogOpen, setIsKatalogOpen] = useState(true)
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  // Otomatis tutup menu mobile saat rute berpindah
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [pathname])
 
   // Baca cache dari localStorage setelah mount di client agar tidak menyebabkan hydration mismatch SSR
   useEffect(() => {
@@ -203,9 +211,147 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
   return (
     <AppUserContext.Provider value={{ name: userName, role: currentRole, roleTitle }}>
       <div className="min-h-screen flex flex-col md:flex-row bg-[#F7F8FC] text-[#1F2333]">
-        {/* ================= SIDEBAR ================= */}
+        {/* ================= DRAWER MOBILE ================= */}
+        {isMobileMenuOpen && (
+          <div className="fixed inset-0 z-50 md:hidden flex animate-in fade-in duration-200">
+            <div
+              className="fixed inset-0 bg-black/40 backdrop-blur-xs"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+            <div className="relative w-72 max-w-[85vw] bg-white h-full flex flex-col z-10 shadow-2xl">
+              <div className="h-16 px-5 flex items-center justify-between border-b border-[#ECEEF5]">
+                <Image
+                  src="/pic/Logo-gabungan-gelap.png"
+                  alt="Archiva"
+                  width={838}
+                  height={132}
+                  priority
+                  className="h-6 w-auto object-contain"
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-1.5 rounded-lg border border-[#E3E6F0] text-[#6B7185] hover:text-[#1F2333] hover:bg-[#EEF7FD]"
+                  title="Tutup menu"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="px-5 pt-5 pb-3">
+                <div className="flex items-center justify-between rounded-lg px-1 py-1">
+                  <div className="min-w-0">
+                    <p className="text-[15px] font-semibold text-[#1F2333] truncate">Arsip Instansi</p>
+                    <p className="text-xs text-[#8A90A2] truncate" suppressHydrationWarning>{roleTitle}</p>
+                  </div>
+                  <ChevronsUpDown className="w-4 h-4 text-[#6B7185] shrink-0" />
+                </div>
+              </div>
+
+              <nav className="px-3 pb-4 space-y-1 flex-1 overflow-y-auto">
+                {accessibleNavs.map((item) => {
+                  const Icon = item.icon
+                  if (item.children) {
+                    const isChildActive = item.children.some((child) => pathname === child.href)
+                    return (
+                      <div key={item.label} className="space-y-1">
+                        <button
+                          type="button"
+                          onClick={() => setIsKatalogOpen((prev) => !prev)}
+                          className={`w-full flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                            isChildActive
+                              ? 'text-[#1E86C8] bg-[#EAF5FD]'
+                              : 'text-[#4B5163] hover:bg-[#EEF7FD] hover:text-[#1F2333]'
+                          }`}
+                        >
+                          <span className="flex items-center gap-3">
+                            <Icon className="w-[18px] h-[18px] shrink-0" />
+                            <span>{item.label}</span>
+                          </span>
+                          <ChevronDown
+                            className={`w-4 h-4 transition-transform duration-200 ${isKatalogOpen ? 'rotate-180' : ''}`}
+                          />
+                        </button>
+                        {isKatalogOpen && (
+                          <div className="ml-[22px] pl-4 border-l border-[#E3E6F0] space-y-0.5 py-1">
+                            {item.children.map((subItem) => {
+                              const isSubActive = pathname === subItem.href
+                              return (
+                                <Link
+                                  key={subItem.href}
+                                  href={subItem.href}
+                                  onClick={() => setIsMobileMenuOpen(false)}
+                                  className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium transition-colors ${
+                                    isSubActive
+                                      ? 'bg-[#3BA4E8] text-white'
+                                      : 'text-[#6B7185] hover:text-[#1F2333] hover:bg-[#EEF7FD]'
+                                  }`}
+                                >
+                                  <span
+                                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                      isSubActive ? 'bg-white' : 'bg-[#C3C8D8]'
+                                    }`}
+                                  />
+                                  <span>{subItem.label}</span>
+                                </Link>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  }
+                  const isActive = pathname === item.href
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href!}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-[#3BA4E8] text-white shadow-sm shadow-[#3BA4E8]/30'
+                          : 'text-[#4B5163] hover:bg-[#EEF7FD] hover:text-[#1F2333]'
+                      }`}
+                    >
+                      <Icon className="w-[18px] h-[18px] shrink-0" />
+                      <span>{item.label}</span>
+                    </Link>
+                  )
+                })}
+              </nav>
+
+              <div className="px-3 py-4 border-t border-[#ECEEF5] space-y-1">
+                {currentRole === 'admin' && (
+                  <Link
+                    href="/pengaturan/pengguna"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                      pathname.startsWith('/pengaturan')
+                        ? 'bg-[#3BA4E8] text-white'
+                        : 'text-[#4B5163] hover:bg-[#EEF7FD] hover:text-[#1F2333]'
+                    }`}
+                  >
+                    <Settings className="w-[18px] h-[18px] shrink-0" />
+                    <span>Pengaturan</span>
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[#4B5163] hover:bg-[#EEF7FD] hover:text-[#1F2333] disabled:opacity-50"
+                >
+                  <LogOut className="w-[18px] h-[18px] shrink-0" />
+                  <span>{isLoggingOut ? 'Mengakhiri Sesi...' : 'Keluar Sesi'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= SIDEBAR DESKTOP ================= */}
         <aside
-          className={`w-full ${isCollapsed ? 'md:w-20' : 'md:w-64'} bg-white flex flex-col shrink-0 border-r border-[#ECEEF5] md:sticky md:top-0 md:h-screen transition-[width] duration-200`}
+          className={`hidden md:flex md:flex-col ${isCollapsed ? 'md:w-20' : 'md:w-64'} bg-white shrink-0 border-r border-[#ECEEF5] md:sticky md:top-0 md:h-screen transition-[width] duration-200`}
         >
           {/* Brand */}
           <div className="h-16 px-5 flex items-center justify-between border-b border-[#ECEEF5]">
@@ -338,14 +484,24 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
         {/* ================= KONTEN ================= */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Topbar */}
-          <header className="h-16 bg-white border-b border-[#ECEEF5] px-4 sm:px-8 flex items-center justify-between gap-4 md:sticky md:top-0 z-20">
-            <div className="relative w-full max-w-xs">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9AA0B2]" />
-              <input
-                type="search"
-                placeholder="Cari dokumen, kode arsip, dll..."
-                className="w-full rounded-lg border border-[#E3E6F0] bg-white pl-10 pr-3 py-2 text-sm placeholder:text-[#A5ABBC] focus:outline-none focus:border-[#3BA4E8] focus:ring-2 focus:ring-[#3BA4E8]/15 transition"
-              />
+          <header className="h-16 bg-white border-b border-[#ECEEF5] px-4 sm:px-8 flex items-center justify-between gap-3 md:sticky md:top-0 z-20">
+            <div className="flex items-center gap-2.5 sm:gap-3 flex-1 max-w-xs sm:max-w-sm">
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="md:hidden p-2 -ml-2 rounded-lg text-[#4B5163] hover:text-[#1F2333] hover:bg-[#EEF7FD]"
+                title="Buka menu navigasi"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              <div className="relative w-full">
+                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9AA0B2]" />
+                <input
+                  type="search"
+                  placeholder="Cari dokumen, kode arsip..."
+                  className="w-full rounded-lg border border-[#E3E6F0] bg-white pl-10 pr-3 py-1.5 sm:py-2 text-xs sm:text-sm placeholder:text-[#A5ABBC] focus:outline-none focus:border-[#3BA4E8] focus:ring-2 focus:ring-[#3BA4E8]/15 transition"
+                />
+              </div>
             </div>
 
             <div className="flex items-center gap-4 shrink-0">
