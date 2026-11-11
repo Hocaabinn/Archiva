@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/client'
+import { KodeArsip } from '@/components/documents/kode-arsip'
 import {
   History,
   Search,
@@ -386,9 +387,9 @@ export default function RiwayatPage() {
                             <div>
                               <Link
                                 href={`/dokumen/${log.dokumen.id}`}
-                                className="font-mono font-bold text-[#1E3A5F] hover:underline block"
+                                className="font-mono font-bold text-[#1E3A5F] hover:underline block min-w-[120px] max-w-[200px]"
                               >
-                                {log.dokumen.kode_arsip}
+                                <KodeArsip kode={log.dokumen.kode_arsip} />
                               </Link>
                               <span className="text-[11px] text-[#4B5E76] line-clamp-1">
                                 {log.dokumen.judul}
