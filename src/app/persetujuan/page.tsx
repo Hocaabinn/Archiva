@@ -12,22 +12,22 @@ import {
   XCircle,
   FileText,
   Eye,
-  Clock,
   User,
   MapPin,
   HardDrive,
   ShieldCheck,
   UserCheck,
-  MessageSquareText,
   ClipboardCheck,
   Check,
   ArrowRight,
   Inbox,
   Loader2,
   Calendar,
+  Clock,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { StampBadge } from '@/components/ui/stamp-badge'
+import { KodeArsip } from '@/components/documents/kode-arsip'
+import { skorPencarian } from '@/lib/pencarian-kode-arsip'
 
 type Tahap = 'tahap_1_pic' | 'tahap_2_atasan'
 
@@ -47,46 +47,39 @@ interface VerificationDoc {
   verifikasi_pic_oleh: string | null
 }
 
+const inputClass =
+  'w-full rounded-lg border border-[#E3E6F0] bg-white px-3.5 py-2.5 text-sm text-[#1F2333] placeholder:text-[#A5ABBC] focus:border-[#3BA4E8] focus:outline-none focus:ring-2 focus:ring-[#3BA4E8]/15'
+
 function StageProgress({ tahap }: { tahap: Tahap }) {
   const steps = [
     { label: 'Pengajuan', done: true, current: false },
-    {
-      label: 'Verifikasi PIC Arsip',
-      done: tahap === 'tahap_2_atasan',
-      current: tahap === 'tahap_1_pic',
-    },
+    { label: 'Verifikasi PIC', done: tahap === 'tahap_2_atasan', current: tahap === 'tahap_1_pic' },
     { label: 'Pengesahan Atasan', done: false, current: tahap === 'tahap_2_atasan' },
   ]
   return (
-    <div className="flex items-center gap-2 text-xs font-mono">
+    <div className="flex items-center gap-1.5 text-xs">
       {steps.map((s, i) => (
-        <div key={s.label} className="flex items-center gap-2">
+        <div key={s.label} className="flex items-center gap-1.5">
           <span
-            className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
+            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
               s.done
-                ? 'bg-[#1F5C55] text-white'
+                ? 'bg-[#3BA4E8] text-white'
                 : s.current
-                ? 'bg-[#F7F3EB] text-[#1F5C55] ring-2 ring-[#1F5C55]'
-                : 'bg-[#E3E6F0] text-[#6B7185]'
+                ? 'bg-white text-[#1E86C8] ring-2 ring-[#3BA4E8]'
+                : 'bg-[#EEF0F4] text-[#9AA0B2]'
             }`}
           >
             {s.done ? <Check className="h-3 w-3" /> : i + 1}
           </span>
           <span
-            className={
-              s.current
-                ? 'font-bold text-[#1A1D21]'
-                : s.done
-                ? 'text-[#4B5163]'
-                : 'text-[#8A90A2]'
-            }
+            className={`whitespace-nowrap ${
+              s.current ? 'font-semibold text-[#1E86C8]' : s.done ? 'text-[#4B5163]' : 'text-[#9AA0B2]'
+            }`}
           >
             {s.label}
           </span>
           {i < steps.length - 1 && (
-            <span
-              className={`h-px w-6 sm:w-10 ${s.done ? 'bg-[#1F5C55]' : 'bg-[#D8D2C4]'}`}
-            />
+            <span className={`h-px w-4 sm:w-8 ${s.done ? 'bg-[#3BA4E8]' : 'bg-[#E3E6F0]'}`} />
           )}
         </div>
       ))}
@@ -189,18 +182,19 @@ function VerifikasiContent() {
     fetchPendingDocs()
   }, [fetchPendingDocs])
 
+  // Pencarian pintar kode arsip (sama dengan Daftar Dokumen), ditambah nama pengaju
   const filteredItems = useMemo(() => {
-    const q = searchQuery.toLowerCase()
-    return items.filter(
-      (item) =>
-        item.tahap === activeTab &&
-        (!q ||
-          item.kode_arsip.toLowerCase().includes(q) ||
-          item.judul.toLowerCase().includes(q) ||
-          (item.nomor_dokumen && item.nomor_dokumen.toLowerCase().includes(q)) ||
-          (item.nomor_ppl && item.nomor_ppl.toLowerCase().includes(q)) ||
-          item.pengaju_nama.toLowerCase().includes(q))
-    )
+    const q = searchQuery.trim()
+    const skor = new Map<string, number>()
+    return items
+      .filter((item) => {
+        if (item.tahap !== activeTab) return false
+        if (!q) return true
+        const s = Math.max(skorPencarian(q, item), item.pengaju_nama.toLowerCase().includes(q.toLowerCase()) ? 1 : 0)
+        skor.set(item.id, s)
+        return s > 0
+      })
+      .sort((a, b) => (q ? (skor.get(b.id) ?? 0) - (skor.get(a.id) ?? 0) : 0))
   }, [items, activeTab, searchQuery])
 
   const countTahap1 = items.filter((i) => i.tahap === 'tahap_1_pic').length
