@@ -340,8 +340,21 @@ function DaftarDokumenContent() {
   // Admin, PIC Arsip, Atasan, Accounting, Viewer — TIDAK boleh upload
   const canUpload = role === 'user'
   const isOwnerPending = (doc: DocRow) => doc.pemilik_id === userId && doc.status === 'menunggu_persetujuan'
-  const canEdit = (doc: DocRow) => isPrivileged || isOwnerPending(doc)
-  const canDelete = (doc: DocRow) => role === 'admin' || role === 'pic_arsip' || isOwnerPending(doc)
+  // Pengaju: hanya boleh ubah/hapus dokumen miliknya yang berstatus menunggu_persetujuan
+  // Admin: akses darurat kelola arsip sistem
+  // PIC Arsip: verifikasi dan tata letak fisik
+  // Atasan, Accounting, Viewer: TIDAK BOLEH ubah / hapus
+  const canEdit = (doc: DocRow) => {
+    if (role === 'viewer' || role === 'accounting' || role === 'atasan') return false
+    if (role === 'user') return isOwnerPending(doc)
+    return isPrivileged
+  }
+
+  const canDelete = (doc: DocRow) => {
+    if (role === 'viewer' || role === 'accounting' || role === 'atasan') return false
+    if (role === 'user') return isOwnerPending(doc)
+    return role === 'admin' || role === 'pic_arsip'
+  }
 
   // ---------------- DAFTAR PILIHAN FILTER UNIK ----------------
   const uniquePemegang = useMemo(() => {
@@ -934,9 +947,16 @@ function DaftarDokumenContent() {
                             <FileText className="h-5 w-5" />
                           </span>
                           <div className="min-w-0">
-                            <Link href={`/dokumen/${doc.id}`} className="block max-w-[320px] truncate font-semibold text-[#1F2333] hover:text-[#1E86C8]">
-                              {doc.judul}
-                            </Link>
+                            <div className="flex items-center gap-1.5">
+                              <Link href={`/dokumen/${doc.id}`} className="block max-w-[320px] truncate font-semibold text-[#1F2333] hover:text-[#1E86C8]">
+                                {doc.judul}
+                              </Link>
+                              {role === 'user' && doc.pemilik_id === userId && (
+                                <span className="inline-flex shrink-0 items-center rounded bg-[#EBF5FB] px-1.5 py-0.5 text-[10px] font-medium text-[#1E86C8]">
+                                  Milik Anda
+                                </span>
+                              )}
+                            </div>
                             <span className="block font-mono text-xs text-[#64748B]">
                               #{doc.kode_arsip}
                               {doc.nomor_ppl && ` • PPL: ${doc.nomor_ppl}`}
@@ -980,7 +1000,14 @@ function DaftarDokumenContent() {
                   <Link href={`/dokumen/${doc.id}`} className="mt-3 line-clamp-2 font-semibold leading-snug text-[#1F2333] hover:text-[#1E86C8]">
                     {doc.judul}
                   </Link>
-                  <p className="mt-1 text-xs text-[#8A90A2]">#{doc.kode_arsip}</p>
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <p className="text-xs text-[#8A90A2]">#{doc.kode_arsip}</p>
+                    {role === 'user' && doc.pemilik_id === userId && (
+                      <span className="inline-flex shrink-0 items-center rounded bg-[#EBF5FB] px-1.5 py-0.5 text-[9px] font-medium text-[#1E86C8]">
+                        Milik Anda
+                      </span>
+                    )}
+                  </div>
                   <div className="mt-3 space-y-1.5 text-xs text-[#4B5163]">
                     <p className="flex items-center gap-1.5">
                       <FolderOpen className="h-3.5 w-3.5 text-[#9AA0B2]" /> {doc.kategori}
