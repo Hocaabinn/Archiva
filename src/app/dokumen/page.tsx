@@ -723,19 +723,20 @@ function DaftarDokumenContent() {
         ) : (
           <>
             {/* Kartu ringkasan */}
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {[
-            { label: 'Total Dokumen', value: counts.semua, color: 'text-[#1F2333]' },
-            { label: 'Arsip Aktif', value: counts.aktif, color: 'text-[#2F9E5B]' },
-            { label: 'Menunggu Persetujuan', value: counts.menunggu_persetujuan, color: 'text-[#C98A1B]' },
-            { label: 'Kritis < 90 Hari', value: counts.kritis, color: 'text-[#D64545]' },
-          ].map((s) => (
-            <div key={s.label} className={`${cardClass} p-5`}>
-              <p className="text-sm text-[#4B5163]">{s.label}</p>
-              <p className={`mt-2 text-[26px] font-bold tracking-tight ${s.color}`}>{s.value}</p>
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+              {[
+                { label: 'Total Dokumen', value: counts.semua, color: 'text-[#1F2333]', bar: 'bg-[#3BA4E8]' },
+                { label: 'Arsip Aktif', value: counts.aktif, color: 'text-[#137333]', bar: 'bg-[#34A853]' },
+                { label: 'Menunggu Persetujuan', value: counts.menunggu_persetujuan, color: 'text-[#B06000]', bar: 'bg-[#FBBC04]' },
+                { label: 'Kritis < 90 Hari', value: counts.kritis, color: 'text-[#D64545]', bar: 'bg-[#EA4335]' },
+              ].map((s) => (
+                <div key={s.label} className="relative overflow-hidden rounded-2xl border border-[#ECEEF5] bg-white p-4 sm:p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all hover:shadow-sm">
+                  <span className={`absolute left-0 top-0 bottom-0 w-1 ${s.bar}`} />
+                  <p className="text-xs sm:text-sm font-medium text-[#64748B] truncate">{s.label}</p>
+                  <p className={`mt-1.5 sm:mt-2 text-2xl sm:text-[28px] font-bold tracking-tight ${s.color}`}>{s.value}</p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
         {/* Daftar */}
         <div className={cardClass}>
