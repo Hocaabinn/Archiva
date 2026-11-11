@@ -10,7 +10,6 @@ import { UserRole, DokumenStatus } from '@/types'
 import {
   Search,
   X,
-  Plus,
   Pencil,
   Trash2,
   Eye,
@@ -266,6 +265,12 @@ function DaftarDokumenContent() {
   const [profileRole, setProfileRole] = useState<UserRole>('user')
   const role: UserRole = profileRole
 
+  // Baca cache dari localStorage setelah mount agar konsisten dengan SSR
+  useEffect(() => {
+    const saved = localStorage.getItem('archiva_user_role') as UserRole | null
+    if (saved) setProfileRole(saved)
+  }, [])
+
   // Filter & tampilan
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('semua')
@@ -281,7 +286,7 @@ function DaftarDokumenContent() {
   const [exportOpen, setExportOpen] = useState(false)
 
   // Modal & form
-  const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null)
+  const [formMode, setFormMode] = useState<'edit' | null>(null)
   const [editing, setEditing] = useState<DocRow | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm())
   const [formError, setFormError] = useState<string | null>(null)
@@ -319,7 +324,13 @@ function DaftarDokumenContent() {
           supabase.from('profiles').select('role').eq('id', user.id).single(),
           supabase.from('kategori_dokumen').select('id, nama').eq('is_active', true).order('nama'),
         ])
-        if (profile?.role) setProfileRole(profile.role as UserRole)
+        if (profile?.role) {
+          const r = profile.role as UserRole
+          setProfileRole(r)
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('archiva_user_role', r)
+          }
+        }
         if (kats && kats.length > 0) setKategoriList(kats)
 
         await loadDocuments()
@@ -336,13 +347,8 @@ function DaftarDokumenContent() {
 
   // ---------------- PERMISSION SESUAI ROLE ----------------
   const isPrivileged = PRIVILEGED.includes(role)
-  // Pengaju — boleh upload (dokumen sendiri)
-  // Admin, PIC Arsip, Atasan, Accounting, Viewer — TIDAK boleh upload
-  const canUpload = role === 'user'
-
-  // Viewer — TIDAK boleh unduh / ekspor berkas (hanya lihat)
-  const canExport = role !== 'viewer'
   const isOwnerPending = (doc: DocRow) => doc.pemilik_id === userId && doc.status === 'menunggu_persetujuan'
+
   // Pengaju: hanya boleh ubah/hapus dokumen miliknya yang berstatus menunggu_persetujuan
   // Admin: akses darurat kelola arsip sistem
   // PIC Arsip: verifikasi dan tata letak fisik
@@ -358,6 +364,15 @@ function DaftarDokumenContent() {
     if (role === 'user') return isOwnerPending(doc)
     return role === 'admin' || role === 'pic_arsip'
   }
+
+  // Pengaju — boleh upload (dokumen sendiri)
+  // Admin, PIC Arsip, Atasan, Accounting, Viewer — TIDAK boleh upload
+  const canUpload = role === 'user'
+
+  // Viewer — TIDAK boleh unduh / ekspor berkas (hanya lihat)
+  const canExport = role !== 'viewer'
+
+  const roleHeader = roleHeaderConfig[role] || roleHeaderConfig.user
 
   // ---------------- DAFTAR PILIHAN FILTER UNIK ----------------
   const uniquePemegang = useMemo(() => {
@@ -455,13 +470,6 @@ function DaftarDokumenContent() {
   ] as const
 
   // ---------------- FORM HANDLER ----------------
-  const openCreate = () => {
-    setForm(emptyForm(kategoriList[0]?.id || ''))
-    setEditing(null)
-    setFormError(null)
-    setFormMode('create')
-  }
-
   const openEdit = (doc: DocRow) => {
     setForm({
       judul: doc.judul,
@@ -490,45 +498,13 @@ function DaftarDokumenContent() {
     e.preventDefault()
     if (!form.judul.trim()) return setFormError('Judul dokumen wajib diisi.')
     if (!form.kategori_id) return setFormError('Pilih kategori dokumen.')
-    if (formMode === 'create' && !form.file) return setFormError('Pilih berkas dokumen yang akan diunggah.')
 
     setIsSaving(true)
     setFormError(null)
 
     // Mode live: Supabase
     try {
-      if (formMode === 'create' && form.file && userId) {
-        const safeName = form.file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-        const filePath = `${userId}/${Date.now()}_${safeName}`
-        const { error: uploadError } = await supabase.storage.from('arsip-aktif').upload(filePath, form.file)
-        if (uploadError) throw new Error(`Gagal mengunggah berkas: ${uploadError.message}`)
-
-        const { data, error } = await supabase
-          .from('dokumen')
-          .insert({
-            nomor_dokumen: form.nomor_dokumen || null,
-            judul: form.judul.trim(),
-            kategori_id: form.kategori_id,
-            deskripsi: form.deskripsi || null,
-            status: 'menunggu_persetujuan',
-            file_path: filePath,
-            bucket: 'arsip-aktif',
-            ukuran_file: form.file.size,
-            mime_type: form.file.type || null,
-            pemilik_id: userId,
-            pemegang_saat_ini: userId,
-            lokasi_saat_ini: form.lokasi_saat_ini || 'Meja Pengaju',
-            tanggal_dokumen: form.tanggal_dokumen,
-          })
-          .select('kode_arsip')
-          .single()
-
-        if (error) {
-          await supabase.storage.from('arsip-aktif').remove([filePath])
-          throw error
-        }
-        showToast('success', `Dokumen ${data?.kode_arsip ?? ''} berhasil ditambahkan.`)
-      } else if (formMode === 'edit' && editing) {
+      if (formMode === 'edit' && editing) {
         const payload: Record<string, unknown> = {
           judul: form.judul.trim(),
           nomor_dokumen: form.nomor_dokumen || null,
@@ -637,7 +613,6 @@ function DaftarDokumenContent() {
     </div>
   )
 
-  const roleHeader = roleHeaderConfig[role] || roleHeaderConfig.user
   const cardClass = 'bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)]'
 
   return (
@@ -725,7 +700,7 @@ function DaftarDokumenContent() {
           </div>
         )}
 
-        {errorMessage && (
+        {errorMessage && !isLoading && (
           <div className="flex items-start gap-3 rounded-xl border border-[#FDECEC] bg-[#FFF5F5] px-4 py-3 text-sm text-[#D64545]">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <div className="flex-1">
@@ -740,8 +715,15 @@ function DaftarDokumenContent() {
           </div>
         )}
 
-        {/* Kartu ringkasan */}
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-24 text-[#6B7185]">
+            <Loader2 className="h-8 w-8 animate-spin text-[#3BA4E8]" />
+            <p className="text-sm font-medium">Memuat daftar dokumen...</p>
+          </div>
+        ) : (
+          <>
+            {/* Kartu ringkasan */}
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {[
             { label: 'Total Dokumen', value: counts.semua, color: 'text-[#1F2333]' },
             { label: 'Arsip Aktif', value: counts.aktif, color: 'text-[#2F9E5B]' },
@@ -930,11 +912,7 @@ function DaftarDokumenContent() {
           </div>
 
           {/* Konten */}
-          {isLoading ? (
-            <div className="flex items-center justify-center gap-2 py-20 text-sm text-[#6B7185]">
-              <Loader2 className="h-5 w-5 animate-spin" /> Memuat dokumen...
-            </div>
-          ) : filteredDocs.length === 0 ? (
+          {filteredDocs.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-20 text-center">
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#EAF5FD] text-[#3BA4E8]">
                 <FolderOpen className="h-6 w-6" />
@@ -1079,146 +1057,123 @@ function DaftarDokumenContent() {
             </div>
           )}
         </div>
-      </div>
+      </>
+    )}
+  </div>
 
-      {/* ================= MODAL TAMBAH / UBAH ================= */}
-      {formMode && (
-        <Modal
-          title={formMode === 'create' ? 'Tambah Dokumen' : 'Ubah Dokumen'}
-          subtitle={formMode === 'create' ? 'Dokumen baru akan berstatus Menunggu Persetujuan' : `#${editing?.kode_arsip}`}
-          onClose={closeForm}
-        >
-          <form onSubmit={handleSave}>
-            <div className="space-y-4 px-6 py-5">
-              {formError && (
-                <div className="flex items-start gap-2 rounded-lg border border-[#F5C2C2] bg-[#FDECEC] px-3.5 py-2.5 text-sm text-[#B42318]">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {formError}
-                </div>
-              )}
-
-              <Field label="Judul Dokumen" required>
-                <input
-                  className={inputClass}
-                  value={form.judul}
-                  onChange={(e) => setForm({ ...form, judul: e.target.value })}
-                  placeholder="Contoh: Kontrak Kerja Sama Vendor 2026"
-                  autoFocus
-                />
-              </Field>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Nomor Dokumen">
-                  <input
-                    className={inputClass}
-                    value={form.nomor_dokumen}
-                    onChange={(e) => setForm({ ...form, nomor_dokumen: e.target.value })}
-                    placeholder="042/LEG/2026"
-                  />
-                </Field>
-                <Field label="Kategori" required>
-                  <select className={`${inputClass} cursor-pointer`} value={form.kategori_id} onChange={(e) => setForm({ ...form, kategori_id: e.target.value })}>
-                    <option value="" disabled>
-                      Pilih kategori
-                    </option>
-                    {kategoriList.map((k) => (
-                      <option key={k.id} value={k.id}>
-                        {k.nama}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Tanggal Dokumen" required>
-                  <input
-                    type="date"
-                    className={inputClass}
-                    value={form.tanggal_dokumen}
-                    onChange={(e) => setForm({ ...form, tanggal_dokumen: e.target.value })}
-                  />
-                </Field>
-                <Field label="Lokasi Fisik" hint={!isPrivileged && formMode === 'edit' ? 'Hanya PIC/Atasan/Admin yang dapat mengubah' : undefined}>
-                  <input
-                    className={inputClass}
-                    value={form.lokasi_saat_ini}
-                    disabled={formMode === 'edit' && !isPrivileged}
-                    onChange={(e) => setForm({ ...form, lokasi_saat_ini: e.target.value })}
-                    placeholder="Ruang Arsip - Rak A1"
-                  />
-                </Field>
-              </div>
-
-              {formMode === 'edit' && isPrivileged && (
-                <Field label="Status">
-                  <select
-                    className={`${inputClass} cursor-pointer`}
-                    value={form.status}
-                    onChange={(e) => setForm({ ...form, status: e.target.value as DokumenStatus })}
-                  >
-                    <option value="menunggu_persetujuan">Menunggu Persetujuan</option>
-                    <option value="aktif">Aktif</option>
-                    <option value="inaktif">Inaktif</option>
-                    <option value="ditolak">Ditolak</option>
-                    <option value="dibatalkan">Dibatalkan</option>
-                  </select>
-                </Field>
-              )}
-
-              <Field label="Deskripsi">
-                <textarea
-                  rows={3}
-                  className={`${inputClass} resize-none`}
-                  value={form.deskripsi}
-                  onChange={(e) => setForm({ ...form, deskripsi: e.target.value })}
-                  placeholder="Ringkasan isi dokumen (opsional)"
-                />
-              </Field>
-
-              {formMode === 'create' && (
-                <Field label="Berkas Dokumen" required>
-                  <label className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-[#BFE2F8] bg-[#F5FAFE] px-4 py-6 text-center transition-colors hover:border-[#3BA4E8]">
-                    <UploadCloud className="h-7 w-7 text-[#3BA4E8]" />
-                    {form.file ? (
-                      <>
-                        <span className="text-sm font-medium text-[#1F2333]">{form.file.name}</span>
-                        <span className="text-xs text-[#8A90A2]">{formatSize(form.file.size)} • klik untuk mengganti</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-sm font-medium text-[#1F2333]">Klik untuk memilih berkas</span>
-                        <span className="text-xs text-[#8A90A2]">PDF, DOCX, JPG, atau PNG</span>
-                      </>
-                    )}
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                      className="hidden"
-                      onChange={(e) => setForm({ ...form, file: e.target.files?.[0] ?? null })}
-                    />
-                  </label>
-                </Field>
-              )}
+  {/* ================= MODAL UBAH DOKUMEN ================= */}
+  {formMode === 'edit' && editing && (
+    <Modal
+      title="Ubah Dokumen"
+      subtitle={`#${editing.kode_arsip}`}
+      onClose={closeForm}
+    >
+      <form onSubmit={handleSave}>
+        <div className="space-y-4 px-6 py-5">
+          {formError && (
+            <div className="flex items-start gap-2 rounded-lg border border-[#F5C2C2] bg-[#FDECEC] px-3.5 py-2.5 text-sm text-[#B42318]">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {formError}
             </div>
+          )}
 
-            <div className="flex items-center justify-end gap-3 border-t border-[#ECEEF5] px-6 py-4">
-              <button
-                type="button"
-                onClick={closeForm}
-                disabled={isSaving}
-                className="rounded-lg border border-[#E3E6F0] px-4 py-2 text-sm font-medium text-[#4B5163] hover:bg-[#F4F5FA] disabled:opacity-50"
+          <Field label="Judul Dokumen" required>
+            <input
+              className={inputClass}
+              value={form.judul}
+              onChange={(e) => setForm({ ...form, judul: e.target.value })}
+              placeholder="Contoh: Kontrak Kerja Sama Vendor 2026"
+              autoFocus
+            />
+          </Field>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Nomor Dokumen">
+              <input
+                className={inputClass}
+                value={form.nomor_dokumen}
+                onChange={(e) => setForm({ ...form, nomor_dokumen: e.target.value })}
+                placeholder="042/LEG/2026"
+              />
+            </Field>
+            <Field label="Kategori" required>
+              <select className={`${inputClass} cursor-pointer`} value={form.kategori_id} onChange={(e) => setForm({ ...form, kategori_id: e.target.value })}>
+                <option value="" disabled>
+                  Pilih kategori
+                </option>
+                {kategoriList.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.nama}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Tanggal Dokumen" required>
+              <input
+                type="date"
+                className={inputClass}
+                value={form.tanggal_dokumen}
+                onChange={(e) => setForm({ ...form, tanggal_dokumen: e.target.value })}
+              />
+            </Field>
+            <Field label="Lokasi Fisik" hint={!isPrivileged ? 'Hanya PIC/Atasan/Admin yang dapat mengubah' : undefined}>
+              <input
+                className={inputClass}
+                value={form.lokasi_saat_ini}
+                disabled={!isPrivileged}
+                onChange={(e) => setForm({ ...form, lokasi_saat_ini: e.target.value })}
+                placeholder="Ruang Arsip - Rak A1"
+              />
+            </Field>
+          </div>
+
+          {isPrivileged && (
+            <Field label="Status">
+              <select
+                className={`${inputClass} cursor-pointer`}
+                value={form.status}
+                onChange={(e) => setForm({ ...form, status: e.target.value as DokumenStatus })}
               >
-                Batal
-              </button>
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="flex items-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-medium text-white hover:bg-[#2A92D6] disabled:opacity-60"
-              >
-                {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
-                {formMode === 'create' ? 'Simpan Dokumen' : 'Simpan Perubahan'}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
+                <option value="menunggu_persetujuan">Menunggu Persetujuan</option>
+                <option value="aktif">Aktif</option>
+                <option value="inaktif">Inaktif</option>
+                <option value="ditolak">Ditolak</option>
+                <option value="dibatalkan">Dibatalkan</option>
+              </select>
+            </Field>
+          )}
+
+          <Field label="Deskripsi">
+            <textarea
+              rows={3}
+              className={`${inputClass} resize-none`}
+              value={form.deskripsi}
+              onChange={(e) => setForm({ ...form, deskripsi: e.target.value })}
+              placeholder="Ringkasan isi dokumen (opsional)"
+            />
+          </Field>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 border-t border-[#ECEEF5] px-6 py-4">
+          <button
+            type="button"
+            onClick={closeForm}
+            disabled={isSaving}
+            className="rounded-lg border border-[#E3E6F0] px-4 py-2 text-sm font-medium text-[#4B5163] hover:bg-[#F4F5FA] disabled:opacity-50"
+          >
+            Batal
+          </button>
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="flex items-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-medium text-white hover:bg-[#2A92D6] disabled:opacity-60"
+          >
+            {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+            Simpan Perubahan
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )}
 
       {/* ================= MODAL HAPUS ================= */}
       {deleting && (
