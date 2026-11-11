@@ -414,8 +414,7 @@ function DashboardBody() {
   const [exportOpen, setExportOpen] = useState(false)
   const [isLive, setIsLive] = useState(false)
 
-  useEffect(() => {
-    async function loadData() {
+  const loadData = useCallback(async () => {
       try {
         const { data: { user }, error: authErr } = await supabase.auth.getUser()
         if (authErr || !user) {
@@ -485,16 +484,47 @@ function DashboardBody() {
         })
 
         setDocuments(mapped)
+        setErrorMsg(null)
       } catch (err) {
         console.error('Gagal memuat dashboard:', err)
         setErrorMsg(err instanceof Error ? err.message : 'Gagal memuat data dari Supabase live.')
       } finally {
         setLoading(false)
       }
+  }, [supabase])
+
+  // Realtime: muat ulang saat tabel dokumen berubah (Supabase Realtime),
+  // ditambah polling 30 detik & saat tab kembali aktif sebagai cadangan
+  // bila Realtime belum diaktifkan untuk tabel dokumen di proyek Supabase.
+  useEffect(() => {
+    loadData()
+
+    let debounce: ReturnType<typeof setTimeout> | undefined
+    const reloadSoon = () => {
+      clearTimeout(debounce)
+      debounce = setTimeout(() => loadData(), 400)
     }
 
-    loadData()
-  }, [supabase])
+    const channel = supabase
+      .channel('dashboard-dokumen')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'dokumen' }, reloadSoon)
+      .subscribe((status) => setIsLive(status === 'SUBSCRIBED'))
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') loadData()
+    }, 30_000)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') loadData()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      clearTimeout(debounce)
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+      supabase.removeChannel(channel)
+    }
+  }, [supabase, loadData])
 
   const totalAktif = documents.filter((d) => d.status === 'aktif').length
   const totalMenunggu = documents.filter((d) => d.status === 'menunggu_persetujuan').length
