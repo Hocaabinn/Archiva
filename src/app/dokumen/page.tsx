@@ -423,7 +423,7 @@ function DaftarDokumenContent() {
         const sisa = sisaHari(doc.tanggal_kadaluarsa)
         const matchStatus =
           selectedStatus === 'semua' ||
-          (selectedStatus === 'kritis' ? doc.status === 'aktif' && sisa !== null && sisa < 90 : doc.status === selectedStatus)
+          (selectedStatus === 'akan_kadaluarsa' ? doc.status === 'aktif' && sisa !== null && sisa < 90 : doc.status === selectedStatus)
 
         // 4. Filter Pemegang
         const matchPemegang = selectedPemegang === 'semua' || doc.pemegang_nama === selectedPemegang
@@ -463,7 +463,7 @@ function DaftarDokumenContent() {
     semua: documents.length,
     aktif: documents.filter((d) => d.status === 'aktif').length,
     menunggu_persetujuan: documents.filter((d) => d.status === 'menunggu_persetujuan').length,
-    kritis: documents.filter((d) => {
+    akan_kadaluarsa: documents.filter((d) => {
       const s = sisaHari(d.tanggal_kadaluarsa)
       return d.status === 'aktif' && s !== null && s < 90
     }).length,
@@ -476,7 +476,7 @@ function DaftarDokumenContent() {
     { id: 'semua', label: 'Semua' },
     { id: 'aktif', label: 'Aktif' },
     { id: 'menunggu_persetujuan', label: 'Menunggu' },
-    { id: 'kritis', label: 'Kritis < 90 Hari' },
+    { id: 'akan_kadaluarsa', label: 'Akan Kadaluarsa' },
     { id: 'inaktif', label: 'Inaktif' },
     { id: 'ditolak', label: 'Ditolak' },
     { id: 'dibatalkan', label: 'Dibatalkan' },
@@ -591,11 +591,11 @@ function DaftarDokumenContent() {
     const sisa = sisaHari(doc.tanggal_kadaluarsa)
     if (sisa === null) return <span className="text-[#A5ABBC]">-</span>
     if (sisa === 0) return <span className="text-[#8A90A2]">Kedaluwarsa</span>
-    const kritis = doc.status === 'aktif' && sisa < 90
+    const akanKadaluarsa = doc.status === 'aktif' && sisa < 90
     return (
       <div>
-        <span className={`font-medium ${kritis ? 'text-[#D64545]' : 'text-[#1F2333]'}`}>
-          {kritis && <AlertTriangle className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />}
+        <span className={`font-medium ${akanKadaluarsa ? 'text-[#D64545]' : 'text-[#1F2333]'}`}>
+          {akanKadaluarsa && <AlertTriangle className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />}
           {sisa} hari
         </span>
         <span className="block text-xs text-[#8A90A2]">s.d. {formatTanggal(doc.tanggal_kadaluarsa)}</span>
