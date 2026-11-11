@@ -29,6 +29,9 @@ import {
   Info,
   MapPin,
   FolderOpen,
+  FileStack,
+  Hourglass,
+  AlarmClock,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { KodeArsip } from '@/components/documents/kode-arsip'
@@ -738,152 +741,27 @@ function DaftarDokumenContent() {
             {/* Kartu ringkasan */}
             <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               {[
-                { label: 'Total Dokumen', value: counts.semua, color: 'text-[#1F2333]', bar: 'bg-[#3BA4E8]' },
-                { label: 'Arsip Aktif', value: counts.aktif, color: 'text-[#137333]', bar: 'bg-[#34A853]' },
-                { label: 'Menunggu Persetujuan', value: counts.menunggu_persetujuan, color: 'text-[#B06000]', bar: 'bg-[#FBBC04]' },
-                { label: 'Kritis < 90 Hari', value: counts.kritis, color: 'text-[#D64545]', bar: 'bg-[#EA4335]' },
-              ].map((s) => (
-                <div key={s.label} className="relative overflow-hidden rounded-2xl border border-[#ECEEF5] bg-white p-4 sm:p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all hover:shadow-sm">
-                  <span className={`absolute left-0 top-0 bottom-0 w-1 ${s.bar}`} />
-                  <p className="text-xs sm:text-sm font-medium text-[#64748B] truncate">{s.label}</p>
-                  <p className={`mt-1.5 sm:mt-2 text-2xl sm:text-[28px] font-bold tracking-tight ${s.color}`}>{s.value}</p>
-                </div>
-              ))}
+                { label: 'Total Dokumen', value: counts.semua, icon: FileStack, color: 'text-[#1F2333]', bar: 'bg-[#3BA4E8]', iconBox: 'bg-[#EAF5FD] text-[#3BA4E8]' },
+                { label: 'Arsip Aktif', value: counts.aktif, icon: CheckCircle2, color: 'text-[#137333]', bar: 'bg-[#34A853]', iconBox: 'bg-[#E6F4EA] text-[#137333]' },
+                { label: 'Menunggu Persetujuan', value: counts.menunggu_persetujuan, icon: Hourglass, color: 'text-[#B06000]', bar: 'bg-[#FBBC04]', iconBox: 'bg-[#FEF7E0] text-[#B06000]' },
+                { label: 'Akan Kadaluarsa', hint: '< 90 hari', value: counts.akan_kadaluarsa, icon: AlarmClock, color: 'text-[#D64545]', bar: 'bg-[#EA4335]', iconBox: 'bg-[#FDECEC] text-[#D64545]' },
+              ].map((s: { label: string; hint?: string; value: number; icon: React.ComponentType<{ className?: string }>; color: string; bar: string; iconBox: string }) => {
+                const Icon = s.icon
+                return (
+                  <div key={s.label} className="relative flex items-start justify-between gap-2 overflow-hidden rounded-2xl border border-[#ECEEF5] bg-white p-4 sm:p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all hover:shadow-sm">
+                    <span className={`absolute left-0 top-0 bottom-0 w-1 ${s.bar}`} />
+                    <div className="min-w-0">
+                      <p className="text-xs sm:text-sm font-medium text-[#64748B] truncate">{s.label}</p>
+                      {s.hint && <p className="text-[11px] text-[#9AA0B2] truncate">{s.hint}</p>}
+                      <p className={`mt-1.5 sm:mt-2 text-2xl sm:text-[28px] font-bold tracking-tight ${s.color}`}>{s.value}</p>
+                    </div>
+                    <span className={`flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl ${s.iconBox}`}>
+                      <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                    </span>
+                  </div>
+                )
+              })}
             </div>
-
-            {/* Daftar */}
-            <div className={cardClass}>
-              {/* Toolbar */}
-              <div className="space-y-4 border-b border-[#ECEEF5] p-4 sm:p-5">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-                  <div className="relative flex-1 min-w-0">
-                    <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9AA0B2]" />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value)
-                        setPage(1)
-                      }}
-                      placeholder="Cari kode arsip, no. payment (PPL), doc voucher, judul dokumen..."
-                      className={`${inputClass} pl-10 pr-9`}
-                    />
-                    {searchQuery && (
-                      <button type="button" onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9AA0B2] hover:text-[#1F2333]">
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-                    <select
-                      value={selectedKategori}
-                      onChange={(e) => {
-                        setSelectedKategori(e.target.value)
-                        setPage(1)
-                      }}
-                      className={`${inputClass} flex-1 sm:flex-none sm:w-auto cursor-pointer`}
-                    >
-                      <option value="semua">Semua Kategori</option>
-                      {kategoriList.map((k) => (
-                        <option key={k.id} value={k.nama}>
-                          {k.nama}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => setShowFilterLanjutan((v) => !v)}
-                      className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                        showFilterLanjutan || selectedPemegang !== 'semua' || selectedLokasi !== 'semua' || startDateFilter || endDateFilter
-                          ? 'border-[#3BA4E8] bg-[#EEF7FD] text-[#1E86C8]'
-                          : 'border-[#E3E6F0] bg-white text-[#4B5163] hover:bg-[#F7F8FC]'
-                      }`}
-                    >
-                      <span>Filter</span>
-                      {(selectedPemegang !== 'semua' || selectedLokasi !== 'semua' || startDateFilter || endDateFilter) && (
-                        <span className="h-2 w-2 rounded-full bg-[#3BA4E8]" />
-                      )}
-                    </button>
-                    <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className={`${inputClass} flex-1 sm:flex-none sm:w-auto cursor-pointer`}>
-                      <option value="terbaru">Terbaru</option>
-                      <option value="terlama">Terlama</option>
-                      <option value="kadaluarsa">Kedaluwarsa Terdekat</option>
-                      <option value="judul_az">Judul A–Z</option>
-                    </select>
-                    <div className="flex shrink-0 rounded-lg bg-[#F4F5FA] p-1 border border-[#E3E6F0]">
-                      {(['table', 'grid'] as const).map((mode) => {
-                        const Icon = mode === 'table' ? List : LayoutGrid
-                        return (
-                          <button
-                            key={mode}
-                            type="button"
-                            onClick={() => setViewMode(mode)}
-                            title={mode === 'table' ? 'Tampilan tabel' : 'Tampilan kartu'}
-                            className={`rounded-md p-1.5 transition-colors ${viewMode === mode ? 'bg-white text-[#1E86C8] shadow-xs' : 'text-[#6B7185] hover:text-[#1F2333]'}`}
-                          >
-                            <Icon className="h-4 w-4" />
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Filter Lanjutan (Pemegang, Lokasi, dan Rentang Tanggal) - Blueprint 3.7 */}
-                {showFilterLanjutan && (
-                  <div className="grid gap-3 rounded-lg border border-[#E3E6F0] bg-[#F8FAFC] p-4 text-xs sm:grid-cols-2 lg:grid-cols-4 animate-in fade-in duration-150">
-                    <div>
-                      <label className="block text-[11px] font-medium uppercase tracking-wider text-[#64748B] mb-1">
-                        Pemegang Dokumen
-                      </label>
-                      <select
-                        value={selectedPemegang}
-                        onChange={(e) => {
-                          setSelectedPemegang(e.target.value)
-                          setPage(1)
-                        }}
-                        className="w-full h-9 rounded-md border border-[#CBD7E3] bg-white px-2.5 text-xs text-[#111827]"
-                      >
-                        <option value="semua">Semua Pemegang</option>
-                        {uniquePemegang.map((p) => (
-                          <option key={p} value={p}>{p}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-medium uppercase tracking-wider text-[#64748B] mb-1">
-                        Lokasi Fisik
-                      </label>
-                      <select
-                        value={selectedLokasi}
-                        onChange={(e) => {
-                          setSelectedLokasi(e.target.value)
-                          setPage(1)
-                        }}
-                        className="w-full h-9 rounded-md border border-[#CBD7E3] bg-white px-2.5 text-xs text-[#111827]"
-                      >
-                        <option value="semua">Semua Lokasi</option>
-                        {uniqueLokasi.map((l) => (
-                          <option key={l} value={l}>{l}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-medium uppercase tracking-wider text-[#64748B] mb-1">
-                        Tanggal Dokumen Dari
-                      </label>
-                      <input
-                        type="date"
-                        value={startDateFilter}
-                        onChange={(e) => {
-                          setStartDateFilter(e.target.value)
-                          setPage(1)
-                        }}
-                        className="w-full h-9 rounded-md border border-[#CBD7E3] bg-white px-2.5 text-xs text-[#111827]"
-                      />
-                    </div>
 
                     <div>
                       <label className="block text-[11px] font-medium uppercase tracking-wider text-[#64748B] mb-1">
