@@ -31,6 +31,8 @@ import {
   FolderOpen,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { KodeArsip } from '@/components/documents/kode-arsip'
+import { skorPencarian, SKOR } from '@/lib/pencarian-kode-arsip'
 
 // ============================================================
 // TIPE & DATA
@@ -396,17 +398,23 @@ function DaftarDokumenContent() {
   // "Pencarian utama berdasarkan kode arsip (termasuk nomor payment / PPL dan doc voucher di dalamnya),
   // serta pencarian tambahan berdasarkan judul.
   // Filter: status, kategori, tanggal, pemegang, dan lokasi."
+  //
+  // Pencarian cerdas: kata kunci dicocokkan ke tiap bagian kode arsip
+  // (TAHUN_KODEPERUSAHAAN_NOPAYMENT_DOCVOUCHER) & judul, pemisah diabaikan,
+  // dan hasil diurutkan berdasarkan kekuatan kecocokan. Data `documents` sudah
+  // dibatasi RLS sesuai peran, jadi pencarian tidak memperluas hak akses.
   const filteredDocs = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim()
+    const q = searchQuery.trim()
+    const skorMap = new Map<string, number>()
     return documents
       .filter((doc) => {
-        // 1. Pencarian utama & tambahan
-        const matchSearch =
-          !q ||
-          doc.kode_arsip.toLowerCase().includes(q) ||
-          (doc.nomor_ppl && doc.nomor_ppl.toLowerCase().includes(q)) ||
-          (doc.nomor_dokumen && doc.nomor_dokumen.toLowerCase().includes(q)) ||
-          doc.judul.toLowerCase().includes(q)
+        // 1. Pencarian utama (bagian kode arsip) & tambahan (judul)
+        let matchSearch = true
+        if (q) {
+          const skor = skorPencarian(q, doc)
+          skorMap.set(doc.id, skor)
+          matchSearch = skor > SKOR.TIDAK_COCOK
+        }
 
         // 2. Filter Kategori
         const matchKategori = selectedKategori === 'semua' || doc.kategori === selectedKategori
@@ -435,6 +443,11 @@ function DaftarDokumenContent() {
         return matchSearch && matchKategori && matchStatus && matchPemegang && matchLokasi && matchTanggal
       })
       .sort((a, b) => {
+        // Saat mencari: urutkan berdasarkan kecocokan dulu, pilihan urutan jadi penentu seri
+        if (q) {
+          const selisih = (skorMap.get(b.id) ?? 0) - (skorMap.get(a.id) ?? 0)
+          if (selisih !== 0) return selisih
+        }
         if (sortBy === 'terlama') return a.kode_arsip.localeCompare(b.kode_arsip)
         if (sortBy === 'judul_az') return a.judul.localeCompare(b.judul)
         if (sortBy === 'kadaluarsa') return (sisaHari(a.tanggal_kadaluarsa) ?? 99999) - (sisaHari(b.tanggal_kadaluarsa) ?? 99999)
