@@ -58,37 +58,44 @@ export async function GET(request: NextRequest) {
     // Hapus tanda petik bila terbawa dari scanner
     rawCode = rawCode.replace(/^["']|["']$/g, '').trim()
 
+    // QR resmi hanya berisi teks kode_arsip (mis. 2025_2000_1500013765_1900009386).
+    // Tolak karakter di luar format agar nilai tidak bisa menyisipkan filter PostgREST.
+    if (!/^[A-Za-z0-9_\-. ]{1,100}$/.test(rawCode)) {
+      return NextResponse.json(
+        { error: `Hasil pindaian "${rawCode.slice(0, 60)}" bukan kode arsip yang valid. Pastikan memindai label QR dokumen resmi.`, found: false },
+        { status: 400 }
+      )
+    }
+
+    // Normalisasi: spasi/strip → garis bawah; 28 digit tanpa pemisah → TAHUN_PERUSAHAAN_PPL_VOUCHER
+    let kodeNormal = rawCode.replace(/[\s\-]+/g, '_')
+    if (/^\d{28}$/.test(kodeNormal)) {
+      kodeNormal = `${kodeNormal.slice(0, 4)}_${kodeNormal.slice(4, 8)}_${kodeNormal.slice(8, 18)}_${kodeNormal.slice(18)}`
+    }
+
     const admin = createAdminClient()
-
-    // 1. Cari exact match kode_arsip lebih dulu (atau ID jika UUID)
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawCode)
-
-    let { data: doc } = await admin
-      .from('dokumen')
-      .select(`
+    const DOC_SELECT = `
         id, kode_arsip, nomor_dokumen, nomor_ppl, judul, status,
         kategori_id, lokasi_saat_ini, bucket, file_path, barcode_path,
         pemilik_id, pemegang_saat_ini, tanggal_dokumen, tanggal_disetujui, tanggal_kadaluarsa,
         kategori_dokumen:kategori_id ( id, nama, kode ),
         pemegang:pemegang_saat_ini ( id, nama_lengkap, email, jabatan, nomor_pegawai ),
         pemilik:pemilik_id ( id, nama_lengkap, email )
-      `)
-      .or(isUuid ? `id.eq.${rawCode},kode_arsip.ilike.${rawCode}` : `kode_arsip.ilike.${rawCode}`)
-      .maybeSingle()
+      `
 
-    // 2. Jika tidak ditemukan, coba cari berdasarkan nomor_ppl atau nomor_dokumen (doc voucher)
-    if (!doc) {
+    // 1. Cocok persis kode_arsip (atau ID jika UUID)
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawCode)
+
+    let { data: doc } = isUuid
+      ? await admin.from('dokumen').select(DOC_SELECT).eq('id', rawCode).maybeSingle()
+      : await admin.from('dokumen').select(DOC_SELECT).eq('kode_arsip', kodeNormal).maybeSingle()
+
+    // 2. Jika tidak ditemukan, cocok persis nomor_ppl atau nomor_dokumen (doc voucher)
+    if (!doc && !isUuid) {
       const { data: altDoc } = await admin
         .from('dokumen')
-        .select(`
-          id, kode_arsip, nomor_dokumen, nomor_ppl, judul, status,
-          kategori_id, lokasi_saat_ini, bucket, file_path, barcode_path,
-          pemilik_id, pemegang_saat_ini, tanggal_dokumen, tanggal_disetujui, tanggal_kadaluarsa,
-          kategori_dokumen:kategori_id ( id, nama, kode ),
-          pemegang:pemegang_saat_ini ( id, nama_lengkap, email, jabatan, nomor_pegawai ),
-          pemilik:pemilik_id ( id, nama_lengkap, email )
-        `)
-        .or(`nomor_ppl.eq.${rawCode},nomor_dokumen.eq.${rawCode},kode_arsip.ilike.%${rawCode}%`)
+        .select(DOC_SELECT)
+        .or(`nomor_ppl.eq.${rawCode},nomor_dokumen.eq.${rawCode}`)
         .limit(1)
         .maybeSingle()
 
@@ -121,7 +128,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json(
         {
-          error: `Dokumen "${doc.kode_arsip}" ditemukan tetapi berstatus '${statusIndo}'. Sesuai ketentuan kearsipan resmi (Blueprint Bab 7, 3.5, & 8.3), hanya dokumen berstatus Aktif yang dapat diserahterimakan fisik. Dokumen ${statusIndo} tidak dapat diproses serah terima.`,
+          error: `Serah terima ditolak: dokumen "${doc.kode_arsip}" masih berstatus ${statusIndo}. Hanya dokumen berstatus Aktif yang dapat diserahterimakan.`,
           found: true,
           status: doc.status,
           canTransfer: false,
