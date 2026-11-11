@@ -627,7 +627,7 @@ export default function SerahTerimaPage() {
               <div className="rounded-xl border border-[#CBD7E3] bg-[#F8FAFC] p-5 text-xs text-[#4B5E76] space-y-3">
                 <div className="flex items-center gap-2 font-semibold text-[#1E3A5F]">
                   <ShieldCheck className="h-4 w-4" />
-                  <span>Ketentuan Kearsipan Serah Terima (Blueprint 3.5 & 8.3)</span>
+                  <span>Ketentuan Kearsipan Serah Terima</span>
                 </div>
                 <ul className="space-y-1.5 pl-5 list-disc leading-relaxed">
                   <li><strong>Hanya dokumen Aktif</strong> yang dapat diserahterimakan. Dokumen inaktif, menunggu persetujuan, atau ditolak dilarang diserahterimakan.</li>
