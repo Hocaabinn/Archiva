@@ -91,6 +91,46 @@ const statusPill: Record<DokumenStatus, { label: string; className: string }> = 
   dibatalkan: { label: 'Dibatalkan', className: 'bg-[#FDECEC] text-[#800000]' },
 }
 
+const roleHeaderConfig: Record<
+  UserRole,
+  {
+    badge: string
+    badgeClass: string
+    subtitle: string
+  }
+> = {
+  user: {
+    badge: 'PENGAJU ARSIP',
+    badgeClass: 'bg-[#EBF5FB] text-[#1E86C8] border-[#BCE1F9]',
+    subtitle: 'Unggah berkas, pantau status persetujuan, dan kelola dokumen arsip Anda',
+  },
+  admin: {
+    badge: 'ADMIN SISTEM',
+    badgeClass: 'bg-[#F3F4F6] text-[#374151] border-[#D1D5DB]',
+    subtitle: 'Pusat kendali, pengelolaan sistem, dan administrasi seluruh arsip instansi',
+  },
+  pic_arsip: {
+    badge: 'PIC ARSIP',
+    badgeClass: 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]',
+    subtitle: 'Verifikasi tahap 1, tata letak rak fisik, dan pencetakan label QR berkas',
+  },
+  atasan: {
+    badge: 'ATASAN (APPROVAL)',
+    badgeClass: 'bg-[#FEF7E0] text-[#B06000] border-[#FEEFC3]',
+    subtitle: 'Persetujuan akhir dokumen sensitif, retensi, dan pengawasan siklus arsip',
+  },
+  accounting: {
+    badge: 'ACCOUNTING',
+    badgeClass: 'bg-[#E8F5E9] text-[#2E7D32] border-[#C8E6C9]',
+    subtitle: 'Akses peninjauan dan pengunduhan berkas kearsipan pendukung keuangan',
+  },
+  viewer: {
+    badge: 'VIEWER (HANYA BACA)',
+    badgeClass: 'bg-[#F1F3F4] text-[#5F6368] border-[#DADCE0]',
+    subtitle: 'Katalog pratinjau dan penelusuran arsip instansi (Mode Hanya Baca)',
+  },
+}
+
 const DOC_SELECT = `
   id, kode_arsip, nomor_dokumen, nomor_ppl, judul, deskripsi, status, kategori_id,
   file_path, bucket, ukuran_file, lokasi_saat_ini, tanggal_dokumen,
@@ -577,6 +617,7 @@ function DaftarDokumenContent() {
     </div>
   )
 
+  const roleHeader = roleHeaderConfig[role] || roleHeaderConfig.user
   const cardClass = 'bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)]'
 
   return (
@@ -585,8 +626,13 @@ function DaftarDokumenContent() {
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-[28px] font-bold tracking-tight text-[#1F2333]">Daftar Dokumen</h1>
-            <p className="mt-1 text-sm text-[#4B5163]">Kelola, telusuri, dan perbarui seluruh arsip dokumen Anda</p>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-[28px] font-bold tracking-tight text-[#1F2333]">Daftar Dokumen</h1>
+              <span className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold ${roleHeader.badgeClass}`} suppressHydrationWarning>
+                {roleHeader.badge}
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-[#4B5163]" suppressHydrationWarning>{roleHeader.subtitle}</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="relative">
