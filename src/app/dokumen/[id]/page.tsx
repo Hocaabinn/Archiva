@@ -375,7 +375,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
 
   const isOwner = currentUserId === doc.pemilik_id
   const isPicArsip = currentUserRole === 'pic_arsip' || currentUserRole === 'admin'
-  const isAtasan = currentUserRole === 'atasan' || currentUserRole === 'admin'
+  const isAtasan = currentUserRole === 'atasan'
 
   return (
     <AppLayout>
