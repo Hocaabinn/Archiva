@@ -97,250 +97,256 @@ interface DetailDokumen {
 export default function DetailDokumenPage({ params }: PageProps) {
   const { id } = use(params)
   const router = useRouter()
-  const [supabase] = useState(() => createClient())
 
-  const [doc, setDoc] = useState<DocDetail | null>(null)
-  const [lampiranList, setLampiranList] = useState<LampiranItem[]>([])
-  const [logList, setLogList] = useState<LogItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  // Autentikasi & Hak Akses
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [currentUserRole, setCurrentUserRole] = useState<UserRole>('user')
+  const [doc, setDoc] = useState<DetailDokumen | null>(null)
+  const [lampiranList, setLampiranList] = useState<Lampiran[]>([])
+  const [logList, setLogList] = useState<LogItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [downloadNotice, setDownloadNotice] = useState<string | null>(null)
 
-  // State Modal Aksi (Verifikasi / Approval / Tolak / Batal / Ajukan Ulang)
-  const [modalType, setModalType] = useState<'verifikasi' | 'approve' | 'tolak' | 'batal' | 'ajukan_ulang' | null>(null)
+  // Modal State untuk Aksi Approval / Tolak / Ajukan Ulang / Pembatalan
+  const [modalType, setModalType] = useState<'verifikasi' | 'approve' | 'tolak' | 'ajukan_ulang' | 'batal' | null>(null)
   const [alasanTolak, setAlasanTolak] = useState('')
   const [alasanBatal, setAlasanBatal] = useState('')
   const [isSubmittingModal, setIsSubmittingModal] = useState(false)
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  // Form edit metadata saat ajukan ulang
+  // State Form Edit untuk Ajukan Ulang
   const [editJudul, setEditJudul] = useState('')
   const [editNomorDokumen, setEditNomorDokumen] = useState('')
   const [editNomorPpl, setEditNomorPpl] = useState('')
   const [editPenandatangan, setEditPenandatangan] = useState('')
+  const [editDeskripsi, setEditDeskripsi] = useState('')
   const [editLokasi, setEditLokasi] = useState('')
-
-  // Toast / Feedback Notifikasi
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [downloadNotice, setDownloadNotice] = useState<string | null>(null)
+  const [editFile, setEditFile] = useState<File | null>(null)
 
   const showToast = (type: 'success' | 'error', text: string) => {
     setToast({ type, text })
-    setTimeout(() => setToast(null), 5000)
+    setTimeout(() => setToast(null), 4000)
   }
 
-  // Load Data Dokumen Lengkap
-  useEffect(() => {
-    async function fetchDetail() {
-      setLoading(true)
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          setCurrentUserId(user.id)
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single()
-          if (profile?.role) setCurrentUserRole(profile.role as UserRole)
-        }
+  // Load Data Dokumen
+  const loadDocumentData = useCallback(async () => {
+    try {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
-        // Ambil dokumen beserta relasi
-        const { data: d, error: docErr } = await supabase
-          .from('dokumen')
-          .select(`
-            id, kode_arsip, nomor_dokumen, nomor_ppl, judul, kategori_id,
-            penandatangan, deskripsi, status, bucket, file_path, file_tipe, ukuran_file,
-            pemilik_id, pemegang_saat_ini, lokasi_saat_ini, tanggal_dokumen, tanggal_masuk,
-            tanggal_disetujui, tanggal_kadaluarsa, barcode_path, alasan_penolakan,
-            verifikasi_pic_oleh, disetujui_oleh,
-            kategori_dokumen ( nama ),
-            pemilik:profiles!dokumen_pemilik_id_fkey ( nama_lengkap, email ),
-            pemegang:profiles!dokumen_pemegang_saat_ini_fkey ( nama_lengkap, email ),
-            verifikator:profiles!dokumen_verifikasi_pic_oleh_fkey ( nama_lengkap, email ),
-            approver:profiles!dokumen_disetujui_oleh_fkey ( nama_lengkap, email )
-          `)
-          .eq('id', id)
+      if (user) {
+        setCurrentUserId(user.id)
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
           .single()
-
-        if (docErr || !d) {
-          throw new Error(docErr?.message || 'Dokumen tidak ditemukan dalam sistem.')
+        if (profile?.role) {
+          setCurrentUserRole(profile.role as UserRole)
         }
-
-        const detail: DocDetail = {
-          id: d.id,
-          kode_arsip: d.kode_arsip,
-          nomor_dokumen: d.nomor_dokumen,
-          nomor_ppl: d.nomor_ppl,
-          judul: d.judul,
-          kategori_id: d.kategori_id,
-          kategori_nama: (d.kategori_dokumen as any)?.nama || 'Umum',
-          penandatangan: d.penandatangan,
-          deskripsi: d.deskripsi,
-          status: d.status as DokumenStatus,
-          bucket: d.bucket,
-          file_path: d.file_path,
-          file_tipe: d.file_tipe,
-          ukuran_file: d.ukuran_file,
-          pemilik_id: d.pemilik_id,
-          pemilik_nama: (d.pemilik as any)?.nama_lengkap || (d.pemilik as any)?.email || 'Pengaju',
-          pemegang_saat_ini: d.pemegang_saat_ini,
-          pemegang_nama: (d.pemegang as any)?.nama_lengkap || (d.pemegang as any)?.email || 'Pemegang',
-          lokasi_saat_ini: d.lokasi_saat_ini || 'Ruang Arsip Aktif',
-          tanggal_dokumen: d.tanggal_dokumen,
-          tanggal_masuk: d.tanggal_masuk,
-          tanggal_disetujui: d.tanggal_disetujui,
-          tanggal_kadaluarsa: d.tanggal_kadaluarsa,
-          barcode_path: d.barcode_path,
-          alasan_penolakan: d.alasan_penolakan,
-          verifikasi_pic_oleh: d.verifikasi_pic_oleh,
-          verifikator_nama: (d.verifikator as any)?.nama_lengkap || (d.verifikator as any)?.email,
-          disetujui_oleh: d.disetujui_oleh,
-          approver_nama: (d.approver as any)?.nama_lengkap || (d.approver as any)?.email,
-        }
-
-        setDoc(detail)
-        setEditJudul(detail.judul)
-        setEditNomorDokumen(detail.nomor_dokumen || '')
-        setEditNomorPpl(detail.nomor_ppl || '')
-        setEditPenandatangan(detail.penandatangan || '')
-        setEditLokasi(detail.lokasi_saat_ini)
-
-        // Ambil lampiran pendukung
-        const { data: lamps } = await supabase
-          .from('lampiran')
-          .select('id, nama_file, file_path, file_size, mime_type, created_at')
-          .eq('dokumen_id', id)
-          .order('created_at', { ascending: true })
-
-        if (lamps) setLampiranList(lamps)
-
-        // Ambil riwayat log aktivitas
-        const { data: logs } = await supabase
-          .from('log_aktivitas')
-          .select(`
-            id, aksi, keterangan, created_at,
-            user:profiles!log_aktivitas_user_id_fkey ( nama_lengkap, email )
-          `)
-          .eq('dokumen_id', id)
-          .order('created_at', { ascending: false })
-
-        if (logs) setLogList(logs as any)
-      } catch (err: unknown) {
-        console.error('Error saat fetch detail dokumen:', err)
-        setError(err instanceof Error ? err.message : 'Terjadi kesalahan sistem')
-      } finally {
-        setLoading(false)
       }
+
+      // Query Dokumen Detail
+      const { data: d, error: dError } = await supabase
+        .from('dokumen')
+        .select(`
+          id, kode_arsip, nomor_dokumen, nomor_ppl, judul, kategori_id,
+          penandatangan, deskripsi, status, bucket, file_path, file_tipe, ukuran_file,
+          pemilik_id, pemegang_saat_ini, lokasi_saat_ini, tanggal_dokumen, tanggal_masuk,
+          tanggal_disetujui, tanggal_kadaluarsa, verifikasi_pic_oleh, disetujui_oleh,
+          alasan_penolakan, created_at,
+          kategori_dokumen ( nama ),
+          pemilik:profiles!dokumen_pemilik_id_fkey ( nama_lengkap, email ),
+          pemegang:profiles!dokumen_pemegang_saat_ini_fkey ( nama_lengkap, email ),
+          verifikator:profiles!dokumen_verifikasi_pic_oleh_fkey ( nama_lengkap, email ),
+          approver:profiles!dokumen_disetujui_oleh_fkey ( nama_lengkap, email )
+        `)
+        .eq('id', id)
+        .single()
+
+      if (dError || !d) {
+        throw new Error(dError?.message || 'Dokumen tidak ditemukan dalam basis data.')
+      }
+
+      const formatted: DetailDokumen = {
+        id: d.id,
+        kode_arsip: d.kode_arsip,
+        nomor_dokumen: d.nomor_dokumen,
+        nomor_ppl: d.nomor_ppl,
+        judul: d.judul,
+        kategori_id: d.kategori_id,
+        kategori_nama: (d.kategori_dokumen as any)?.nama || 'Umum',
+        penandatangan: d.penandatangan,
+        deskripsi: d.deskripsi,
+        status: d.status,
+        bucket: d.bucket || 'arsip-aktif',
+        file_path: d.file_path,
+        file_tipe: d.file_tipe,
+        ukuran_file: d.ukuran_file,
+        pemilik_id: d.pemilik_id,
+        pemilik_nama: (d.pemilik as any)?.nama_lengkap || (d.pemilik as any)?.email || 'Pengaju',
+        pemegang_saat_ini: d.pemegang_saat_ini,
+        pemegang_nama: (d.pemegang as any)?.nama_lengkap || (d.pemegang as any)?.email || 'Pemegang',
+        lokasi_saat_ini: d.lokasi_saat_ini || 'Ruang Arsip Aktif',
+        tanggal_dokumen: d.tanggal_dokumen,
+        tanggal_masuk: d.tanggal_masuk,
+        tanggal_disetujui: d.tanggal_disetujui,
+        tanggal_kadaluarsa: d.tanggal_kadaluarsa,
+        verifikasi_pic_oleh: d.verifikasi_pic_oleh,
+        verifikator_nama: (d.verifikator as any)?.nama_lengkap || (d.verifikator as any)?.email,
+        disetujui_oleh: d.disetujui_oleh,
+        approver_nama: (d.approver as any)?.nama_lengkap || (d.approver as any)?.email,
+        alasan_penolakan: d.alasan_penolakan,
+        created_at: d.created_at,
+      }
+
+      setDoc(formatted)
+
+      // Inisialisasi form edit ajukan ulang
+      setEditJudul(formatted.judul)
+      setEditNomorDokumen(formatted.nomor_dokumen || '')
+      setEditNomorPpl(formatted.nomor_ppl || '')
+      setEditPenandatangan(formatted.penandatangan || '')
+      setEditDeskripsi(formatted.deskripsi || '')
+      setEditLokasi(formatted.lokasi_saat_ini)
+
+      // Query Lampiran
+      const { data: lamps } = await supabase
+        .from('lampiran')
+        .select('*')
+        .eq('dokumen_id', id)
+        .order('created_at', { ascending: true })
+
+      setLampiranList(lamps || [])
+
+      // Query Log Aktivitas untuk dokumen ini
+      const { data: logs } = await supabase
+        .from('log_aktivitas')
+        .select(`
+          id, dokumen_id, user_id, aksi, keterangan, created_at,
+          user:profiles!log_aktivitas_user_id_fkey ( nama_lengkap, email )
+        `)
+        .eq('dokumen_id', id)
+        .order('created_at', { ascending: false })
+
+      const formattedLogs: LogItem[] = (logs || []).map((l: any) => ({
+        id: l.id,
+        dokumen_id: l.dokumen_id,
+        user_id: l.user_id,
+        aksi: l.aksi,
+        keterangan: l.keterangan,
+        created_at: l.created_at,
+        user: Array.isArray(l.user) ? l.user[0] : l.user,
+      }))
+
+      setLogList(formattedLogs)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal memuat dokumen'
+      setErrorMsg(msg)
+    } finally {
+      setLoading(false)
     }
+  }, [id])
 
-    fetchDetail()
-  }, [id, supabase])
+  useEffect(() => {
+    loadDocumentData()
+  }, [loadDocumentData])
 
-  // Download Berkas Utama (Aturan Keras Bab 5: Viewer Dilarang Download)
-  const handleDownload = async () => {
-    if (!doc) return
+  // Hitung sisa hari aktif
+  const sisaHari = doc?.tanggal_kadaluarsa
+    ? Math.max(0, Math.ceil((new Date(doc.tanggal_kadaluarsa).getTime() - Date.now()) / 86400000))
+    : null
+
+  const isAkanKadaluarsa = doc?.status === 'aktif' && sisaHari !== null && sisaHari < 90
+
+  // Download Handler
+  const handleDownload = () => {
     if (currentUserRole === 'viewer') {
       setDownloadNotice('Akses Ditolak: Peran Viewer hanya berhak melihat pratinjau dan dilarang mengunduh berkas fisik.')
-      showToast('error', 'Akses Ditolak: Peran Viewer tidak diizinkan mengunduh berkas fisik.')
       return
     }
-
-    try {
-      const res = await fetch(`/api/dokumen/${doc.id}/download?json=true`)
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Gagal memproses tautan unduhan dokumen.')
-      }
-
-      if (data.signedUrl) {
-        window.open(data.signedUrl, '_blank')
-        showToast('success', 'Tautan unduhan bertanda waktu berhasil dibuat.')
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Gagal mengunduh berkas'
-      showToast('error', msg)
-    }
+    window.open(`/api/dokumen/${id}/download`, '_blank')
   }
 
-  // Download Berkas Lampiran
-  const handleDownloadLampiran = async (lampiranId: string) => {
+  const handleDownloadLampiran = (lampId: string) => {
     if (currentUserRole === 'viewer') {
-      showToast('error', 'Akses Ditolak: Peran Viewer tidak diizinkan mengunduh berkas lampiran.')
+      setDownloadNotice('Akses Ditolak: Peran Viewer dilarang mengunduh berkas lampiran.')
       return
     }
-
-    try {
-      const res = await fetch(`/api/lampiran/${lampiranId}/download?json=true`)
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Gagal memproses unduhan lampiran.')
-      }
-
-      if (data.signedUrl) {
-        window.open(data.signedUrl, '_blank')
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Gagal mengunduh lampiran'
-      showToast('error', msg)
-    }
+    window.open(`/api/lampiran/${lampId}/download`, '_blank')
   }
 
-  // Eksekusi Modal Aksi (Verifikasi, Approve, Tolak, Batal, Ajukan Ulang)
+  // Aksi Eksekusi Modal (Verifikasi / Approve / Tolak / Ajukan Ulang)
   const handleExecuteModal = async () => {
-    if (!doc) return
+    if (!modalType || !doc) return
     setIsSubmittingModal(true)
 
     try {
-      let endpoint = ''
-      let payload: Record<string, unknown> = {}
-
       if (modalType === 'verifikasi') {
-        endpoint = `/api/dokumen/${doc.id}/verifikasi`
+        const res = await fetch(`/api/dokumen/${doc.id}/verifikasi`, { method: 'POST' })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Gagal memverifikasi dokumen.')
+        showToast('success', 'Dokumen lolos verifikasi tahap 1 dan diteruskan ke Atasan.')
       } else if (modalType === 'approve') {
-        endpoint = `/api/dokumen/${doc.id}/approve`
+        const res = await fetch(`/api/dokumen/${doc.id}/approve`, { method: 'POST' })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Gagal menyetujui dokumen.')
+        showToast('success', `Dokumen disahkan menjadi Aktif selama 3 tahun (s.d. ${data.tanggal_kadaluarsa}).`)
       } else if (modalType === 'tolak') {
-        if (!alasanTolak.trim()) throw new Error('Alasan penolakan wajib diisi.')
-        endpoint = `/api/dokumen/${doc.id}/tolak`
-        payload = { alasan: alasanTolak.trim() }
-      } else if (modalType === 'batal') {
-        if (!alasanBatal.trim()) throw new Error('Alasan pembatalan wajib diisi.')
-        endpoint = `/api/dokumen/${doc.id}/batal`
-        payload = { alasan: alasanBatal.trim() }
-      } else if (modalType === 'ajukan_ulang') {
-        if (!editJudul.trim()) throw new Error('Judul dokumen wajib diisi.')
-        endpoint = `/api/dokumen/${doc.id}/ajukan-ulang`
-        payload = {
-          judul: editJudul.trim(),
-          nomor_dokumen: editNomorDokumen.trim() || null,
-          nomor_ppl: editNomorPpl.trim() || null,
-          penandatangan: editPenandatangan.trim() || null,
-          lokasi_saat_ini: editLokasi.trim() || 'Ruang Arsip Aktif',
+        if (!alasanTolak.trim()) {
+          showToast('error', 'Alasan penolakan wajib diisi.')
+          setIsSubmittingModal(false)
+          return
         }
+        const res = await fetch(`/api/dokumen/${doc.id}/tolak`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ alasan: alasanTolak.trim() }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Gagal menolak dokumen.')
+        showToast('success', 'Dokumen ditolak dan dikembalikan ke Pengaju beserta alasan.')
+      } else if (modalType === 'ajukan_ulang') {
+        if (!editJudul.trim()) {
+          showToast('error', 'Judul dokumen wajib diisi.')
+          setIsSubmittingModal(false)
+          return
+        }
+        const fd = new FormData()
+        fd.append('judul', editJudul.trim())
+        fd.append('nomor_dokumen', editNomorDokumen.trim())
+        fd.append('nomor_ppl', editNomorPpl.trim())
+        fd.append('penandatangan', editPenandatangan.trim())
+        fd.append('deskripsi', editDeskripsi.trim())
+        fd.append('lokasi_saat_ini', editLokasi.trim() || doc.lokasi_saat_ini)
+        if (editFile) fd.append('file', editFile)
+        const res = await fetch(`/api/dokumen/${doc.id}/ajukan-ulang`, { method: 'POST', body: fd })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Gagal mengajukan ulang dokumen.')
+        setEditFile(null)
+        showToast('success', 'Dokumen berhasil diperbaiki dan diajukan ulang untuk verifikasi PIC Arsip.')
+      } else if (modalType === 'batal') {
+        if (!alasanBatal.trim()) {
+          showToast('error', 'Alasan pembatalan dokumen wajib diisi.')
+          setIsSubmittingModal(false)
+          return
+        }
+        const res = await fetch(`/api/dokumen/${doc.id}/batal`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ alasan: alasanBatal.trim() }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Gagal membatalkan dokumen.')
+        showToast('success', `Dokumen ${doc.kode_arsip} resmi dibatalkan dan berstatus DIBATALKAN.`)
       }
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-
-      const result = await res.json()
-      if (!res.ok) {
-        throw new Error(result.error || 'Gagal memproses aksi pada dokumen.')
-      }
-
-      showToast('success', result.message || 'Aksi berhasil disimpan.')
       setModalType(null)
-
-      // Refresh data
-      setTimeout(() => {
-        window.location.reload()
-      }, 800)
+      setAlasanTolak('')
+      setAlasanBatal('')
+      await loadDocumentData()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Terjadi kesalahan sistem'
       showToast('error', msg)
@@ -349,7 +355,6 @@ export default function DetailDokumenPage({ params }: PageProps) {
     }
   }
 
-  // Render Skeleton Loading
   if (loading) {
     return (
       <AppLayout>
