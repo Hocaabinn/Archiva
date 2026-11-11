@@ -382,7 +382,7 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
                   className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[#4B5163] hover:bg-[#EEF7FD] hover:text-[#1F2333] disabled:opacity-50"
                 >
                   <LogOut className="w-[18px] h-[18px] shrink-0" />
-                  <span>{isLoggingOut ? 'Mengakhiri Sesi...' : 'Keluar Sesi'}</span>
+                  <span>{isLoggingOut ? 'Mengakhiri Sesi...' : 'Keluar'}</span>
                 </button>
               </div>
             </div>
@@ -508,11 +508,11 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
               type="button"
               onClick={handleLogout}
               disabled={isLoggingOut}
-              title="Keluar Sesi"
+              title="Keluar"
               className={`w-full ${navLinkClass(false)} disabled:opacity-50`}
             >
               <LogOut className="w-[18px] h-[18px] shrink-0" />
-              {!isCollapsed && <span>{isLoggingOut ? 'Mengakhiri Sesi...' : 'Keluar Sesi'}</span>}
+              {!isCollapsed && <span>{isLoggingOut ? 'Mengakhiri Sesi...' : 'Keluar'}</span>}
             </button>
           </div>
         </aside>
