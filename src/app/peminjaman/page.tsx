@@ -427,304 +427,305 @@ function PeminjamanContent() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-7xl mx-auto pb-16 font-sans">
+      <div className="mx-auto max-w-7xl space-y-6 pb-16">
         {/* Toast Notifikasi */}
         {toast && (
           <div
-            className={`fixed top-5 right-5 z-50 p-4 border-2 font-mono text-xs flex items-center gap-3 shadow-lg ${
+            className={`fixed left-4 right-4 top-20 z-50 flex items-center gap-3 rounded-xl border p-4 shadow-lg sm:left-auto sm:right-6 sm:max-w-md animate-in fade-in slide-in-from-top-2 duration-200 ${
               toast.type === 'success'
-                ? 'bg-emerald-50 border-emerald-700 text-emerald-900'
-                : 'bg-red-50 border-red-700 text-red-900'
+                ? 'border-[#2F9E5B]/30 bg-[#E7F6EC] text-[#1E6B3E]'
+                : 'border-[#D64545]/30 bg-[#FDECEC] text-[#A82828]'
             }`}
           >
             {toast.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-[#2F9E5B]" />
             ) : (
-              <AlertCircle className="w-4 h-4 text-red-700 shrink-0" />
+              <AlertCircle className="h-5 w-5 shrink-0 text-[#D64545]" />
             )}
-            <span>{toast.text}</span>
+            <p className="flex-1 text-sm font-medium">{toast.text}</p>
+            <button type="button" onClick={() => setToast(null)} className="rounded-md p-1 hover:bg-black/10">
+              <X className="h-4 w-4" />
+            </button>
           </div>
         )}
 
-        {/* Header Lembar Registrasi Peminjaman */}
-        <div className="border-b-2 border-[#1E2429] pb-4 flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-mono text-xs px-2 py-0.5 bg-[#1E2429] text-white font-bold">
-                BUKU REGISTER RESMI
-              </span>
-              <span className="text-xs text-[#5B6166] font-mono">
-                Blueprint Bab 3.6 — Layanan Peminjaman Arsip Inaktif
-              </span>
-            </div>
-            <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#1A1D21] mt-1">
+        {/* Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold tracking-tight text-[#1F2333] sm:text-[28px]">
               Peminjaman Dokumen Inaktif
             </h1>
-            <p className="text-xs font-mono text-[#5B6166] mt-1">
-              Layanan peminjaman dokumen dari Gudang Inaktif. Status dokumen dan berkas penyimpanan tetap berada pada bucket arsip-inaktif.
+            <p className="mt-1 text-sm text-[#4B5163]">
+              Ajukan, verifikasi, dan pantau peminjaman berkas dari Gudang Inaktif.
             </p>
           </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            {currentUserRole !== 'viewer' && (
-              <button
-                type="button"
-                onClick={() => setIsAjukanModalOpen(true)}
-                className="px-4 py-2 bg-[#1F5C55] hover:bg-[#184843] text-white text-xs font-mono font-bold flex items-center gap-2 transition-colors shadow-xs"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Ajukan Peminjaman</span>
-              </button>
-            )}
-          </div>
+          {currentUserRole !== 'viewer' && (
+            <button
+              type="button"
+              onClick={() => setIsAjukanModalOpen(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#2A92D6] active:scale-[0.98] sm:w-auto sm:py-2"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Ajukan Peminjaman</span>
+            </button>
+          )}
         </div>
 
-        {/* Filter Tab Status & Search Bar */}
-        <div className="bg-white border-2 border-[#1E2429] p-4 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            {/* Status Tabs */}
-            <div className="flex flex-wrap items-center gap-1 font-mono text-xs">
-              {[
-                { id: 'semua', label: 'Semua Status' },
-                { id: 'diajukan', label: 'Diajukan' },
-                { id: 'dipinjam', label: 'Dipinjam' },
-                { id: 'dikembalikan', label: 'Dikembalikan' },
-                { id: 'ditolak', label: 'Ditolak' },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setFilterStatus(tab.id)}
-                  className={`px-3 py-1.5 font-semibold transition-colors ${
-                    filterStatus === tab.id
-                      ? 'bg-[#1E2429] text-white'
-                      : 'bg-[#F7F3EB] hover:bg-[#EAE4D5] text-[#1A1D21] border border-[#D8D2C4]'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+        {/* Kartu ringkasan */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          {[
+            { label: 'Total Peminjaman', value: counts.semua, color: 'text-[#1F2333]', bar: 'bg-[#3BA4E8]' },
+            { label: 'Menunggu Verifikasi', value: counts.diajukan, color: 'text-[#B06000]', bar: 'bg-[#FBBC04]' },
+            { label: 'Sedang Dipinjam', value: counts.dipinjam, color: 'text-[#1E86C8]', bar: 'bg-[#7CC4F2]' },
+            { label: 'Sudah Dikembalikan', value: counts.dikembalikan, color: 'text-[#137333]', bar: 'bg-[#34A853]' },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="relative overflow-hidden rounded-2xl border border-[#ECEEF5] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all hover:shadow-sm sm:p-5"
+            >
+              <span className={`absolute bottom-0 left-0 top-0 w-1 ${s.bar}`} />
+              <p className="truncate text-xs font-medium text-[#64748B] sm:text-sm">{s.label}</p>
+              <p className={`mt-1.5 text-2xl font-bold tracking-tight sm:mt-2 sm:text-[28px] ${s.color}`}>
+                {loading ? '–' : s.value}
+              </p>
             </div>
+          ))}
+        </div>
 
-            {/* Search Input */}
-            <div className="relative w-full sm:w-80">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#5B6166]" />
+        {/* Daftar */}
+        <div className={cardClass}>
+          {/* Toolbar */}
+          <div className="space-y-4 border-b border-[#ECEEF5] p-4 sm:p-5">
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9AA0B2]" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari kode arsip, judul, peminjam..."
-                className="w-full pl-9 pr-3 py-1.5 border border-[#D8D2C4] text-xs font-mono text-[#1A1D21] placeholder:text-[#8C9399] focus:outline-hidden focus:border-[#1E2429]"
+                placeholder="Cari kode arsip, judul, peminjam, keperluan..."
+                className={`${inputClass} pl-10 pr-9`}
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9AA0B2] hover:text-[#1F2333]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+              {statusTabs.map((tab) => {
+                const active = filterStatus === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setFilterStatus(tab.id)}
+                    className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                      active
+                        ? 'bg-[#3BA4E8] text-white'
+                        : 'bg-[#F4F5FA] text-[#4B5163] hover:bg-[#EEF7FD] hover:text-[#1E86C8]'
+                    }`}
+                  >
+                    {tab.label}
+                    <span className={`rounded-md px-1.5 text-xs ${active ? 'bg-white/25' : 'bg-white text-[#6B7185]'}`}>
+                      {counts[tab.id] ?? 0}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           </div>
-        </div>
 
-        {/* Tabel Kerja Peminjaman */}
-        <div className="bg-white border-2 border-[#1E2429] shadow-sm overflow-hidden">
+          {/* Konten */}
           {loading ? (
-            <div className="p-12 text-center text-xs font-mono text-[#5B6166] flex flex-col items-center gap-2">
-              <Loader2 className="w-6 h-6 animate-spin text-[#1F5C55]" />
-              <span>Memuat buku register peminjaman arsip...</span>
+            <div className="flex flex-col items-center justify-center gap-3 py-20 text-[#6B7185]">
+              <Loader2 className="h-8 w-8 animate-spin text-[#3BA4E8]" />
+              <p className="text-sm font-medium">Memuat data peminjaman...</p>
             </div>
           ) : errorMsg ? (
-            <div className="p-8 text-center text-xs font-mono text-red-700 bg-red-50">
-              <AlertCircle className="w-5 h-5 mx-auto mb-2 text-red-600" />
+            <div className="m-4 flex items-start gap-3 rounded-xl border border-[#FDECEC] bg-[#FFF5F5] px-4 py-3 text-sm text-[#D64545] sm:m-5">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           ) : filteredLoans.length === 0 ? (
-            <div className="p-12 text-center text-xs font-mono text-[#5B6166] bg-[#F7F3EB]/30">
-              <BookOpenCheck className="w-8 h-8 mx-auto mb-2 text-[#8C9399]" />
-              <p className="font-bold text-[#1A1D21]">Tidak ada catatan peminjaman ditemukan</p>
-              <p className="text-[11px] text-[#8C9399] mt-1">
-                {filterStatus !== 'semua'
-                  ? `Tidak ada peminjaman dengan status '${filterStatus}'.`
-                  : 'Belum ada pengajuan peminjaman arsip inaktif yang tercatat dalam sistem.'}
+            <div className="flex flex-col items-center justify-center gap-2 px-4 py-20 text-center">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#EAF5FD] text-[#3BA4E8]">
+                <BookOpenCheck className="h-6 w-6" />
+              </span>
+              <p className="mt-1 text-sm font-semibold text-[#1F2333]">Tidak ada catatan peminjaman</p>
+              <p className="max-w-sm text-xs text-[#8A90A2]">
+                {filterStatus !== 'semua' || searchQuery
+                  ? 'Tidak ada peminjaman yang cocok dengan filter atau pencarian Anda.'
+                  : 'Belum ada pengajuan peminjaman arsip inaktif yang tercatat.'}
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-[#1E2429] text-white font-mono text-[11px] uppercase tracking-wider">
-                    <th className="p-3 border-r border-white/20">Dokumen Inaktif</th>
-                    <th className="p-3 border-r border-white/20">Peminjam</th>
-                    <th className="p-3 border-r border-white/20">Keperluan</th>
-                    <th className="p-3 border-r border-white/20">Tgl Pinjam / Pengembalian</th>
-                    <th className="p-3 border-r border-white/20 text-center">Status</th>
-                    <th className="p-3 text-center">Aksi Operasional</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#D8D2C4] font-sans">
-                  {filteredLoans.map((loan) => {
-                    const isBorrower = loan.peminjam_id === currentUserId
-                    const doc = loan.dokumen
+            <>
+              {/* Tabel (desktop) */}
+              <div className="hidden overflow-x-auto lg:block">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-[#ECEEF5] bg-[#F8FAFC] text-xs font-semibold uppercase tracking-wider text-[#64748B]">
+                      <th className="px-5 py-3">Dokumen Inaktif</th>
+                      <th className="px-5 py-3">Peminjam</th>
+                      <th className="px-5 py-3">Keperluan</th>
+                      <th className="px-5 py-3">Tanggal</th>
+                      <th className="px-5 py-3">Status</th>
+                      <th className="px-5 py-3 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#ECEEF5]">
+                    {filteredLoans.map((loan) => {
+                      const doc = loan.dokumen
+                      return (
+                        <tr key={loan.id} className="align-top transition-colors hover:bg-[#F7FBFE]">
+                          <td className="max-w-xs px-5 py-4">
+                            {doc ? (
+                              <div className="min-w-0">
+                                <Link
+                                  href={`/dokumen/${doc.id}`}
+                                  className="group inline-flex items-start gap-1 font-semibold leading-snug text-[#1F2333] hover:text-[#1E86C8]"
+                                >
+                                  <span className="line-clamp-2">{doc.judul}</span>
+                                  <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#9AA0B2] group-hover:text-[#1E86C8]" />
+                                </Link>
+                                <KodeArsip kode={doc.kode_arsip} className="block mt-1 font-mono text-xs text-[#1E86C8]" />
+                                <p className="mt-1 flex items-center gap-1 text-xs text-[#8A90A2]">
+                                  <MapPin className="h-3 w-3 text-[#3BA4E8]" />
+                                  {doc.lokasi_saat_ini || 'Gudang Inaktif'}
+                                </p>
+                              </div>
+                            ) : (
+                              <span className="text-xs italic text-[#D64545]">Dokumen telah dihapus</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-start gap-2.5">
+                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EAF5FD] text-xs font-semibold text-[#1E86C8]">
+                                {initials(loan.peminjam?.nama_lengkap || loan.peminjam?.email || 'P')}
+                              </span>
+                              <div className="min-w-0">
+                                <p className="truncate font-medium text-[#1F2333]">
+                                  {loan.peminjam?.nama_lengkap || loan.peminjam?.email || 'Pengguna'}
+                                </p>
+                                {(loan.peminjam?.jabatan || loan.peminjam?.nomor_pegawai) && (
+                                  <p className="text-xs text-[#6B7185]">
+                                    {loan.peminjam?.jabatan}
+                                    {loan.peminjam?.jabatan && loan.peminjam?.nomor_pegawai ? ' • ' : ''}
+                                    {loan.peminjam?.nomor_pegawai ? `NIP ${loan.peminjam.nomor_pegawai}` : ''}
+                                  </p>
+                                )}
+                                <p className="truncate text-xs text-[#9AA0B2]">{loan.peminjam?.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="max-w-xs px-5 py-4 text-[#4B5163]">
+                            <p className="line-clamp-3 leading-relaxed">{loan.keperluan}</p>
+                          </td>
+                          <td className="whitespace-nowrap px-5 py-4 text-xs">
+                            <p className="flex items-center gap-1.5 text-[#4B5163]">
+                              <Calendar className="h-3.5 w-3.5 text-[#3BA4E8]" />
+                              <span className="font-medium text-[#1F2333]">{formatDate(loan.tanggal_pinjam) || '-'}</span>
+                            </p>
+                            <p className="mt-1.5 flex items-center gap-1.5">
+                              <RotateCcw className="h-3.5 w-3.5 text-[#9AA0B2]" />
+                              <span className={loan.tanggal_kembali ? 'font-medium text-[#137333]' : 'text-[#9AA0B2]'}>
+                                {formatDate(loan.tanggal_kembali) || 'Belum kembali'}
+                              </span>
+                            </p>
+                            {loan.pic_inaktif && (
+                              <p className="mt-1.5 flex items-center gap-1.5 text-[#8A90A2]">
+                                <User className="h-3.5 w-3.5" />
+                                PIC: {loan.pic_inaktif.nama_lengkap || loan.pic_inaktif.email}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-5 py-4">{renderStatusBadge(loan.status)}</td>
+                          <td className="px-5 py-4">
+                            <div className="flex justify-end">{renderActions(loan)}</div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
-                    return (
-                      <tr key={loan.id} className="hover:bg-[#F7F3EB]/40 transition-colors">
-                        {/* Kolom Dokumen */}
-                        <td className="p-3 align-top max-w-xs">
+              {/* Kartu (mobile & tablet) */}
+              <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:hidden">
+                {filteredLoans.map((loan) => {
+                  const doc = loan.dokumen
+                  return (
+                    <div key={loan.id} className="flex flex-col rounded-xl border border-[#ECEEF5] bg-white p-4 transition-shadow hover:shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
                           {doc ? (
-                            <div>
+                            <>
+                              <KodeArsip kode={doc.kode_arsip} className="block font-mono text-[11px] text-[#1E86C8]" />
                               <Link
                                 href={`/dokumen/${doc.id}`}
-                                className="font-bold font-serif text-sm text-[#1A1D21] hover:text-[#1F5C55] flex items-center gap-1 leading-snug"
+                                className="mt-0.5 line-clamp-2 text-sm font-semibold leading-snug text-[#1F2333] hover:text-[#1E86C8]"
                               >
-                                <span>{doc.judul}</span>
-                                <ExternalLink className="w-3 h-3 text-[#5B6166] shrink-0" />
+                                {doc.judul}
                               </Link>
-                              <div className="font-mono text-[11px] text-[#5B6166] mt-0.5 break-all">
-                                {doc.kode_arsip}
-                              </div>
-                              <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#8C9399] mt-1">
-                                <MapPin className="w-3 h-3 text-[#1F5C55]" />
-                                <span>{doc.lokasi_saat_ini || 'Gudang Inaktif'}</span>
-                              </div>
-                            </div>
+                            </>
                           ) : (
-                            <span className="text-red-700 italic font-mono text-xs">
-                              Dokumen ID: {loan.dokumen_id} (Data Terhapus)
-                            </span>
+                            <span className="text-xs italic text-[#D64545]">Dokumen telah dihapus</span>
                           )}
-                        </td>
+                        </div>
+                        {renderStatusBadge(loan.status)}
+                      </div>
 
-                        {/* Kolom Peminjam */}
-                        <td className="p-3 align-top font-mono text-[11px]">
-                          <div className="font-bold text-[#1A1D21]">
+                      <div className="mt-3 flex items-center gap-2.5 rounded-lg bg-[#F8FAFC] p-2.5">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EAF5FD] text-xs font-semibold text-[#1E86C8]">
+                          {initials(loan.peminjam?.nama_lengkap || loan.peminjam?.email || 'P')}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-[#1F2333]">
                             {loan.peminjam?.nama_lengkap || loan.peminjam?.email || 'Pengguna'}
-                          </div>
-                          <div className="text-[#5B6166]">
-                            {loan.peminjam?.jabatan ? `${loan.peminjam.jabatan}` : ''}
-                            {loan.peminjam?.nomor_pegawai ? ` • NIP: ${loan.peminjam.nomor_pegawai}` : ''}
-                          </div>
-                          <div className="text-[10px] text-[#8C9399]">
-                            {loan.peminjam?.email}
-                          </div>
-                        </td>
+                          </p>
+                          <p className="truncate text-xs text-[#8A90A2]">
+                            {loan.peminjam?.jabatan || loan.peminjam?.email}
+                          </p>
+                        </div>
+                      </div>
 
-                        {/* Kolom Keperluan */}
-                        <td className="p-3 align-top text-xs text-[#1A1D21] max-w-xs">
-                          <p className="line-clamp-3 leading-relaxed">{loan.keperluan}</p>
-                        </td>
+                      <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-[#4B5163]">
+                        <FileText className="mr-1 inline h-3.5 w-3.5 text-[#9AA0B2]" />
+                        {loan.keperluan}
+                      </p>
 
-                        {/* Kolom Tanggal Pinjam & Kembali */}
-                        <td className="p-3 align-top font-mono text-[11px] text-[#5B6166] space-y-1">
-                          <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-[#8C9399] uppercase w-12">Pinjam:</span>
-                            <span className="font-semibold text-[#1A1D21]">
-                              {loan.tanggal_pinjam
-                                ? new Date(loan.tanggal_pinjam).toLocaleDateString('id-ID', {
-                                    day: '2-digit',
-                                    month: 'short',
-                                    year: 'numeric',
-                                  })
-                                : '-'}
-                            </span>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <p className="text-[#9AA0B2]">Tgl Pinjam</p>
+                          <p className="font-medium text-[#1F2333]">{formatDate(loan.tanggal_pinjam) || '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[#9AA0B2]">Tgl Kembali</p>
+                          <p className={loan.tanggal_kembali ? 'font-medium text-[#137333]' : 'text-[#9AA0B2]'}>
+                            {formatDate(loan.tanggal_kembali) || 'Belum kembali'}
+                          </p>
+                        </div>
+                        {doc && (
+                          <div className="col-span-2 flex items-center gap-1 text-[#8A90A2]">
+                            <MapPin className="h-3 w-3 text-[#3BA4E8]" />
+                            {doc.lokasi_saat_ini || 'Gudang Inaktif'}
                           </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-[#8C9399] uppercase w-12">Kembali:</span>
-                            <span className={loan.tanggal_kembali ? 'font-semibold text-emerald-700' : 'text-[#8C9399]'}>
-                              {loan.tanggal_kembali
-                                ? new Date(loan.tanggal_kembali).toLocaleDateString('id-ID', {
-                                    day: '2-digit',
-                                    month: 'short',
-                                    year: 'numeric',
-                                  })
-                                : 'Belum kembali'}
-                            </span>
-                          </div>
-                          {loan.pic_inaktif && (
-                            <div className="text-[10px] text-[#8C9399] pt-1">
-                              PIC: {loan.pic_inaktif.nama_lengkap || loan.pic_inaktif.email}
-                            </div>
-                          )}
-                        </td>
+                        )}
+                      </div>
 
-                        {/* Kolom Status Badge */}
-                        <td className="p-3 align-top text-center">
-                          {loan.status === 'Diajukan' && (
-                            <span className="inline-block px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-600 font-mono font-bold text-[10px]">
-                              DIAJUKAN
-                            </span>
-                          )}
-                          {loan.status === 'Dipinjam' && (
-                            <span className="inline-block px-2.5 py-1 bg-sky-50 text-sky-800 border border-sky-600 font-mono font-bold text-[10px]">
-                              DIPINJAM
-                            </span>
-                          )}
-                          {loan.status === 'Dikembalikan' && (
-                            <span className="inline-block px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-600 font-mono font-bold text-[10px]">
-                              DIKEMBALIKAN
-                            </span>
-                          )}
-                          {loan.status === 'Ditolak' && (
-                            <span className="inline-block px-2.5 py-1 bg-red-50 text-red-800 border border-red-600 font-mono font-bold text-[10px]">
-                              DITOLAK
-                            </span>
-                          )}
-                        </td>
-
-                        {/* Kolom Aksi */}
-                        <td className="p-3 align-top text-center font-mono text-xs">
-                          <div className="flex flex-col items-center gap-1.5">
-                            {/* Tindakan PIC: Setujui / Tolak saat Diajukan (Hanya PIC Arsip) */}
-                            {loan.status === 'Diajukan' && isPicArsip && (
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleApproveLoan(loan.id)}
-                                  disabled={processingId === loan.id}
-                                  className="px-2.5 py-1 bg-[#1F5C55] hover:bg-[#184843] text-white font-semibold text-[11px] flex items-center gap-1 disabled:opacity-50"
-                                >
-                                  {processingId === loan.id ? (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <CheckCircle2 className="w-3 h-3" />
-                                  )}
-                                  <span>Setujui</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setRejectingLoan(loan)}
-                                  disabled={processingId === loan.id}
-                                  className="px-2.5 py-1 bg-white border border-red-700 hover:bg-red-50 text-red-700 font-semibold text-[11px] disabled:opacity-50"
-                                >
-                                  Tolak
-                                </button>
-                              </div>
-                            )}
-
-                            {/* Tindakan Pengembalian saat status Dipinjam */}
-                            {loan.status === 'Dipinjam' && (isPicOrAdmin || isBorrower) && (
-                              <button
-                                type="button"
-                                onClick={() => handleReturnLoan(loan.id)}
-                                disabled={processingId === loan.id}
-                                className="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-[11px] flex items-center gap-1 disabled:opacity-50"
-                              >
-                                {processingId === loan.id ? (
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                ) : (
-                                  <RotateCcw className="w-3 h-3" />
-                                )}
-                                <span>{isPicOrAdmin ? 'Konfirmasi Kembali' : 'Kembalikan Berkas'}</span>
-                              </button>
-                            )}
-
-                            {/* Status Selesai / Ditolak */}
-                            {(loan.status === 'Dikembalikan' || loan.status === 'Ditolak') && (
-                              <span className="text-[#8C9399] text-[11px] italic">
-                                Selesai
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                      <div className="mt-4 flex items-center border-t border-[#ECEEF5] pt-3">
+                        {renderActions(loan, true)}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
           )}
         </div>
       </div>
