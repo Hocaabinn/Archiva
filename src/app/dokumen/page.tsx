@@ -926,6 +926,7 @@ function DaftarDokumenContent() {
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-[#ECEEF5] text-xs text-[#4B5163]">
+                    <th className="w-12 px-4 py-3 text-center font-normal">No.</th>
                     <th className="px-5 py-3 font-normal">Dokumen</th>
                     <th className="px-4 py-3 font-normal">Kategori</th>
                     <th className="px-4 py-3 font-normal">Status</th>
@@ -935,9 +936,14 @@ function DaftarDokumenContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#F1F2F7]">
-                  {pagedDocs.map((doc) => (
-                    <tr key={doc.id} className="transition-colors hover:bg-[#F9FBFE]">
-                      <td className="px-5 py-3.5">
+                  {pagedDocs.map((doc, idx) => {
+                    const rowNumber = (currentPage - 1) * PAGE_SIZE + idx + 1
+                    return (
+                      <tr key={doc.id} className="transition-colors hover:bg-[#F9FBFE]">
+                        <td className="w-12 px-4 py-3.5 text-center text-xs font-mono font-medium text-[#6B7185]">
+                          {rowNumber}
+                        </td>
+                        <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EEF7FD] text-[#3BA4E8]">
                             <FileText className="h-5 w-5" />
@@ -982,7 +988,8 @@ function DaftarDokumenContent() {
                         <ActionButtons doc={doc} />
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
