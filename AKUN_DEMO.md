@@ -8,14 +8,14 @@ Dokumen ini adalah lembar panduan bagi penguji / dosen untuk mencoba autentikasi
 
 | No | Peran (Role) | Email Terdaftar | Kata Sandi | Deskripsi Hak Akses Utama |
 |---|---|---|---|---|
-| 1 | **Superadmin** (`superadmin`) | `admin@example.com` | `Arsip2026!` | Kelola akun/role, unit, kategori, lokasi, boks, pengaturan sistem sebagai maintainer |
-| 2 | **PIC Arsip Aktif** (`pic_aktif`) | `pic.arsip@example.com` | `Arsip2026!` | Entri dokumen unitnya, edit metadata selagi menunggu, serah terima, cetak QR/barcode |
-| 3 | **Atasan Arsip Aktif** (`atasan_aktif`) | `atasan@example.com` | `Arsip2026!` | Persetujuan entri PIC unitnya, pembatalan dokumen aktif (alasan wajib), persetujuan hapus |
-| 4 | **PIC Arsip Inaktif** (`pic_inaktif`) | `pic.inaktif@example.com` | `Arsip2026!` | Kelola gudang inaktif, layanan peminjaman inaktif, pantau kapasitas gudang |
-| 5 | **Atasan Arsip Inaktif** (`atasan_inaktif`) | `atasan.inaktif@example.com` | `Arsip2026!` | Pengawasan berkas inaktif, kapasitas gudang inaktif, tindak lanjut retensi |
-| 6 | **Staff** (`staff`) | `accounting@example.com` | `Arsip2026!` | Melihat dan mengunduh seluruh dokumen resmi (tidak bisa entri, edit, hapus, approve) |
-| 7 | **Staff (Alternatif)** (`staff`) | `viewer@example.com` | `Arsip2026!` | Melihat dan mengunduh seluruh dokumen resmi |
-| 8 | **PIC Arsip Aktif (Pengaju)** (`pic_aktif`) | `pengaju@example.com` | `Arsip2026!` | Entri dokumen unit Keuangan |
+| 1 | **Superadmin** (`superadmin`) | `admin@example.com` | `password123` | Kelola akun/role, unit, kategori, lokasi, boks, pengaturan sistem sebagai maintainer |
+| 2 | **PIC Arsip Aktif** (`pic_aktif`) | `pic.arsip@example.com` | `password123` | Entri dokumen unitnya, edit metadata selagi menunggu, serah terima, cetak QR/barcode |
+| 3 | **Atasan Arsip Aktif** (`atasan_aktif`) | `atasan@example.com` | `password123` | Persetujuan entri PIC unitnya, pembatalan dokumen aktif (alasan wajib), persetujuan hapus |
+| 4 | **PIC Arsip Inaktif** (`pic_inaktif`) | `pic.inaktif@example.com` | `password123` | Kelola gudang inaktif, layanan peminjaman inaktif, pantau kapasitas gudang |
+| 5 | **Atasan Arsip Inaktif** (`atasan_inaktif`) | `atasan.inaktif@example.com` | `password123` | Pengawasan berkas inaktif, kapasitas gudang inaktif, tindak lanjut retensi |
+| 6 | **Staff** (`staff`) | `accounting@example.com` | `password123` | Melihat dan mengunduh seluruh dokumen resmi (tidak bisa entri, edit, hapus, approve) |
+| 7 | **Staff (Alternatif)** (`staff`) | `viewer@example.com` | `password123` | Melihat dan mengunduh seluruh dokumen resmi |
+| 8 | **PIC Arsip Aktif (Pengaju)** (`pic_aktif`) | `pengaju@example.com` | `password123` | Entri dokumen unit Keuangan |
 
 ---
 
