@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { StampBadge } from '@/components/ui/stamp-badge'
 import { DocumentQR } from '@/components/documents/qr-code'
-import GlassFolder, { FolderFile, ArtPreset } from '@/components/ui/glass-folder-cards'
+import GlassFolder, { FolderFile, ArtPreset, MiniGlassFolder } from '@/components/ui/glass-folder-cards'
 import { UserRole, DokumenStatus } from '@/types'
 import {
   Search,
@@ -289,7 +289,7 @@ function DaftarDokumenContent() {
   const [endDateFilter, setEndDateFilter] = useState('')
   const [showFilterLanjutan, setShowFilterLanjutan] = useState(false)
   const [sortBy, setSortBy] = useState('terbaru')
-  const [viewMode, setViewMode] = useState<'folder' | 'table' | 'grid'>('folder')
+  const [viewMode, setViewMode] = useState<'table' | 'folder' | 'grid'>('table')
   const [page, setPage] = useState(1)
   const [exportOpen, setExportOpen] = useState(false)
 
@@ -877,9 +877,9 @@ function DaftarDokumenContent() {
                   <option value="judul_az">Judul A–Z</option>
                 </select>
                 <div className="flex shrink-0 rounded-lg bg-[#F4F5FA] p-1">
-                  {(['folder', 'table', 'grid'] as const).map((mode) => {
-                    const Icon = mode === 'folder' ? FolderArchive : mode === 'table' ? List : LayoutGrid
-                    const title = mode === 'folder' ? 'Tampilan Folder Kaca' : mode === 'table' ? 'Tampilan Tabel' : 'Tampilan Kartu'
+                  {(['table', 'folder', 'grid'] as const).map((mode) => {
+                    const Icon = mode === 'table' ? List : mode === 'folder' ? FolderArchive : LayoutGrid
+                    const title = mode === 'table' ? 'Tampilan Tabel' : mode === 'folder' ? 'Tampilan Folder Kaca' : 'Tampilan Kartu'
                     return (
                       <button
                         key={mode}
@@ -1072,15 +1072,13 @@ function DaftarDokumenContent() {
                   {pagedDocs.map((doc, idx) => {
                     const rowNumber = (currentPage - 1) * PAGE_SIZE + idx + 1
                     return (
-                      <tr key={doc.id} className="transition-colors hover:bg-[#F9FBFE]">
+                      <tr key={doc.id} className="group transition-colors hover:bg-[#F9FBFE]">
                         <td className="w-12 px-4 py-3.5 text-center text-xs font-mono font-medium text-[#6B7185]">
                           {rowNumber}
                         </td>
                         <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EEF7FD] text-[#3BA4E8]">
-                            <FileText className="h-5 w-5" />
-                          </span>
+                          <MiniGlassFolder kategori={doc.kategori} status={doc.status} />
                           <div className="min-w-0 max-w-[240px] sm:max-w-[340px] lg:max-w-[420px]">
                             <div className="flex items-center gap-1.5 min-w-0">
                               <Link href={`/dokumen/${doc.id}`} className="block truncate font-semibold text-[#1F2333] hover:text-[#1E86C8]">
@@ -1136,9 +1134,7 @@ function DaftarDokumenContent() {
                   <div>
                     {/* Header kartu: icon di kiri, badge status & kepemilikan di kanan */}
                     <div className="flex items-start justify-between gap-2">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EEF7FD] text-[#3BA4E8]">
-                        <FileText className="h-5 w-5" />
-                      </span>
+                      <MiniGlassFolder kategori={doc.kategori} status={doc.status} />
                       <div className="flex flex-wrap items-center justify-end gap-1.5 max-w-[70%]">
                         {doc.pemilik_id === userId && (
                           <span className="inline-flex shrink-0 items-center rounded-full bg-[#EBF5FB] px-2 py-0.5 text-[10px] font-semibold text-[#1E86C8] border border-[#3BA4E8]/20">

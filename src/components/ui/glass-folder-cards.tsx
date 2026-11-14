@@ -490,6 +490,82 @@ const FRONT_PATH =
   (FRONT_H - 22) +
   "Z"
 
+/**
+ * MiniGlassFolder — ikon miniatur Folder Kaca 3-layer untuk tabel & kartu ringkas
+ */
+export function MiniGlassFolder({
+  kategori = 'Umum',
+  status = 'aktif',
+  className = '',
+}: {
+  kategori?: string
+  status?: string
+  className?: string
+}) {
+  const uid = React.useId().replace(/:/g, '')
+
+  let c1 = '#1E3A5F'
+  let c2 = '#3BA4E8'
+
+  const katLower = (kategori || '').toLowerCase()
+  if (katLower.includes('keu')) {
+    c1 = '#1E3A5F'
+    c2 = '#0284C7'
+  } else if (katLower.includes('sdm')) {
+    c1 = '#134E4A'
+    c2 = '#10B981'
+  } else if (katLower.includes('kon') || katLower.includes('huk')) {
+    c1 = '#311042'
+    c2 = '#9333EA'
+  } else if (status === 'inaktif') {
+    c1 = '#334155'
+    c2 = '#64748B'
+  } else if (status === 'ditolak') {
+    c1 = '#7F1D1D'
+    c2 = '#EF4444'
+  }
+
+  return (
+    <div className={`relative flex items-center justify-center shrink-0 w-10 h-8.5 select-none ${className}`}>
+      <svg className="w-10 h-8.5 overflow-visible" viewBox="0 0 340 272" aria-hidden="true">
+        <defs>
+          <linearGradient id={`mgf-b-${uid}`} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor={c1} />
+            <stop offset="100%" stopColor={c2} />
+          </linearGradient>
+          <linearGradient id={`mgf-f-${uid}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.82" />
+            <stop offset="40%" stopColor="#ffffff" stopOpacity="0.48" />
+            <stop offset="100%" stopColor="#edf2f7" stopOpacity="0.94" />
+          </linearGradient>
+          <linearGradient id={`mgf-r-${uid}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.98" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.25" />
+          </linearGradient>
+        </defs>
+
+        {/* Back panel artwork */}
+        <path d={BACK_PATH} fill={`url(#mgf-b-${uid})`} />
+
+        {/* Lembar berkas kertas di dalam pocket */}
+        <g className="transition-transform duration-200 group-hover:-translate-y-3.5">
+          <rect x="36" y="38" width="268" height="190" rx="14" fill="#ffffff" filter="drop-shadow(0 2px 5px rgba(0,0,0,0.18))" />
+          {/* Garis isi dokumen */}
+          <line x1="60" y1="68" x2="190" y2="68" stroke={c1} strokeWidth="9" strokeLinecap="round" strokeOpacity="0.8" />
+          <line x1="60" y1="96" x2="260" y2="96" stroke="#94A3B8" strokeWidth="6" strokeLinecap="round" strokeOpacity="0.5" />
+          <line x1="60" y1="120" x2="220" y2="120" stroke="#CBD5E1" strokeWidth="6" strokeLinecap="round" strokeOpacity="0.6" />
+        </g>
+
+        {/* Front frosted glass panel */}
+        <g transform="translate(0, 74)" className="transition-transform duration-200 origin-bottom group-hover:scale-y-[0.95]">
+          <path d={FRONT_PATH} fill={`url(#mgf-f-${uid})`} />
+          <path d={FRONT_PATH} fill="none" stroke={`url(#mgf-r-${uid})`} strokeWidth="3" />
+        </g>
+      </svg>
+    </div>
+  )
+}
+
 const MAX_VISIBLE = 4
 
 const SAMPLE_FILES: FolderFile[] = [
