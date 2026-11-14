@@ -387,17 +387,17 @@ export default function RegisterForm() {
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Mendaftarkan Akun Pengaju...</span>
+                      <span>Mendaftarkan Akun Baru...</span>
                     </>
                   ) : (
                     <>
-                      <span>Daftarkan Akun (Pengaju)</span>
+                      <span>Daftarkan Akun Baru</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
                 </button>
                 <p className="text-[11px] text-[#4B5E76] text-center mt-2">
-                  Akun langsung aktif dengan peran Pengaju untuk upload & pengelolaan dokumen pribadi.
+                  Akun langsung aktif dengan peran Staff. Hak akses operasional kearsipan ditetapkan oleh Superadmin.
                 </p>
               </div>
             </form>

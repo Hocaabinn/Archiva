@@ -394,7 +394,7 @@ export default function LoginForm() {
                 href="/register" 
                 className="font-medium text-[#1E3A5F] underline underline-offset-4 hover:text-[#111827] transition-colors"
               >
-                Daftar Akun Pengaju →
+                Daftar Akun Baru →
               </Link>
             </div>
           </div>

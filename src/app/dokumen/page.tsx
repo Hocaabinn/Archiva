@@ -182,7 +182,7 @@ function mapRow(d: any): DocRow {
     status: d.status,
     lokasi_saat_ini: d.lokasi_saat_ini || '-',
     pemegang_saat_ini: d.pemegang_saat_ini || d.pemilik_id,
-    pemegang_nama: (d.pemegang as any)?.nama_lengkap || (d.pemegang as any)?.email || (d.pemilik as any)?.nama_lengkap || (d.pemilik as any)?.email || 'Pengaju',
+    pemegang_nama: (d.pemegang as any)?.nama_lengkap || (d.pemegang as any)?.email || (d.pemilik as any)?.nama_lengkap || (d.pemilik as any)?.email || 'PIC Unit',
     tanggal_dokumen: d.tanggal_dokumen || '',
     tanggal_kadaluarsa: d.tanggal_kadaluarsa || null,
     file_size: d.ukuran_file ?? d.file_size ?? null,
@@ -197,7 +197,7 @@ const emptyForm = (kategoriId = ''): FormState => ({
   nomor_dokumen: '',
   kategori_id: kategoriId,
   tanggal_dokumen: todayISO(),
-  lokasi_saat_ini: 'Meja Pengaju',
+  lokasi_saat_ini: 'Ruang PIC Arsip Aktif',
   deskripsi: '',
   status: 'menunggu_persetujuan',
   file: null,
@@ -975,7 +975,7 @@ function DaftarDokumenContent() {
                         <StampBadge status={doc.status} />
                       </td>
                       <td className="whitespace-nowrap px-4 py-3.5 text-xs text-[#4B5163]">
-                        <span className="font-medium text-[#111827] block">{doc.pemegang_nama || 'Pengaju'}</span>
+                        <span className="font-medium text-[#111827] block">{doc.pemegang_nama || 'PIC Unit'}</span>
                         <span className="text-[#64748B] flex items-center gap-1 mt-0.5">
                           <MapPin className="h-3 w-3 shrink-0" />
                           {doc.lokasi_saat_ini}

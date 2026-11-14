@@ -183,7 +183,7 @@ function KelolaPenggunaContent() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[#1F2333] sm:text-[28px]">Kelola Pengguna</h1>
         <p className="mt-1 text-sm text-[#4B5163]">
-          Atur peran setiap akun. Pendaftar baru otomatis menjadi Pengaju; perubahan peran berlaku saat pengguna masuk kembali.
+          Atur peran setiap akun. Pendaftar baru otomatis menjadi Staff; perubahan peran berlaku saat pengguna masuk kembali.
         </p>
       </div>
 

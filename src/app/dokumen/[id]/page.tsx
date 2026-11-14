@@ -294,7 +294,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Gagal menolak dokumen.')
-        showToast('success', 'Dokumen ditolak dan dikembalikan ke Pengaju beserta alasan.')
+        showToast('success', 'Dokumen ditolak dan dikembalikan ke PIC Arsip Aktif beserta alasan.')
       } else if (modalType === 'ajukan_ulang') {
         if (!editJudul.trim()) {
           showToast('error', 'Judul dokumen wajib diisi.')
@@ -387,7 +387,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
     'w-full rounded-lg border border-[#E3E6F0] bg-white px-3.5 py-2.5 text-sm text-[#1F2333] placeholder:text-[#A5ABBC] focus:border-[#3BA4E8] focus:outline-none focus:ring-2 focus:ring-[#3BA4E8]/15'
 
   const metaRows: { icon: React.ComponentType<{ className?: string }>; label: string; value: React.ReactNode }[] = [
-    { icon: User, label: 'Pengaju (Pemilik)', value: doc.pemilik_nama },
+    { icon: User, label: 'Pengunggah (PIC Unit)', value: doc.pemilik_nama },
     { icon: User, label: 'Pemegang Saat Ini', value: doc.pemegang_nama },
     { icon: MapPin, label: 'Lokasi Fisik', value: doc.lokasi_saat_ini },
     { icon: Pencil, label: 'Penandatangan', value: doc.penandatangan || '-' },

@@ -465,7 +465,7 @@ function DashboardBody() {
           }
 
           const pemegangNama =
-            d.pemegang?.nama_lengkap || d.pemegang?.email || d.pemilik?.nama_lengkap || d.pemilik?.email || 'Pengaju'
+            d.pemegang?.nama_lengkap || d.pemegang?.email || d.pemilik?.nama_lengkap || d.pemilik?.email || 'PIC Unit'
 
           return {
             id: d.id,
