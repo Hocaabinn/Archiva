@@ -1,0 +1,51 @@
+// ERD Master Pengguna, Organisasi, Kategori, dan Lokasi
+// Patokan: BLUEPRINT.md 4.3.1 & 4.4 R.03 — PT Semen Indonesia Group
+
+Table profiles {
+  id uuid [pk] // references auth.users(id)
+  email text [not null, unique]
+  nama text [not null]
+  nomor_pegawai text
+  jabatan text
+  unit_id uuid [ref: > unit_organisasi.id]
+  role text [not null, default: 'staff'] // superadmin, pic_aktif, atasan_aktif, pic_inaktif, atasan_inaktif, staff
+  avatar_url text
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table unit_organisasi {
+  id uuid [pk]
+  nama text [not null, unique] // Keuangan, Legal
+  kode_perusahaan text [not null, default: '2000']
+  created_at timestamptz [default: `now()`]
+}
+
+Table kategori_dokumen {
+  id uuid [pk]
+  nama text [not null, unique]
+  kode text [not null, unique] // mis. KEU, SDM, KTR
+  deskripsi text
+  is_active boolean [default: true]
+  created_at timestamptz [default: `now()`]
+}
+
+Table lokasi {
+  id uuid [pk]
+  nama text [not null] // Gedung A, Ruang Arsip Aktif, Rak 01
+  tingkat text [not null] // Gedung, Ruangan, Rak
+  parent_id uuid [ref: - lokasi.id] // self-referencing hierarchy
+  created_at timestamptz [default: `now()`]
+}
+
+Table boks {
+  id uuid [pk]
+  nomor_boks text [not null] // 01, 02
+  rak_id uuid [not null, ref: > lokasi.id] // lokasi bertingkat Rak
+  kapasitas_maks_lembar int [not null, default: 500]
+  jumlah_lembar_terisi int [not null, default: 0]
+  qr_path text
+  status text [not null, default: 'Aktif'] // Aktif, Penuh
+  created_at timestamptz [default: `now()`]
+}
+

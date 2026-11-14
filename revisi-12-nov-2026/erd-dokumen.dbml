@@ -1,0 +1,78 @@
+// ERD Dokumen, Serah Terima, Peminjaman, dan Notifikasi
+// Patokan: BLUEPRINT.md 4.3.2 & 4.4 R.03 — PT Semen Indonesia Group
+
+Table dokumen {
+  id uuid [pk]
+  kode_arsip text [not null, unique] // TAHUN_KODEPERUSAHAAN_NOPAYMENT_DOCVOUCHER
+  judul text [not null]
+  nomor_dokumen text // Doc Voucher
+  nomor_ppl text // No. Payment / PPL (10 digit)
+  kategori_id uuid [ref: > kategori_dokumen.id]
+  unit_id uuid [ref: > unit_organisasi.id] // Unit PIC Arsip Aktif pengentri
+  pemilik_id uuid [ref: > profiles.id] // PIC Arsip Aktif pengentri
+  pemegang_saat_ini uuid [ref: > profiles.id]
+  boks_id uuid [ref: > boks.id] // Wadah fisik dokumen
+  lokasi_saat_ini text // Gedung A / Ruangan Arsip / Rak 1
+  tanggal_dokumen date [default: `CURRENT_DATE`]
+  tanggal_masuk timestamptz [default: `now()`]
+  tanggal_disetujui timestamptz
+  tanggal_kadaluarsa date // tanggal_disetujui + 3 tahun
+  status text [not null, default: 'menunggu_persetujuan'] // menunggu_persetujuan, aktif, ditolak, inaktif, dibatalkan
+  bucket text [not null, default: 'arsip-aktif'] // arsip-aktif, arsip-inaktif
+  file_path text [not null]
+  file_tipe text
+  ukuran_file bigint
+  jumlah_halaman int [not null, default: 1] // lembar fisik dokumen
+  barcode_path text
+  disetujui_oleh uuid [ref: > profiles.id] // Atasan Arsip Aktif
+  penandatangan text
+  alasan_penolakan text
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table peminjaman {
+  id uuid [pk]
+  dokumen_id uuid [not null, ref: > dokumen.id] // Hanya dokumen Inaktif
+  peminjam_id uuid [not null, ref: > profiles.id]
+  pic_inaktif_id uuid [ref: > profiles.id] // PIC Arsip Inaktif penyetuju
+  tanggal_pinjam timestamptz [default: `now()`]
+  tanggal_kembali timestamptz
+  status text [not null, default: 'Diajukan'] // Diajukan, Disetujui, Dipinjam, Dikembalikan, Ditolak
+  keperluan text [not null]
+  created_at timestamptz [default: `now()`]
+}
+
+Table serah_terima {
+  id uuid [pk]
+  dokumen_id uuid [not null, ref: > dokumen.id]
+  dari_user_id uuid [not null, ref: > profiles.id]
+  ke_user_id uuid [not null, ref: > profiles.id]
+  dari_lokasi text [not null]
+  ke_lokasi text [not null]
+  tanggal_serah timestamptz [default: `now()`]
+  tanggal_terima timestamptz
+  status_serah text [not null, default: 'Menunggu konfirmasi'] // Menunggu konfirmasi, Diterima, Ditolak
+  keterangan text
+  bukti_pdf_path text
+  created_at timestamptz [default: `now()`]
+}
+
+Table log_aktivitas {
+  id uuid [pk]
+  dokumen_id uuid [ref: > dokumen.id] // Boleh null untuk aktivitas umum
+  user_id uuid [ref: > profiles.id]
+  aksi text [not null] // entri, persetujuan, tolak, lihat, download, pindah_inaktif, peminjaman, serah_terima, pembatalan
+  keterangan text
+  created_at timestamptz [default: `now()`]
+}
+
+Table notifikasi {
+  id uuid [pk]
+  user_id uuid [not null, ref: > profiles.id]
+  dokumen_id uuid [ref: > dokumen.id] // Boleh null
+  judul text [not null]
+  pesan text // teks notifikasi
+  dibaca boolean [not null, default: false]
+  created_at timestamptz [default: `now()`]
+}

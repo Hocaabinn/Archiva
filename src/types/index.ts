@@ -1,5 +1,35 @@
 export type UserRole = 'admin' | 'pic_arsip' | 'atasan' | 'user' | 'accounting' | 'viewer';
 
+export interface UnitOrganisasi {
+  id: string;
+  nama: string; // Keuangan, Legal
+  kode_perusahaan: string; // 2000
+  created_at: string;
+}
+
+export type LokasiTingkat = 'Gedung' | 'Ruangan' | 'Rak';
+
+export interface Lokasi {
+  id: string;
+  nama: string;
+  tingkat: LokasiTingkat;
+  parent_id?: string | null;
+  created_at: string;
+}
+
+export type BoksStatus = 'Aktif' | 'Penuh';
+
+export interface Boks {
+  id: string;
+  nomor_boks: string; // 01, 02
+  rak_id: string;
+  kapasitas_maks_lembar: number; // default 500
+  jumlah_lembar_terisi: number;
+  qr_path?: string | null;
+  status: BoksStatus;
+  created_at: string;
+}
+
 export interface Profile {
   id: string;
   email: string;
@@ -8,13 +38,15 @@ export interface Profile {
   nomor_pegawai?: string;
   nip_nik?: string;
   jabatan?: string;
+  unit_id?: string | null;
+  unit?: UnitOrganisasi;
   role: UserRole;
   avatar_url?: string;
   created_at: string;
   updated_at?: string;
 }
 
-// 5 Status Dokumen Standar Blueprint R.02 (SIG)
+// 5 Status Dokumen Standar Blueprint R.03 (SIG)
 export type DokumenStatus = 'menunggu_persetujuan' | 'aktif' | 'ditolak' | 'inaktif' | 'dibatalkan';
 
 export interface Dokumen {
@@ -26,6 +58,10 @@ export interface Dokumen {
   penandatangan?: string;
   kategori_id: string;
   kategori_nama?: string;
+  unit_id?: string | null;
+  unit?: UnitOrganisasi;
+  boks_id?: string | null;
+  boks?: Boks;
   deskripsi?: string;
   status: DokumenStatus;
   bucket: string; // 'arsip-aktif' | 'arsip-inaktif'
@@ -33,6 +69,7 @@ export interface Dokumen {
   file_tipe?: string;
   ukuran_file?: number;
   file_size?: number; // fallback alias
+  jumlah_halaman?: number; // Jumlah lembar fisik (default: 1)
   mime_type?: string; // fallback alias
   barcode_path?: string;
   qr_code_path?: string; // fallback alias
@@ -47,7 +84,7 @@ export interface Dokumen {
   tanggal_disetujui?: string;
   tanggal_kadaluarsa?: string; // tanggal_disetujui + 3 tahun
   verifikasi_pic?: string;
-  verifikasi_pic_oleh?: string; // fallback alias
+  verifikasi_pic_oleh?: string; // legacy / deprecated
   disetujui_oleh?: string;
   approval_atasan_oleh?: string; // fallback alias
   alasan_penolakan?: string;
@@ -105,6 +142,8 @@ export interface LogAktivitas {
   dokumen_id?: string;
   user_id?: string;
   user?: Profile;
+  user_nama?: string;
+  user_email?: string;
   aksi: string;
   keterangan?: string;
   created_at: string;
@@ -115,8 +154,9 @@ export interface Notifikasi {
   user_id: string;
   judul: string;
   isi: string;
-  dokumen_id?: string;
+  pesan?: string;
   dibaca: boolean;
+  dokumen_id?: string;
   created_at: string;
 }
 
