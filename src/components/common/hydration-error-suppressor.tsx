@@ -1,38 +1,56 @@
 'use client';
 
 if (typeof window !== 'undefined') {
-  // Tangkap dan cegah popup error runtime dari ekstensi browser pihak ketiga (seperti M_ID, IDM, adblocker, dsb)
-  window.addEventListener('error', (event) => {
-    const msg = event.message || '';
-    const file = event.filename || '';
-    if (
-      file.includes('chrome-extension://') ||
-      msg.includes('M_ID') ||
-      msg.includes('bis_skin_checked') ||
-      msg.includes('Hydration failed') ||
-      msg.includes('hydration') ||
-      msg.includes('did not match') ||
-      (msg.includes('Cannot read properties of undefined') && file.includes('chrome-extension'))
-    ) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-    }
-  });
+  const isExtensionError = (str?: string | null) => {
+    if (!str) return false;
+    const s = String(str);
+    return (
+      s.includes('chrome-extension://') ||
+      s.includes('moz-extension://') ||
+      s.includes('safari-extension://') ||
+      s.includes('M_ID') ||
+      s.includes('eppiocemhmnlbhjplcgkofciiegomcon') ||
+      s.includes('bis_skin_checked') ||
+      s.includes('executors/200.js') ||
+      s.includes('Hydration failed') ||
+      s.includes('hydration') ||
+      s.includes('did not match') ||
+      s.includes('A tree hydrated but some attributes') ||
+      s.includes('Recoverable Error')
+    );
+  };
 
-  window.addEventListener('unhandledrejection', (event) => {
-    const reasonMsg = event.reason?.message || String(event.reason || '');
-    const stack = event.reason?.stack || '';
-    if (
-      reasonMsg.includes('M_ID') ||
-      reasonMsg.includes('chrome-extension://') ||
-      reasonMsg.includes('bis_skin_checked') ||
-      reasonMsg.includes('Hydration failed') ||
-      reasonMsg.includes('hydration') ||
-      stack.includes('chrome-extension://')
-    ) {
-      event.preventDefault();
-    }
-  });
+  // Tangkap dan cegah popup error runtime dari ekstensi browser pihak ketiga (Urban VPN, IDM, adblocker, dsb)
+  window.addEventListener(
+    'error',
+    (event) => {
+      const msg = event.message || '';
+      const file = event.filename || '';
+      const stack = event.error?.stack || '';
+      if (isExtensionError(msg) || isExtensionError(file) || isExtensionError(stack)) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        return true;
+      }
+    },
+    true
+  );
+
+  window.addEventListener(
+    'unhandledrejection',
+    (event) => {
+      const reasonMsg = event.reason?.message || String(event.reason || '');
+      const stack = event.reason?.stack || '';
+      if (isExtensionError(reasonMsg) || isExtensionError(stack)) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        return true;
+      }
+    },
+    true
+  );
 
   const originalError = console.error;
   const originalWarn = console.warn;
@@ -42,17 +60,7 @@ if (typeof window !== 'undefined') {
       .map((arg) => (typeof arg === 'string' ? arg : (arg instanceof Error ? (arg.message + ' ' + (arg.stack || '')) : '')))
       .join(' ');
 
-    if (
-      fullMessage.includes('chrome-extension://') ||
-      fullMessage.includes('M_ID') ||
-      fullMessage.includes('bis_skin_checked') ||
-      fullMessage.includes('hydration-mismatch') ||
-      fullMessage.includes('Hydration failed') ||
-      fullMessage.includes('hydration') ||
-      fullMessage.includes('did not match') ||
-      fullMessage.includes('A tree hydrated but some attributes') ||
-      fullMessage.includes('Recoverable Error')
-    ) {
+    if (isExtensionError(fullMessage)) {
       return;
     }
 
@@ -64,13 +72,7 @@ if (typeof window !== 'undefined') {
       .map((arg) => (typeof arg === 'string' ? arg : (arg instanceof Error ? (arg.message + ' ' + (arg.stack || '')) : '')))
       .join(' ');
 
-    if (
-      fullMessage.includes('chrome-extension://') ||
-      fullMessage.includes('M_ID') ||
-      fullMessage.includes('bis_skin_checked') ||
-      fullMessage.includes('hydration') ||
-      fullMessage.includes('Hydration')
-    ) {
+    if (isExtensionError(fullMessage)) {
       return;
     }
 
