@@ -547,19 +547,52 @@ export function MiniGlassFolder({
         {/* Back panel artwork */}
         <path d={BACK_PATH} fill={`url(#mgf-b-${uid})`} />
 
-        {/* Lembar berkas kertas di dalam pocket */}
-        <g className="transition-transform duration-200 group-hover:-translate-y-3.5">
-          <rect x="36" y="38" width="268" height="190" rx="14" fill="#ffffff" filter="drop-shadow(0 2px 5px rgba(0,0,0,0.18))" />
-          {/* Garis isi dokumen */}
-          <line x1="60" y1="68" x2="190" y2="68" stroke={c1} strokeWidth="9" strokeLinecap="round" strokeOpacity="0.8" />
-          <line x1="60" y1="96" x2="260" y2="96" stroke="#94A3B8" strokeWidth="6" strokeLinecap="round" strokeOpacity="0.5" />
-          <line x1="60" y1="120" x2="220" y2="120" stroke="#CBD5E1" strokeWidth="6" strokeLinecap="round" strokeOpacity="0.6" />
+        {/* Shadow lembut di bawah folder */}
+        <ellipse
+          cx="170"
+          cy="266"
+          rx="125"
+          ry="14"
+          fill="rgba(15, 23, 42, 0.28)"
+          className="transition-all duration-500 ease-out group-hover:scale-110 group-hover:opacity-70 origin-center"
+        />
+
+        {/* Back panel artwork */}
+        <path d={BACK_PATH} fill={`url(#mgf-b-${uid})`} className="transition-transform duration-500 ease-out origin-bottom group-hover:scale-[1.02]" />
+
+        {/* Lembar Berkas 1 (Kertas belakang, miring kiri) */}
+        <g className="transition-all duration-500 ease-[cubic-bezier(0.34,1.36,0.5,1)] origin-bottom group-hover:-translate-y-6 group-hover:-rotate-3">
+          <rect x="52" y="38" width="236" height="180" rx="12" fill="#F1F5F9" stroke="#E2E8F0" strokeWidth="2" />
+          <line x1="75" y1="65" x2="160" y2="65" stroke="#94A3B8" strokeWidth="7" strokeLinecap="round" />
         </g>
 
-        {/* Front frosted glass panel */}
-        <g transform="translate(0, 74)" className="transition-transform duration-200 origin-bottom group-hover:scale-y-[0.95]">
+        {/* Lembar Berkas 2 (Kertas depan dengan teks, terangkat lebih tinggi) */}
+        <g className="transition-all duration-500 delay-75 ease-[cubic-bezier(0.34,1.36,0.5,1)] origin-bottom group-hover:-translate-y-9 group-hover:rotate-2">
+          <rect x="42" y="42" width="256" height="185" rx="14" fill="#FFFFFF" />
+          {/* Garis isi dokumen */}
+          <line x1="68" y1="72" x2="190" y2="72" stroke={c1} strokeWidth="9" strokeLinecap="round" />
+          <line x1="68" y1="100" x2="255" y2="100" stroke="#94A3B8" strokeWidth="6" strokeLinecap="round" strokeOpacity="0.6" />
+          <line x1="68" y1="124" x2="215" y2="124" stroke="#CBD5E1" strokeWidth="6" strokeLinecap="round" strokeOpacity="0.7" />
+        </g>
+
+        {/* Front frosted glass panel (membuka ke depan dengan engsel pegas) */}
+        <g
+          transform="translate(0, 74)"
+          className="transition-all duration-500 ease-[cubic-bezier(0.34,1.36,0.5,1)] origin-bottom group-hover:-translate-y-1 group-hover:scale-y-[0.86] group-hover:scale-x-[1.03]"
+        >
           <path d={FRONT_PATH} fill={`url(#mgf-f-${uid})`} />
           <path d={FRONT_PATH} fill="none" stroke={`url(#mgf-r-${uid})`} strokeWidth="3" />
+          {/* Kilau specular kaca */}
+          <line
+            x1="30"
+            y1="24"
+            x2="150"
+            y2="175"
+            stroke="rgba(255,255,255,0.45)"
+            strokeWidth="7"
+            strokeLinecap="round"
+            className="transition-opacity duration-300 group-hover:opacity-90"
+          />
         </g>
       </svg>
     </div>
