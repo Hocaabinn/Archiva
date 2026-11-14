@@ -2,10 +2,11 @@
 
 import { useState, useMemo, useEffect, useCallback, Suspense } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { StampBadge } from '@/components/ui/stamp-badge'
 import { DocumentQR } from '@/components/documents/qr-code'
+import GlassFolder, { FolderFile, ArtPreset } from '@/components/ui/glass-folder-cards'
 import { UserRole, DokumenStatus } from '@/types'
 import {
   Search,
@@ -20,6 +21,7 @@ import {
   ChevronRight,
   LayoutGrid,
   List,
+  FolderArchive,
   Download,
   Printer,
   AlertTriangle,
@@ -259,6 +261,7 @@ function Field({ label, required, children, hint }: { label: string; required?: 
 // HALAMAN
 // ============================================================
 function DaftarDokumenContent() {
+  const router = useRouter()
   const [supabase] = useState(() => createClient())
 
   // Data
@@ -286,7 +289,7 @@ function DaftarDokumenContent() {
   const [endDateFilter, setEndDateFilter] = useState('')
   const [showFilterLanjutan, setShowFilterLanjutan] = useState(false)
   const [sortBy, setSortBy] = useState('terbaru')
-  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table')
+  const [viewMode, setViewMode] = useState<'folder' | 'table' | 'grid'>('folder')
   const [page, setPage] = useState(1)
   const [exportOpen, setExportOpen] = useState(false)
 
@@ -455,6 +458,82 @@ function DaftarDokumenContent() {
   const totalPages = Math.max(1, Math.ceil(filteredDocs.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
   const pagedDocs = filteredDocs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+
+  const folderGroups = useMemo(() => {
+    if (selectedKategori === 'semua') {
+      const standardCats: { id: string; nama: string; art: ArtPreset; tone: 'light' | 'dark' }[] = [
+        { id: 'keuangan', nama: 'Keuangan', art: 'aurora', tone: 'light' },
+        { id: 'sdm', nama: 'SDM', art: 'verdant', tone: 'light' },
+        { id: 'kontrak', nama: 'Kontrak', art: 'dusk', tone: 'dark' },
+      ]
+
+      const dynamicCats = new Set<string>()
+      filteredDocs.forEach((d) => {
+        if (d.kategori && !standardCats.some((c) => c.nama.toLowerCase() === d.kategori.toLowerCase())) {
+          dynamicCats.add(d.kategori)
+        }
+      })
+
+      const allCatConfigs = [
+        ...standardCats,
+        ...Array.from(dynamicCats).map((name, i) => ({
+          id: name.toLowerCase().replace(/\s+/g, '-'),
+          nama: name,
+          art: (i % 2 === 0 ? 'ember' : 'glacier') as ArtPreset,
+          tone: 'light' as const,
+        })),
+      ]
+
+      return allCatConfigs.map((cat) => {
+        const docs = filteredDocs.filter((d) => (d.kategori || '').toLowerCase() === cat.nama.toLowerCase())
+        const files: FolderFile[] = docs.slice(0, 8).map((d, i) => ({
+          name: d.judul,
+          meta: `${d.kode_arsip || d.nomor_dokumen || 'ARSIP'} · ${d.status.toUpperCase()}`,
+          href: `/dokumen/${d.id}`,
+          art: (['aurora', 'ember', 'dusk', 'glacier', 'verdant'] as ArtPreset[])[i % 5],
+        }))
+
+        return {
+          id: cat.id,
+          label: `Arsip ${cat.nama}`,
+          kategoriId: cat.id,
+          kategoriNama: cat.nama,
+          tone: cat.tone,
+          art: cat.art,
+          docs,
+          files,
+        }
+      })
+    } else {
+      const statuses: { id: DokumenStatus; label: string; art: ArtPreset; tone: 'light' | 'dark' }[] = [
+        { id: 'aktif', label: 'Arsip Aktif', art: 'glacier', tone: 'light' },
+        { id: 'menunggu_persetujuan', label: 'Menunggu Persetujuan', art: 'ember', tone: 'light' },
+        { id: 'inaktif', label: 'Arsip Inaktif', art: 'dusk', tone: 'dark' },
+        { id: 'ditolak', label: 'Ditolak / Perbaikan', art: 'verdant', tone: 'light' },
+      ]
+
+      return statuses.map((st) => {
+        const docs = filteredDocs.filter((d) => d.status === st.id)
+        const files: FolderFile[] = docs.slice(0, 8).map((d, i) => ({
+          name: d.judul,
+          meta: `${d.kode_arsip || d.nomor_dokumen || 'ARSIP'} · ${formatTanggal(d.tanggal_dokumen)}`,
+          href: `/dokumen/${d.id}`,
+          art: (['aurora', 'ember', 'dusk', 'glacier', 'verdant'] as ArtPreset[])[i % 5],
+        }))
+
+        return {
+          id: st.id,
+          label: st.label,
+          kategoriId: selectedKategori,
+          kategoriNama: selectedKategori,
+          tone: st.tone,
+          art: st.art,
+          docs,
+          files,
+        }
+      })
+    }
+  }, [filteredDocs, selectedKategori])
 
   const counts = {
     semua: documents.length,
@@ -798,15 +877,16 @@ function DaftarDokumenContent() {
                   <option value="judul_az">Judul A–Z</option>
                 </select>
                 <div className="flex shrink-0 rounded-lg bg-[#F4F5FA] p-1">
-                  {(['table', 'grid'] as const).map((mode) => {
-                    const Icon = mode === 'table' ? List : LayoutGrid
+                  {(['folder', 'table', 'grid'] as const).map((mode) => {
+                    const Icon = mode === 'folder' ? FolderArchive : mode === 'table' ? List : LayoutGrid
+                    const title = mode === 'folder' ? 'Tampilan Folder Kaca' : mode === 'table' ? 'Tampilan Tabel' : 'Tampilan Kartu'
                     return (
                       <button
                         key={mode}
                         type="button"
                         onClick={() => setViewMode(mode)}
-                        title={mode === 'table' ? 'Tampilan tabel' : 'Tampilan kartu'}
-                        className={`rounded-md p-1.5 transition-colors ${viewMode === mode ? 'bg-white text-[#1E86C8] shadow-sm' : 'text-[#6B7185] hover:text-[#1F2333]'}`}
+                        title={title}
+                        className={`rounded-md p-1.5 transition-colors ${viewMode === mode ? 'bg-white text-[#1E86C8] shadow-sm font-semibold' : 'text-[#6B7185] hover:text-[#1F2333]'}`}
                       >
                         <Icon className="h-4 w-4" />
                       </button>
@@ -920,6 +1000,59 @@ function DaftarDokumenContent() {
               </span>
               <p className="mt-1 font-semibold text-[#1F2333]">Belum ada dokumen yang cocok</p>
               <p className="text-sm text-[#6B7185]">Ubah kata kunci atau filter, atau tambahkan dokumen baru.</p>
+            </div>
+          ) : viewMode === 'folder' ? (
+            <div className="relative flex w-full flex-col items-center justify-center overflow-hidden rounded-b-xl bg-[#091528] px-4 py-16 sm:px-8 border-t border-[#1E3A5F]">
+              {/* Meja berkas dengan pola titik halus */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 text-white opacity-[0.08]"
+                style={{
+                  backgroundImage: 'radial-gradient(currentColor 1.1px, transparent 1.4px)',
+                  backgroundSize: '24px 24px',
+                }}
+              />
+
+              {/* Grid Folder Kaca Interaktif */}
+              <div className="relative grid max-w-[1240px] w-full grid-cols-1 items-end justify-items-center gap-x-12 gap-y-16 md:grid-cols-2 xl:grid-cols-3">
+                {folderGroups.map((group, idx) => (
+                  <div key={group.id} className="flex flex-col items-center">
+                    <GlassFolder
+                      label={group.label}
+                      meta={`${group.docs.length} berkas arsip`}
+                      tone={group.tone}
+                      art={group.art}
+                      seed={idx * 7 + 3}
+                      action={canUpload ? 'add' : 'more'}
+                      onAdd={() => router.push('/dokumen/upload')}
+                      menu={[
+                        {
+                          label: 'Buka di Tabel',
+                          onSelect: () => {
+                            if (group.kategoriNama) setSelectedKategori(group.kategoriNama)
+                            setViewMode('table')
+                          },
+                        },
+                      ]}
+                      files={group.files}
+                      appearDelay={idx * 120}
+                      onFileSelect={(file) => {
+                        if (file.href) router.push(file.href)
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Petunjuk Interaksi */}
+              <div className="relative mt-16 flex flex-col items-center gap-1.5 text-center">
+                <p className="font-mono text-[11px] tracking-[0.18em] text-[#94A3B8] uppercase">
+                  Arahkan kursor untuk memiringkan folder · Klik folder untuk membuka berkas · Klik lembar berkas untuk membuka rincian
+                </p>
+                <p className="text-xs text-[#64748B]">
+                  Menampilkan {filteredDocs.length} berkas dalam {folderGroups.length} map arsip interaktif
+                </p>
+              </div>
             </div>
           ) : viewMode === 'table' ? (
             <div className="overflow-x-auto">
@@ -1061,7 +1194,7 @@ function DaftarDokumenContent() {
           )}
 
           {/* Pagination */}
-          {!isLoading && filteredDocs.length > 0 && (
+          {!isLoading && filteredDocs.length > 0 && viewMode !== 'folder' && (
             <div className="flex flex-col gap-3 border-t border-[#ECEEF5] px-5 py-3.5 text-sm text-[#6B7185] sm:flex-row sm:items-center sm:justify-between">
               <span>
                 Menampilkan {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredDocs.length)} dari {filteredDocs.length} dokumen
