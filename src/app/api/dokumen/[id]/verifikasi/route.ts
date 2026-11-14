@@ -36,9 +36,9 @@ export async function POST(
       .eq('id', user.id)
       .single()
 
-    if (!profile || (profile.role !== 'pic_arsip' && profile.role !== 'admin')) {
+    if (!profile || (profile.role !== 'pic_aktif' && profile.role !== 'superadmin')) {
       return NextResponse.json(
-        { error: 'Akses Ditolak: Hanya PIC Arsip yang berhak memverifikasi kelengkapan dokumen pada tahap 1.' },
+        { error: 'Akses Ditolak: Hanya PIC Arsip Aktif yang berhak memverifikasi kelengkapan dokumen pada tahap 1.' },
         { status: 403 }
       )
     }
@@ -96,7 +96,7 @@ export async function POST(
 
     // 6. Kirim notifikasi ke semua Atasan
     await kirimNotifikasiKePeran({
-      roles: ['atasan'],
+      roles: ['atasan_aktif'],
       judul: 'Dokumen Menunggu Persetujuan Akhir',
       isi: `Dokumen "${doc.judul}" (${doc.kode_arsip}) telah lolos verifikasi tahap 1 oleh PIC Arsip dan siap untuk persetujuan akhir Anda.`,
       dokumenId: doc.id,

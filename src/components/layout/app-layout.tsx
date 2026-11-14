@@ -23,6 +23,8 @@ import {
   UserRound,
   Calculator,
   Eye,
+  Archive,
+  Building2,
 } from 'lucide-react'
 import { UserRole } from '@/types'
 import { createClient } from '@/lib/supabase/client'
@@ -54,26 +56,26 @@ interface AppUser {
 }
 
 const roleTitles: Record<UserRole, string> = {
-  admin: 'Admin Sistem',
-  pic_arsip: 'PIC Arsip',
-  atasan: 'Atasan',
-  user: 'Pengaju',
-  accounting: 'Accounting',
-  viewer: 'Viewer',
+  superadmin: 'Superadmin',
+  pic_aktif: 'PIC Arsip Aktif',
+  atasan_aktif: 'Atasan Arsip Aktif',
+  pic_inaktif: 'PIC Arsip Inaktif',
+  atasan_inaktif: 'Atasan Arsip Inaktif',
+  staff: 'Staff',
 }
 
 const roleBadgeStyles: Record<UserRole, { icon: React.ComponentType<{ className?: string }>; pill: string; iconBox: string }> = {
-  admin: { icon: ShieldCheck, pill: 'bg-[#EEF0F4] text-[#374151] border-[#D1D5DB]', iconBox: 'bg-[#374151] text-white' },
-  pic_arsip: { icon: ClipboardCheck, pill: 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]', iconBox: 'bg-[#34A853] text-white' },
-  atasan: { icon: BadgeCheck, pill: 'bg-[#FEF7E0] text-[#B06000] border-[#FEEFC3]', iconBox: 'bg-[#F29900] text-white' },
-  user: { icon: UserRound, pill: 'bg-[#EAF5FD] text-[#1E86C8] border-[#BCE1F9]', iconBox: 'bg-[#3BA4E8] text-white' },
-  accounting: { icon: Calculator, pill: 'bg-[#F3E8FD] text-[#7E3FBF] border-[#E2CCF9]', iconBox: 'bg-[#9D5CE0] text-white' },
-  viewer: { icon: Eye, pill: 'bg-[#F1F3F4] text-[#5F6368] border-[#DADCE0]', iconBox: 'bg-[#80868B] text-white' },
+  superadmin: { icon: ShieldCheck, pill: 'bg-[#EEF0F4] text-[#374151] border-[#D1D5DB]', iconBox: 'bg-[#374151] text-white' },
+  pic_aktif: { icon: ClipboardCheck, pill: 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]', iconBox: 'bg-[#34A853] text-white' },
+  atasan_aktif: { icon: BadgeCheck, pill: 'bg-[#FEF7E0] text-[#B06000] border-[#FEEFC3]', iconBox: 'bg-[#F29900] text-white' },
+  pic_inaktif: { icon: Archive, pill: 'bg-[#EAF5FD] text-[#1E86C8] border-[#BCE1F9]', iconBox: 'bg-[#3BA4E8] text-white' },
+  atasan_inaktif: { icon: Building2, pill: 'bg-[#F3E8FD] text-[#7E3FBF] border-[#E2CCF9]', iconBox: 'bg-[#9D5CE0] text-white' },
+  staff: { icon: Eye, pill: 'bg-[#F1F3F4] text-[#5F6368] border-[#DADCE0]', iconBox: 'bg-[#80868B] text-white' },
 }
 
 /** Kartu identitas workspace + lencana peran aktif di sidebar. */
 function RoleCard({ role, roleTitle, compact = false }: { role: UserRole; roleTitle: string; compact?: boolean }) {
-  const style = roleBadgeStyles[role] || roleBadgeStyles.user
+  const style = roleBadgeStyles[role] || roleBadgeStyles.staff
   const Icon = style.icon
   if (compact) {
     return (
@@ -105,8 +107,8 @@ function RoleCard({ role, roleTitle, compact = false }: { role: UserRole; roleTi
 
 const AppUserContext = createContext<AppUser>({
   name: 'Pengguna',
-  role: 'user',
-  roleTitle: roleTitles.user,
+  role: 'staff',
+  roleTitle: roleTitles.staff,
 })
 
 /** Data pengguna yang sedang login, tersedia untuk semua halaman di dalam AppLayout. */
@@ -127,7 +129,7 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
   const pathname = usePathname()
   const [supabase] = useState(() => createClient())
 
-  const [profileRole, setProfileRole] = useState<UserRole>('user')
+  const [profileRole, setProfileRole] = useState<UserRole>('staff')
   const currentRole: UserRole = initialRole || profileRole
   const [userName, setUserName] = useState<string>('Memuat...')
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -207,29 +209,29 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
       label: 'Dashboard',
       href: '/dashboard',
       icon: LayoutDashboard,
-      roles: ['admin', 'pic_arsip', 'atasan', 'user', 'accounting', 'viewer'],
+      roles: ['superadmin', 'pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif', 'staff'],
     },
     {
       label: 'Katalog Dokumen',
       icon: FolderArchive,
-      roles: ['admin', 'pic_arsip', 'atasan', 'user', 'accounting', 'viewer'],
+      roles: ['superadmin', 'pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif', 'staff'],
       children: [
-        { label: 'Daftar Dokumen', href: '/dokumen', roles: ['admin', 'pic_arsip', 'atasan', 'user', 'accounting', 'viewer'] },
-        { label: 'Verifikasi Dokumen', href: '/persetujuan', roles: ['admin', 'pic_arsip', 'atasan'] },
-        { label: 'Penyimpanan Dokumen', href: '/serah-terima', roles: ['admin', 'pic_arsip', 'user'] },
+        { label: 'Daftar Dokumen', href: '/dokumen', roles: ['superadmin', 'pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif', 'staff'] },
+        { label: 'Verifikasi Dokumen', href: '/persetujuan', roles: ['atasan_aktif', 'atasan_inaktif', 'superadmin'] },
+        { label: 'Penyimpanan Dokumen', href: '/serah-terima', roles: ['pic_aktif', 'pic_inaktif', 'superadmin'] },
       ],
     },
     {
       label: 'Peminjaman Inaktif',
       href: '/peminjaman',
       icon: BookOpenCheck,
-      roles: ['admin', 'pic_arsip', 'user', 'atasan', 'accounting'],
+      roles: ['superadmin', 'pic_inaktif', 'atasan_inaktif', 'pic_aktif', 'staff'],
     },
     {
       label: 'Buku Log Riwayat',
       href: '/riwayat',
       icon: History,
-      roles: ['admin', 'pic_arsip', 'atasan', 'accounting'],
+      roles: ['superadmin', 'pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif'],
     },
   ]
 
@@ -360,7 +362,7 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
               </nav>
 
               <div className="px-3 py-4 border-t border-[#ECEEF5] space-y-1">
-                {currentRole === 'admin' && (
+                {currentRole === 'superadmin' && (
                   <Link
                     href="/pengaturan/pengguna"
                     onClick={() => setIsMobileMenuOpen(false)}
@@ -493,7 +495,7 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
 
           {/* Bagian bawah sidebar */}
           <div className="px-3 py-4 border-t border-[#ECEEF5] space-y-1">
-            {currentRole === 'admin' && (
+            {currentRole === 'superadmin' && (
               <Link
                 href="/pengaturan/pengguna"
                 title="Pengaturan Sistem"

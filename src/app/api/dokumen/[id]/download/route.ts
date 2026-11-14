@@ -43,16 +43,7 @@ export async function GET(
 
     const userRole = profile.role
 
-    // 3. ATURAN KERAS BLUEPRINT BAB 5: VIEWER TIDAK BOLEH DOWNLOAD BERKAS FISIK
-    if (userRole === 'viewer') {
-      return NextResponse.json(
-        {
-          error:
-            'Akses Ditolak: Peran Viewer hanya berhak melihat daftar dan detail dokumen, serta dilarang keras mengunduh berkas fisik.',
-        },
-        { status: 403 }
-      )
-    }
+    // 3. ATURAN BLUEPRINT R.03 BAB 5: Seluruh peran terautentikasi (termasuk Staff) berhak mengunduh dokumen resmi.
 
     // 4. Ambil Data Dokumen menggunakan Admin Client
     const adminClient = createAdminClient()

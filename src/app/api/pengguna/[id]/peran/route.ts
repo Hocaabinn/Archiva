@@ -25,10 +25,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       )
     }
 
-    // Cegah Admin menurunkan perannya sendiri (agar sistem tidak kehilangan Admin secara tidak sengaja)
-    if (id === auth.user.id && role !== 'admin') {
+    // Cegah Superadmin menurunkan perannya sendiri (agar sistem tidak kehilangan Superadmin)
+    if (id === auth.user.id && role !== 'superadmin') {
       return NextResponse.json(
-        { error: 'Anda tidak dapat mengubah peran akun Anda sendiri. Minta Admin lain untuk melakukannya.' },
+        { error: 'Anda tidak dapat mengubah peran akun Anda sendiri. Minta Superadmin lain untuk melakukannya.' },
         { status: 400 }
       )
     }

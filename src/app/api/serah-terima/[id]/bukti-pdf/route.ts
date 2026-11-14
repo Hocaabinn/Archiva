@@ -38,14 +38,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .eq('id', user.id)
       .single()
 
-    // Viewer tidak diizinkan mendownload file
-    if (profile?.role === 'viewer') {
-      return NextResponse.json(
-        { error: 'Akses Ditolak: Peran Viewer tidak diizinkan mengunduh berkas fisik/PDF bukti sesuai Bab 5.' },
-        { status: 403 }
-      )
-    }
-
     const admin = createAdminClient()
 
     const { data: st, error: stError } = await admin
@@ -76,7 +68,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Cek hak akses: penyerah, penerima, atau privileged role
     const isParty = st.dari_user_id === user.id || st.ke_user_id === user.id
-    const isPrivileged = profile?.role === 'admin' || profile?.role === 'pic_arsip' || profile?.role === 'atasan' || profile?.role === 'accounting'
+    const isPrivileged =
+      profile?.role === 'superadmin' ||
+      profile?.role === 'pic_aktif' ||
+      profile?.role === 'atasan_aktif' ||
+      profile?.role === 'pic_inaktif' ||
+      profile?.role === 'atasan_inaktif'
     if (!isParty && !isPrivileged) {
       return NextResponse.json(
         { error: 'Akses Ditolak: Anda tidak memiliki wewenang untuk mengunduh bukti serah terima ini.' },

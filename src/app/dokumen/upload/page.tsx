@@ -209,15 +209,15 @@ export default function UploadDokumenPage() {
     )
   }
 
-  // Proteksi hak akses Pengaju (User)
-  if (currentUserRole && currentUserRole !== 'user') {
+  // Proteksi hak akses PIC Arsip Aktif (R.03)
+  if (currentUserRole && currentUserRole !== 'pic_aktif') {
     return (
       <AppLayout>
         <div className="max-w-xl mx-auto py-12">
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-900 text-sm shadow-xs">
-            <h2 className="font-bold text-base mb-1">Akses Pendaftaran Khusus Pengaju</h2>
+            <h2 className="font-bold text-base mb-1">Akses Entri Khusus PIC Arsip Aktif</h2>
             <p className="text-xs leading-relaxed text-amber-800">
-              Sesuai aturan alur kerja kearsipan, hanya pengguna dengan peran <strong>Pengaju (User)</strong> yang berhak mengunggah berkas arsip baru. Peran Anda ({currentUserRole}) memiliki tugas verifikasi/persetujuan di menu terkait.
+              Sesuai aturan alur kerja kearsipan R.03, hanya pengguna dengan peran <strong>PIC Arsip Aktif (pic_aktif)</strong> yang berhak mengentri berkas arsip baru. Peran Anda ({currentUserRole}) tidak memiliki hak akses entri dokumen.
             </p>
             <div className="mt-4">
               <Link

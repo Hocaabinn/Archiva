@@ -99,7 +99,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
   const router = useRouter()
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole>('user')
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole>('staff')
   const [doc, setDoc] = useState<DetailDokumen | null>(null)
   const [lampiranList, setLampiranList] = useState<Lampiran[]>([])
   const [logList, setLogList] = useState<LogItem[]>([])
@@ -261,20 +261,12 @@ export default function DetailDokumenPage({ params }: PageProps) {
 
   const isAkanKadaluarsa = doc?.status === 'aktif' && sisaHari !== null && sisaHari < 90
 
-  // Download Handler
+  // Download Handler (Seluruh peran berhak mengunduh)
   const handleDownload = () => {
-    if (currentUserRole === 'viewer') {
-      setDownloadNotice('Akses Ditolak: Peran Viewer hanya berhak melihat pratinjau dan dilarang mengunduh berkas fisik.')
-      return
-    }
     window.open(`/api/dokumen/${id}/download`, '_blank')
   }
 
   const handleDownloadLampiran = (lampId: string) => {
-    if (currentUserRole === 'viewer') {
-      setDownloadNotice('Akses Ditolak: Peran Viewer dilarang mengunduh berkas lampiran.')
-      return
-    }
     window.open(`/api/lampiran/${lampId}/download`, '_blank')
   }
 
@@ -388,8 +380,8 @@ export default function DetailDokumenPage({ params }: PageProps) {
   }
 
   const isOwner = currentUserId === doc.pemilik_id
-  const isPicArsip = currentUserRole === 'pic_arsip' || currentUserRole === 'admin'
-  const isAtasan = currentUserRole === 'atasan'
+  const isPicArsip = currentUserRole === 'pic_aktif' || currentUserRole === 'superadmin'
+  const isAtasan = currentUserRole === 'atasan_aktif'
   const status = STATUS_PILL[doc.status] || STATUS_PILL.inaktif
   const StatusIcon = status.icon
   const namaFile = doc.file_path.split('/').pop()?.replace(/^\d+_/, '') || 'Berkas dokumen'
@@ -453,7 +445,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
                 )}
               </>
             )}
-            {doc.status === 'inaktif' && currentUserRole !== 'viewer' && (
+            {doc.status === 'inaktif' && (
               <Link
                 href={`/peminjaman?dokumen_id=${doc.id}`}
                 className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#2A92D6] sm:flex-none"
@@ -543,7 +535,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
                 </p>
               </div>
             </div>
-            {currentUserRole !== 'viewer' && (
+            {currentUserRole && (
               <Link
                 href={`/peminjaman?dokumen_id=${doc.id}`}
                 className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#2A92D6]"
@@ -719,11 +711,10 @@ export default function DetailDokumenPage({ params }: PageProps) {
                   <button
                     type="button"
                     onClick={handleDownload}
-                    disabled={currentUserRole === 'viewer'}
-                    className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#2A92D6] disabled:cursor-not-allowed disabled:bg-[#C9D3DE]"
+                    className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#2A92D6] active:scale-[0.98]"
                   >
-                    {currentUserRole === 'viewer' ? <Lock className="h-4 w-4" /> : <Download className="h-4 w-4" />}
-                    {currentUserRole === 'viewer' ? 'Unduh Dikunci' : 'Unduh Berkas'}
+                    <Download className="h-4 w-4" />
+                    Unduh Berkas
                   </button>
                 </div>
 
@@ -745,8 +736,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
                           <button
                             type="button"
                             onClick={() => handleDownloadLampiran(lamp.id)}
-                            disabled={currentUserRole === 'viewer'}
-                            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-[#E3E6F0] bg-white px-3 py-1.5 text-xs font-medium text-[#4B5163] hover:border-[#3BA4E8] hover:text-[#1E86C8] disabled:opacity-40"
+                            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-[#E3E6F0] bg-white px-3 py-1.5 text-xs font-medium text-[#4B5163] hover:border-[#3BA4E8] hover:text-[#1E86C8]"
                           >
                             <Download className="h-3.5 w-3.5" />
                             Unduh

@@ -18,6 +18,8 @@ import {
   CheckCircle2,
   Lock,
   Info,
+  Archive,
+  Building2,
 } from 'lucide-react'
 
 interface Pengguna {
@@ -32,12 +34,12 @@ interface Pengguna {
 }
 
 const PERAN: { id: UserRole; label: string; desc: string; icon: React.ComponentType<{ className?: string }>; pill: string }[] = [
-  { id: 'admin', label: 'Admin Sistem', desc: 'Kelola pengguna & pengaturan sistem', icon: ShieldCheck, pill: 'bg-[#EEF0F4] text-[#374151] border-[#D1D5DB]' },
-  { id: 'pic_arsip', label: 'PIC Arsip', desc: 'Verifikasi tahap 1, label QR, serah terima', icon: ClipboardCheck, pill: 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]' },
-  { id: 'atasan', label: 'Atasan', desc: 'Pengesahan akhir & pembatalan dokumen', icon: BadgeCheck, pill: 'bg-[#FEF7E0] text-[#B06000] border-[#FEEFC3]' },
-  { id: 'user', label: 'Pengaju', desc: 'Unggah & ajukan dokumen miliknya', icon: UserRound, pill: 'bg-[#EAF5FD] text-[#1E86C8] border-[#BCE1F9]' },
-  { id: 'accounting', label: 'Accounting', desc: 'Lihat & unduh berkas saja', icon: Calculator, pill: 'bg-[#F3E8FD] text-[#7E3FBF] border-[#E2CCF9]' },
-  { id: 'viewer', label: 'Viewer', desc: 'Hanya melihat, tanpa unduh', icon: Eye, pill: 'bg-[#F1F3F4] text-[#5F6368] border-[#DADCE0]' },
+  { id: 'superadmin', label: 'Superadmin', desc: 'Maintainer master data, pengguna & pengaturan sistem', icon: ShieldCheck, pill: 'bg-[#EEF0F4] text-[#374151] border-[#D1D5DB]' },
+  { id: 'pic_aktif', label: 'PIC Arsip Aktif', desc: 'Entri dokumen unit, edit metadata, serah terima, cetak QR', icon: ClipboardCheck, pill: 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]' },
+  { id: 'atasan_aktif', label: 'Atasan Arsip Aktif', desc: 'Persetujuan entri PIC unit, pembatalan dokumen aktif', icon: BadgeCheck, pill: 'bg-[#FEF7E0] text-[#B06000] border-[#FEEFC3]' },
+  { id: 'pic_inaktif', label: 'PIC Arsip Inaktif', desc: 'Kelola gudang inaktif, layanan peminjaman inaktif', icon: Archive, pill: 'bg-[#EAF5FD] text-[#1E86C8] border-[#BCE1F9]' },
+  { id: 'atasan_inaktif', label: 'Atasan Arsip Inaktif', desc: 'Pengawasan berkas inaktif & kapasitas gudang inaktif', icon: Building2, pill: 'bg-[#F3E8FD] text-[#7E3FBF] border-[#E2CCF9]' },
+  { id: 'staff', label: 'Staff', desc: 'Lihat & unduh dokumen saja (tanpa entri/approve)', icon: Eye, pill: 'bg-[#F1F3F4] text-[#5F6368] border-[#DADCE0]' },
 ]
 const peranById = Object.fromEntries(PERAN.map((p) => [p.id, p])) as Record<UserRole, (typeof PERAN)[number]>
 
@@ -54,7 +56,7 @@ function inisial(nama: string) {
 }
 
 function RoleBadge({ role }: { role: UserRole }) {
-  const p = peranById[role] || peranById.user
+  const p = peranById[role] || peranById.staff
   const Icon = p.icon
   return (
     <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${p.pill}`}>
@@ -73,7 +75,7 @@ function KelolaPenggunaContent() {
   const [search, setSearch] = useState('')
   const [filterPeran, setFilterPeran] = useState<'semua' | UserRole>('semua')
   const [editing, setEditing] = useState<Pengguna | null>(null)
-  const [peranBaru, setPeranBaru] = useState<UserRole>('user')
+  const [peranBaru, setPeranBaru] = useState<UserRole>('staff')
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -334,7 +336,7 @@ function KelolaPenggunaContent() {
               {PERAN.map((p) => {
                 const Icon = p.icon
                 const selected = peranBaru === p.id
-                const disabled = isSelf && p.id !== 'admin'
+                const disabled = isSelf && p.id !== 'superadmin'
                 return (
                   <button
                     key={p.id}

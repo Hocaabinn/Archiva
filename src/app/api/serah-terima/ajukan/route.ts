@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Validasi hak penyerah: Harus pemegang saat ini, pemilik, atau Admin/PIC
     const isCurrentHolder = doc.pemegang_saat_ini === user.id || doc.pemilik_id === user.id
-    const isPrivileged = profile.role === 'admin' || profile.role === 'pic_arsip'
+    const isPrivileged = profile.role === 'superadmin' || profile.role === 'pic_aktif'
     if (!isCurrentHolder && !isPrivileged) {
       return NextResponse.json(
         {

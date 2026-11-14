@@ -157,17 +157,17 @@ export async function POST(
       keterangan: `Dokumen diperbaiki dan diajukan ulang oleh ${pengajuNama}. Alur verifikasi diulang dari tahap 1.${keteranganBerkas}`,
     })
 
-    // 7. Kirim notifikasi ke semua PIC Arsip
+    // 7. Kirim notifikasi ke Atasan Arsip Aktif
     await kirimNotifikasiKePeran({
-      roles: ['pic_arsip'],
+      roles: ['atasan_aktif'],
       judul: 'Pengajuan Ulang Dokumen',
-      isi: `Dokumen "${updatePayload.judul || doc.judul}" (${doc.kode_arsip}) telah diperbaiki oleh pemilik dan siap untuk verifikasi tahap 1 oleh PIC Arsip.`,
+      isi: `Dokumen "${updatePayload.judul || doc.judul}" (${doc.kode_arsip}) telah diperbaiki oleh PIC Arsip Aktif dan menunggu persetujuan Atasan.`,
       dokumenId: doc.id,
     })
 
     return NextResponse.json({
       success: true,
-      message: `Dokumen ${doc.kode_arsip} berhasil diajukan ulang dan masuk ke antrean verifikasi PIC Arsip.`,
+      message: `Dokumen ${doc.kode_arsip} berhasil diajukan ulang dan masuk ke antrean persetujuan Atasan.`,
     })
   } catch (err: unknown) {
     console.error('Error ajukan-ulang:', err)

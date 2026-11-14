@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'pic_arsip' | 'atasan' | 'user' | 'accounting' | 'viewer';
+export type UserRole = 'superadmin' | 'pic_aktif' | 'atasan_aktif' | 'pic_inaktif' | 'atasan_inaktif' | 'staff';
 
 export interface UnitOrganisasi {
   id: string;

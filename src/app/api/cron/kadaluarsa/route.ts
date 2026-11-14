@@ -44,9 +44,9 @@ async function runKadaluarsaCron(request: NextRequest) {
             .select('role')
             .eq('id', user.id)
             .single()
-          if (!profile || (profile.role !== 'admin' && profile.role !== 'pic_arsip')) {
+          if (!profile || (profile.role !== 'superadmin' && profile.role !== 'pic_inaktif')) {
             return NextResponse.json(
-              { error: 'Akses Ditolak: Hanya Admin atau PIC Arsip yang dapat memicu cron manual.' },
+              { error: 'Akses Ditolak: Hanya Superadmin atau PIC Arsip Inaktif yang dapat memicu cron manual.' },
               { status: 403 }
             )
           }
@@ -121,9 +121,9 @@ async function runKadaluarsaCron(request: NextRequest) {
               })
             }
 
-            // Kirim ke seluruh PIC Arsip
+            // Kirim ke seluruh PIC Arsip Aktif & Inaktif
             await kirimNotifikasiKePeran({
-              roles: ['pic_arsip'],
+              roles: ['pic_aktif', 'pic_inaktif'],
               judul: judulNotif,
               isi: isiNotif,
               dokumenId: doc.id,
@@ -250,9 +250,9 @@ async function runKadaluarsaCron(request: NextRequest) {
             })
           }
 
-          // 2.6 Kirim notifikasi ke seluruh PIC Arsip
+          // 2.6 Kirim notifikasi ke seluruh PIC Arsip Inaktif
           await kirimNotifikasiKePeran({
-            roles: ['pic_arsip'],
+            roles: ['pic_inaktif'],
             judul: 'Dokumen Masuk Gudang Inaktif',
             isi: `Dokumen "${doc.judul}" (${doc.kode_arsip}) telah otomatis beralih ke status Inaktif dan tersimpan di Gudang Inaktif.`,
             dokumenId: doc.id,

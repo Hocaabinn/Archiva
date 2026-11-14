@@ -41,16 +41,16 @@ export async function POST(
       )
     }
 
-    // Cek peran pengguna: Hanya PIC Arsip yang berhak memverifikasi peminjaman
+    // Cek peran pengguna: Hanya PIC Arsip Inaktif yang berhak memverifikasi peminjaman
     const { data: profile } = await supabase
       .from('profiles')
       .select('id, nama, nama_lengkap, role')
       .eq('id', user.id)
       .single()
 
-    if (!profile || profile.role !== 'pic_arsip') {
+    if (!profile || (profile.role !== 'pic_inaktif' && profile.role !== 'superadmin')) {
       return NextResponse.json(
-        { error: 'Akses Ditolak: Hanya PIC Arsip (pic_arsip) yang berhak memverifikasi peminjaman.' },
+        { error: 'Akses Ditolak: Hanya PIC Arsip Inaktif (pic_inaktif) yang berhak memverifikasi peminjaman.' },
         { status: 403 }
       )
     }

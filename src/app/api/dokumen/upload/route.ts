@@ -41,12 +41,12 @@ export async function POST(request: NextRequest) {
     }
 
     // ATURAN KERAS BLUEPRINT BAB 5 & POLICY dokumen_insert:
-    // HANYA Pengaju (role: 'user') yang berhak mengunggah dokumen baru.
-    // Admin Sistem, PIC Arsip, Atasan, Accounting, dan Viewer DILARANG mengunggah.
-    if (profile.role !== 'user') {
+    // HANYA PIC Arsip Aktif (role: 'pic_aktif') yang berhak mengentri dokumen baru.
+    // Staff, Superadmin, Atasan, dan PIC Inaktif DILARANG mengentri dokumen.
+    if (profile.role !== 'pic_aktif') {
       return NextResponse.json(
         {
-          error: `Akses Ditolak: Hanya Pengaju (user) yang berhak mengunggah dokumen baru sesuai Blueprint Bab 5. Akun Anda memiliki peran '${profile.role}'.`,
+          error: `Akses Ditolak: Hanya PIC Arsip Aktif (pic_aktif) yang berhak mengentri dokumen baru sesuai Blueprint Bab 5. Akun Anda memiliki peran '${profile.role}'.`,
         },
         { status: 403 }
       )
@@ -234,11 +234,11 @@ export async function POST(request: NextRequest) {
       keterangan: `Pengajuan dokumen arsip baru ${newDoc.kode_arsip} (${newDoc.judul}) oleh ${pengunggahNama}`,
     })
 
-    // 10. Kirim Notifikasi ke semua PIC Arsip
+    // 10. Kirim Notifikasi ke Atasan Arsip Aktif
     await kirimNotifikasiKePeran({
-      roles: ['pic_arsip'],
-      judul: 'Pengajuan Dokumen Baru',
-      isi: `Dokumen baru "${newDoc.judul}" (${newDoc.kode_arsip}) telah diajukan dan menunggu verifikasi tahap 1 oleh PIC Arsip.`,
+      roles: ['atasan_aktif'],
+      judul: 'Dokumen Baru Menunggu Persetujuan',
+      isi: `Dokumen baru "${newDoc.judul}" (${newDoc.kode_arsip}) telah dientri oleh PIC Arsip Aktif dan menunggu persetujuan Atasan.`,
       dokumenId: newDoc.id,
     })
 

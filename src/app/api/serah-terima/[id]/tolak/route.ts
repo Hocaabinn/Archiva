@@ -79,7 +79,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // 2. Validasi hak akses: Hanya penerima (ke_user_id) atau Admin/PIC yang berhak menolak
     const isRecipient = st.ke_user_id === user.id
-    const isPrivileged = profile.role === 'admin' || profile.role === 'pic_arsip'
+    const isPrivileged = profile.role === 'superadmin' || profile.role === 'pic_aktif'
     if (!isRecipient && !isPrivileged) {
       return NextResponse.json(
         {

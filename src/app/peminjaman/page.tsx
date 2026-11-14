@@ -91,7 +91,7 @@ function PeminjamanContent() {
   const preselectedDocId = searchParams.get('dokumen_id')
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole>('user')
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole>('staff')
   const [loans, setLoans] = useState<PeminjamanRow[]>([])
   const [inactiveDocs, setInactiveDocs] = useState<InactiveDocOption[]>([])
   const [loading, setLoading] = useState(true)
@@ -336,8 +336,8 @@ function PeminjamanContent() {
     })
   }, [loans, filterStatus, searchQuery])
 
-  const isPicArsip = currentUserRole === 'pic_arsip'
-  const isPicOrAdmin = currentUserRole === 'pic_arsip' || currentUserRole === 'admin'
+  const isPicArsip = currentUserRole === 'pic_inaktif'
+  const isPicOrAdmin = currentUserRole === 'pic_inaktif' || currentUserRole === 'superadmin'
 
   const counts = useMemo(() => {
     const c = { semua: loans.length, diajukan: 0, dipinjam: 0, dikembalikan: 0, ditolak: 0 } as Record<string, number>
@@ -459,16 +459,14 @@ function PeminjamanContent() {
               Ajukan, verifikasi, dan pantau peminjaman berkas dari Gudang Inaktif.
             </p>
           </div>
-          {currentUserRole !== 'viewer' && (
-            <button
-              type="button"
-              onClick={() => setIsAjukanModalOpen(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#2A92D6] active:scale-[0.98] sm:w-auto sm:py-2"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Ajukan Peminjaman</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setIsAjukanModalOpen(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#2A92D6] active:scale-[0.98] sm:w-auto sm:py-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Ajukan Peminjaman</span>
+          </button>
         </div>
 
         {/* Kartu ringkasan */}

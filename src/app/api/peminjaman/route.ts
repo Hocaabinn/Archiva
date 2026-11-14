@@ -32,14 +32,7 @@ export async function GET(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    const role = profile?.role || 'user'
-
-    if (role === 'viewer') {
-      return NextResponse.json(
-        { error: 'Akses Ditolak: Peran Viewer tidak diizinkan mengakses data peminjaman.' },
-        { status: 403 }
-      )
-    }
+    const role = profile?.role || 'staff'
 
     const admin = createAdminClient()
     let query = admin
@@ -60,7 +53,8 @@ export async function GET(request: NextRequest) {
       `)
       .order('created_at', { ascending: false })
 
-    if (role === 'user') {
+    // Pengguna non-pengelola inaktif hanya melihat peminjamannya sendiri
+    if (role !== 'superadmin' && role !== 'pic_inaktif' && role !== 'atasan_inaktif') {
       query = query.eq('peminjam_id', user.id)
     }
 

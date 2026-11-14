@@ -60,7 +60,12 @@ export async function GET(request: NextRequest) {
       query = query.eq('dari_user_id', user.id)
     } else {
       // Jika bukan admin/pic/atasan/accounting, batasi hanya serah terima terkait user
-      const isPrivileged = profile?.role === 'admin' || profile?.role === 'pic_arsip' || profile?.role === 'atasan' || profile?.role === 'accounting'
+      const isPrivileged =
+        profile?.role === 'superadmin' ||
+        profile?.role === 'pic_aktif' ||
+        profile?.role === 'atasan_aktif' ||
+        profile?.role === 'pic_inaktif' ||
+        profile?.role === 'atasan_inaktif'
       if (!isPrivileged) {
         query = query.or(`dari_user_id.eq.${user.id},ke_user_id.eq.${user.id}`)
       }

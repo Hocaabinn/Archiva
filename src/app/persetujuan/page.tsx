@@ -91,7 +91,7 @@ function VerifikasiContent() {
   const searchParams = useSearchParams()
   const roleParam = searchParams.get('demo_role') as UserRole | null
 
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole>('user')
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole>('staff')
   const [items, setItems] = useState<VerificationDoc[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tahap>('tahap_1_pic')
@@ -130,7 +130,7 @@ function VerifikasiContent() {
         if (profile?.role) {
           setCurrentUserRole(profile.role as UserRole)
           // Default tab: jika Atasan, buka Tahap 2; selain itu Tahap 1
-          if (profile.role === 'atasan') {
+          if (profile.role === 'atasan_aktif' || profile.role === 'atasan_inaktif') {
             setActiveTab('tahap_2_atasan')
           }
         }

@@ -92,7 +92,7 @@ export default function SerahTerimaPage() {
   const [supabase] = useState(() => createClient())
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [currentUserRole, setCurrentUserRole] = useState<string>('user')
+  const [currentUserRole, setCurrentUserRole] = useState<string>('staff')
   const [activeTab, setActiveTab] = useState<'scan' | 'menunggu' | 'riwayat'>('scan')
 
   // Scanner & Search State

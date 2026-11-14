@@ -46,7 +46,12 @@ export async function GET(request: NextRequest) {
     const searchQuery = (searchParams.get('q') || '').trim()
     const limit = Math.min(Number(searchParams.get('limit') || 200), 500)
 
-    const isPrivileged = profile?.role === 'admin' || profile?.role === 'pic_arsip' || profile?.role === 'atasan' || profile?.role === 'accounting'
+    const isPrivileged =
+      profile?.role === 'superadmin' ||
+      profile?.role === 'pic_aktif' ||
+      profile?.role === 'atasan_aktif' ||
+      profile?.role === 'pic_inaktif' ||
+      profile?.role === 'atasan_inaktif'
 
     const admin = createAdminClient()
 

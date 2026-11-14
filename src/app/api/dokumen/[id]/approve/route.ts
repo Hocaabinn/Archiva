@@ -30,16 +30,16 @@ export async function POST(
       )
     }
 
-    // 2. Cek peran pengguna: Hanya Atasan dan Admin yang berhak memberikan persetujuan akhir
+    // 2. Cek peran pengguna: Hanya Atasan Arsip Aktif yang berhak memberikan persetujuan
     const { data: profile } = await supabase
       .from('profiles')
-      .select('id, nama, nama_lengkap, role')
+      .select('id, nama, nama_lengkap, role, unit_id')
       .eq('id', user.id)
       .single()
 
-    if (!profile || (profile.role !== 'atasan' && profile.role !== 'admin')) {
+    if (!profile || profile.role !== 'atasan_aktif') {
       return NextResponse.json(
-        { error: 'Akses Ditolak: Hanya Atasan yang berhak memberikan persetujuan akhir penerbitan arsip.' },
+        { error: 'Akses Ditolak: Hanya Atasan Arsip Aktif (atasan_aktif) yang berhak memberikan persetujuan penerbitan arsip.' },
         { status: 403 }
       )
     }

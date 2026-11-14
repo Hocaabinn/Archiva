@@ -77,7 +77,7 @@ interface FormState {
   file: File | null
 }
 
-const PRIVILEGED: UserRole[] = ['admin', 'pic_arsip', 'atasan']
+const PRIVILEGED: UserRole[] = ['superadmin', 'pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif']
 const PAGE_SIZE = 8
 
 // Blueprint 3.1: 3 Kategori resmi (Keuangan, SDM, Kontrak)
@@ -103,35 +103,35 @@ const roleHeaderConfig: Record<
     subtitle: string
   }
 > = {
-  user: {
-    badge: 'PENGAJU ARSIP',
-    badgeClass: 'bg-[#EBF5FB] text-[#1E86C8] border-[#BCE1F9]',
-    subtitle: 'Unggah berkas, pantau status persetujuan, dan kelola dokumen arsip Anda',
-  },
-  admin: {
-    badge: 'ADMIN SISTEM',
+  superadmin: {
+    badge: 'SUPERADMIN',
     badgeClass: 'bg-[#F3F4F6] text-[#374151] border-[#D1D5DB]',
-    subtitle: 'Pusat kendali, pengelolaan sistem, dan administrasi seluruh arsip instansi',
+    subtitle: 'Pusat kendali, pengelolaan master data, pengguna, dan administrasi seluruh arsip instansi',
   },
-  pic_arsip: {
-    badge: 'PIC ARSIP',
+  pic_aktif: {
+    badge: 'PIC ARSIP AKTIF',
     badgeClass: 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]',
-    subtitle: 'Verifikasi tahap 1, tata letak rak fisik, dan pencetakan label QR berkas',
+    subtitle: 'Entri dokumen unit, edit metadata, serah terima, dan pencetakan label QR berkas',
   },
-  atasan: {
-    badge: 'ATASAN (APPROVAL)',
+  atasan_aktif: {
+    badge: 'ATASAN ARSIP AKTIF',
     badgeClass: 'bg-[#FEF7E0] text-[#B06000] border-[#FEEFC3]',
-    subtitle: 'Persetujuan akhir dokumen sensitif, retensi, dan pengawasan siklus arsip',
+    subtitle: 'Persetujuan akhir dokumen unit, pembatalan dokumen aktif, dan pengawasan retensi',
   },
-  accounting: {
-    badge: 'ACCOUNTING',
-    badgeClass: 'bg-[#E8F5E9] text-[#2E7D32] border-[#C8E6C9]',
-    subtitle: 'Akses peninjauan dan pengunduhan berkas kearsipan pendukung keuangan',
+  pic_inaktif: {
+    badge: 'PIC ARSIP INAKTIF',
+    badgeClass: 'bg-[#EAF5FD] text-[#1E86C8] border-[#BCE1F9]',
+    subtitle: 'Pengelolaan arsip inaktif, pelayanan peminjaman, dan kapasitas gudang inaktif',
   },
-  viewer: {
-    badge: 'VIEWER (HANYA BACA)',
+  atasan_inaktif: {
+    badge: 'ATASAN ARSIP INAKTIF',
+    badgeClass: 'bg-[#F3E8FD] text-[#7E3FBF] border-[#E2CCF9]',
+    subtitle: 'Pengawasan penerimaan berkas inaktif dan monitoring kapasitas gudang inaktif',
+  },
+  staff: {
+    badge: 'STAFF',
     badgeClass: 'bg-[#F1F3F4] text-[#5F6368] border-[#DADCE0]',
-    subtitle: 'Katalog pratinjau dan penelusuran arsip instansi (Mode Hanya Baca)',
+    subtitle: 'Katalog penelusuran dan pengunduhan arsip kedinasan resmi',
   },
 }
 
@@ -267,7 +267,7 @@ function DaftarDokumenContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
-  const [profileRole, setProfileRole] = useState<UserRole>('user')
+  const [profileRole, setProfileRole] = useState<UserRole>('staff')
   const role: UserRole = profileRole
 
   // Baca cache dari localStorage setelah mount agar konsisten dengan SSR
@@ -354,30 +354,24 @@ function DaftarDokumenContent() {
   const isPrivileged = PRIVILEGED.includes(role)
   const isOwnerPending = (doc: DocRow) => doc.pemilik_id === userId && doc.status === 'menunggu_persetujuan'
 
-  // Pengaju: hanya boleh ubah/hapus dokumen miliknya yang berstatus menunggu_persetujuan
-  // Admin: akses darurat kelola arsip sistem
-  // PIC Arsip: verifikasi dan tata letak fisik
-  // Atasan, Accounting, Viewer: TIDAK BOLEH ubah / hapus
+  // PIC Arsip Aktif: boleh ubah metadata dokumen miliknya yang berstatus menunggu_persetujuan atau ditolak
+  // Superadmin: akses darurat maintainer
   const canEdit = (doc: DocRow) => {
-    if (role === 'viewer' || role === 'accounting' || role === 'atasan') return false
-    if (role === 'user') return isOwnerPending(doc)
-    return isPrivileged
+    if (role === 'pic_aktif') return doc.status === 'menunggu_persetujuan' || doc.status === 'ditolak'
+    return role === 'superadmin'
   }
 
-  const canDelete = (doc: DocRow) => {
-    if (role === 'viewer' || role === 'accounting' || role === 'atasan') return false
-    if (role === 'user') return isOwnerPending(doc)
-    return role === 'admin' || role === 'pic_arsip'
+  const canDelete = (_doc: DocRow) => {
+    return role === 'superadmin'
   }
 
-  // Pengaju — boleh upload (dokumen sendiri)
-  // Admin, PIC Arsip, Atasan, Accounting, Viewer — TIDAK boleh upload
-  const canUpload = role === 'user'
+  // PIC Arsip Aktif — boleh entri / upload (dokumen unitnya)
+  const canUpload = role === 'pic_aktif'
 
-  // Viewer — TIDAK boleh unduh / ekspor berkas (hanya lihat)
-  const canExport = role !== 'viewer'
+  // Seluruh peran berhak mengunduh/ekspor
+  const canExport = true
 
-  const roleHeader = roleHeaderConfig[role] || roleHeaderConfig.user
+  const roleHeader = roleHeaderConfig[role] || roleHeaderConfig.staff
 
   // ---------------- DAFTAR PILIHAN FILTER UNIK ----------------
   const uniquePemegang = useMemo(() => {
@@ -608,7 +602,7 @@ function DaftarDokumenContent() {
 
   const ActionButtons = ({ doc }: { doc: DocRow }) => (
     <div className="flex items-center justify-end gap-1">
-      {role !== 'viewer' && (
+      {role !== 'staff' && (
         <button type="button" onClick={() => setQrDoc(doc)} title="Label QR" className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]">
           <QrCode className="h-4 w-4" />
         </button>
@@ -646,16 +640,7 @@ function DaftarDokumenContent() {
             <p className="mt-1 text-sm text-[#4B5163]" suppressHydrationWarning>{roleHeader.subtitle}</p>
           </div>
           <div className="flex items-center gap-2.5">
-            {role === 'pic_arsip' && (
-              <Link
-                href="/persetujuan"
-                className="flex items-center gap-1.5 rounded-lg border border-[#137333]/30 bg-[#E6F4EA] px-3.5 py-2 text-sm font-medium text-[#137333] hover:bg-[#CEEAD6] transition-colors"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                <span>Verifikasi Dokumen</span>
-              </Link>
-            )}
-            {role === 'atasan' && (
+            {(role === 'atasan_aktif' || role === 'atasan_inaktif') && (
               <Link
                 href="/persetujuan"
                 className="flex items-center gap-1.5 rounded-lg border border-[#B06000]/30 bg-[#FEF7E0] px-3.5 py-2 text-sm font-medium text-[#B06000] hover:bg-[#FEEFC3] transition-colors"
@@ -705,16 +690,6 @@ function DaftarDokumenContent() {
             )}
           </div>
         </div>
-
-        {/* Banner Khusus Viewer */}
-        {role === 'viewer' && (
-          <div className="flex items-center gap-2.5 rounded-xl border border-[#DADCE0] bg-[#F8F9FA] px-4 py-3 text-xs text-[#5F6368]">
-            <Info className="h-4 w-4 shrink-0 text-[#1E86C8]" />
-            <span>
-              <strong>Mode Hanya Baca:</strong> Anda masuk sebagai Viewer. Anda dapat menelusuri daftar dan pratinjau dokumen arsip. Fitur unggah berkas, pengunduhan berkas asli, dan perubahan data dinonaktifkan.
-            </span>
-          </div>
-        )}
 
         {errorMessage && !isLoading && (
           <div className="flex items-start gap-3 rounded-xl border border-[#FDECEC] bg-[#FFF5F5] px-4 py-3 text-sm text-[#D64545]">
@@ -972,7 +947,7 @@ function DaftarDokumenContent() {
                               <Link href={`/dokumen/${doc.id}`} className="block truncate font-semibold text-[#1F2333] hover:text-[#1E86C8]">
                                 {doc.judul}
                               </Link>
-                              {role === 'user' && doc.pemilik_id === userId && (
+                              {doc.pemilik_id === userId && (
                                 <span className="inline-flex shrink-0 items-center rounded-full bg-[#EBF5FB] px-2 py-0.5 text-[10px] font-semibold text-[#1E86C8] border border-[#3BA4E8]/20">
                                   Milik Anda
                                 </span>
@@ -1025,7 +1000,7 @@ function DaftarDokumenContent() {
                         <FileText className="h-5 w-5" />
                       </span>
                       <div className="flex flex-wrap items-center justify-end gap-1.5 max-w-[70%]">
-                        {role === 'user' && doc.pemilik_id === userId && (
+                        {doc.pemilik_id === userId && (
                           <span className="inline-flex shrink-0 items-center rounded-full bg-[#EBF5FB] px-2 py-0.5 text-[10px] font-semibold text-[#1E86C8] border border-[#3BA4E8]/20">
                             Milik Anda
                           </span>

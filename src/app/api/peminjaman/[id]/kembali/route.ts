@@ -64,13 +64,13 @@ export async function POST(
       )
     }
 
-    // Hanya peminjam atau PIC Arsip/Admin yang boleh mengonfirmasi pengembalian
+    // Hanya peminjam atau PIC Arsip Inaktif/Superadmin yang boleh mengonfirmasi pengembalian
     const isBorrower = loan.peminjam_id === user.id
-    const isStaff = profile?.role === 'pic_arsip' || profile?.role === 'admin'
+    const isStaff = profile?.role === 'pic_inaktif' || profile?.role === 'superadmin'
 
     if (!isBorrower && !isStaff) {
       return NextResponse.json(
-        { error: 'Akses Ditolak: Hanya peminjam dokumen atau PIC Arsip yang dapat memproses pengembalian.' },
+        { error: 'Akses Ditolak: Hanya peminjam dokumen atau PIC Arsip Inaktif yang dapat memproses pengembalian.' },
         { status: 403 }
       )
     }
@@ -122,7 +122,7 @@ export async function POST(
     // Kirim notifikasi ke seluruh PIC Arsip (jika yang memproses adalah peminjam)
     if (isBorrower) {
       await kirimNotifikasiKePeran({
-        roles: ['pic_arsip'],
+        roles: ['pic_inaktif'],
         judul: 'Dokumen Inaktif Dikembalikan oleh Peminjam',
         isi: `Peminjam (${userNama}) telah mengembalikan dokumen inaktif "${doc?.judul}" (${doc?.kode_arsip}) ke Gudang Inaktif.`,
         dokumenId: loan.dokumen_id,

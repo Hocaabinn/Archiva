@@ -43,18 +43,18 @@ export async function POST(
       )
     }
 
-    // 2. Cek peran pengguna: Hanya Atasan yang berhak membatalkan dokumen (Blueprint 6.6 / 6.7)
+    // 2. Cek peran pengguna: Hanya Atasan Arsip Aktif yang berhak membatalkan dokumen (Blueprint 6.6)
     const { data: profile } = await supabase
       .from('profiles')
-      .select('id, nama, nama_lengkap, role')
+      .select('id, nama, nama_lengkap, role, unit_id')
       .eq('id', user.id)
       .single()
 
-    if (!profile || profile.role !== 'atasan') {
+    if (!profile || profile.role !== 'atasan_aktif') {
       return NextResponse.json(
         {
           error:
-            'Akses Ditolak: Sesuai Blueprint 6.6, hanya Atasan (atasan) yang berhak membatalkan dokumen arsip.',
+            'Akses Ditolak: Sesuai Blueprint 6.6, hanya Atasan Arsip Aktif (atasan_aktif) yang berhak membatalkan dokumen arsip.',
         },
         { status: 403 }
       )
@@ -131,9 +131,9 @@ export async function POST(
       })
     }
 
-    // 9. Beri tahu seluruh PIC Arsip
+    // 9. Beri tahu seluruh PIC Arsip Aktif
     await kirimNotifikasiKePeran({
-      roles: ['pic_arsip'],
+      roles: ['pic_aktif'],
       judul: 'Dokumen Dibatalkan oleh Atasan',
       isi: `Dokumen "${doc.judul}" (${doc.kode_arsip}) telah dibatalkan oleh Atasan (${atasanNama}). Alasan: "${alasan}".`,
       dokumenId: doc.id,

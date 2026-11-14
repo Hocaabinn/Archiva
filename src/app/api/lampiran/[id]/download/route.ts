@@ -43,16 +43,7 @@ export async function GET(
 
     const userRole = profile.role
 
-    // 3. ATURAN KERAS BLUEPRINT BAB 5: VIEWER DILARANG MENGUNDUH
-    if (userRole === 'viewer') {
-      return NextResponse.json(
-        {
-          error:
-            'Akses Ditolak: Peran Viewer hanya diizinkan melihat daftar dan pratinjau, dilarang mengunduh berkas lampiran.',
-        },
-        { status: 403 }
-      )
-    }
+    // 3. ATURAN BLUEPRINT R.03 BAB 5: Seluruh peran terautentikasi (termasuk Staff) berhak mengunduh lampiran resmi.
 
     // 4. Ambil Lampiran beserta info Dokumen induknya
     const adminClient = createAdminClient()

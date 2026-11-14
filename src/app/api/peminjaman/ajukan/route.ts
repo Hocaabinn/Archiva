@@ -37,9 +37,9 @@ export async function POST(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    if (!profile || profile.role === 'viewer') {
+    if (!profile) {
       return NextResponse.json(
-        { error: 'Akses Ditolak: Peran Viewer tidak diizinkan mengajukan peminjaman.' },
+        { error: 'Profil pengguna tidak ditemukan.' },
         { status: 403 }
       )
     }
@@ -134,9 +134,9 @@ export async function POST(request: NextRequest) {
       keterangan: `Pengajuan peminjaman dokumen Inaktif "${doc.judul}" (${doc.kode_arsip}) oleh ${peminjamNama}. Keperluan: "${keperluan}".`,
     })
 
-    // Kirim notifikasi ke PIC Arsip Inaktif (semua pic_arsip)
+    // Kirim notifikasi ke PIC Arsip Inaktif
     await kirimNotifikasiKePeran({
-      roles: ['pic_arsip'],
+      roles: ['pic_inaktif'],
       judul: 'Pengajuan Peminjaman Dokumen Inaktif',
       isi: `${peminjamNama} mengajukan peminjaman dokumen inaktif "${doc.judul}" (${doc.kode_arsip}). Keperluan: "${keperluan}".`,
       dokumenId: doc.id,
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Pengajuan peminjaman dokumen inaktif berhasil dikirim ke PIC Arsip.',
+      message: 'Pengajuan peminjaman dokumen inaktif berhasil dikirim ke PIC Arsip Inaktif.',
       data: newLoan,
     })
   } catch (err: unknown) {

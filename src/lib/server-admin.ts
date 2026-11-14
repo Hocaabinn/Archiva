@@ -2,20 +2,27 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-export const DAFTAR_PERAN = ['admin', 'pic_arsip', 'atasan', 'user', 'accounting', 'viewer'] as const
+export const DAFTAR_PERAN = [
+  'superadmin',
+  'pic_aktif',
+  'atasan_aktif',
+  'pic_inaktif',
+  'atasan_inaktif',
+  'staff',
+] as const
 export type Peran = (typeof DAFTAR_PERAN)[number]
 
 export const LABEL_PERAN: Record<Peran, string> = {
-  admin: 'Admin Sistem',
-  pic_arsip: 'PIC Arsip',
-  atasan: 'Atasan',
-  user: 'Pengaju',
-  accounting: 'Accounting',
-  viewer: 'Viewer',
+  superadmin: 'Superadmin',
+  pic_aktif: 'PIC Arsip Aktif',
+  atasan_aktif: 'Atasan Arsip Aktif',
+  pic_inaktif: 'PIC Arsip Inaktif',
+  atasan_inaktif: 'Atasan Arsip Inaktif',
+  staff: 'Staff',
 }
 
 /**
- * Memastikan pemanggil API sudah login DAN berperan Admin Sistem.
+ * Memastikan pemanggil API sudah login DAN berperan Superadmin.
  * Peran dibaca dari tabel profiles di server (bukan dari klien).
  * Mengembalikan { error } berupa NextResponse 401/403 bila gagal.
  */
@@ -39,10 +46,10 @@ export async function requireAdmin(request: NextRequest) {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') {
+  if (profile?.role !== 'superadmin') {
     return {
       error: NextResponse.json(
-        { error: 'Akses Ditolak: Hanya Admin Sistem yang dapat mengelola pengguna dan mengubah peran.' },
+        { error: 'Akses Ditolak: Hanya Superadmin yang dapat mengelola pengguna dan mengubah peran.' },
         { status: 403 }
       ),
     }

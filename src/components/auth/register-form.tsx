@@ -146,7 +146,7 @@ export default function RegisterForm() {
           nomor_pegawai: nomorPegawai,
           nip_nik: nomorPegawai,
           jabatan: finalJabatan,
-          role: 'user', // Selalu role Pengaju (User) default
+          role: 'staff', // Selalu role Staff default (R.03)
         },
       },
     })
@@ -164,7 +164,7 @@ export default function RegisterForm() {
       return
     }
 
-    setSuccessMsg('Pendaftaran berhasil! Akun Anda telah terdaftar sebagai Pengaju. Silakan masuk ke sistem.')
+    setSuccessMsg('Pendaftaran berhasil! Akun Anda telah terdaftar sebagai Staff. Silakan masuk ke sistem.')
     setLoading(false)
     setTimeout(() => {
       router.push('/login')
@@ -194,16 +194,16 @@ export default function RegisterForm() {
                   Pendaftaran Akun
                 </h1>
                 
-                {/* Lencana PERAN AKUN: PENGAJU (BLUEPRINT R.02 3.1) */}
+                {/* Lencana PERAN AKUN: STAFF (BLUEPRINT R.03 3.1) */}
                 <div className="inline-flex items-center gap-1.5 self-start px-2.5 py-1 bg-[#E8F1F8] border border-[#3BA4E8]/40 rounded-md">
                   <UserCheck className="w-3.5 h-3.5 text-[#1E3A5F]" />
                   <span className="font-mono text-[11px] font-bold text-[#1E3A5F] tracking-wide">
-                    PERAN AKUN: PENGAJU
+                    PERAN AKUN: STAFF
                   </span>
                 </div>
               </div>
               <p className="mt-2 text-sm text-[#4B5E76]">
-                Daftarkan akun pegawai Anda untuk mengelola pengajuan dokumen resmi & arsip terverifikasi.
+                Daftarkan akun pegawai Anda untuk melihat dan mengunduh arsip dokumen kedinasan.
               </p>
             </div>
 
@@ -211,7 +211,7 @@ export default function RegisterForm() {
             <div className="mb-6 p-3.5 bg-[#F0F7FF] border border-[#BAE6FD] border-l-4 border-l-[#0284C7] rounded-r-lg flex items-start gap-3">
               <Info className="w-4 h-4 text-[#0284C7] shrink-0 mt-0.5" />
               <div className="text-xs text-[#334155] leading-relaxed">
-                <span className="font-bold font-mono text-[#0369A1]">PERAN AKUN: PENGAJU</span> — Setiap registrasi baru secara otomatis berstatus Pengaju (User). Perubahan hak akses peran (PIC Arsip, Atasan, Accounting, Viewer) hanya dapat dilakukan oleh <strong className="text-[#0369A1]">Admin Sistem</strong>.
+                <span className="font-bold font-mono text-[#0369A1]">PERAN AKUN: STAFF</span> — Setiap registrasi baru secara otomatis berstatus Staff (view + download). Perubahan hak akses peran khusus hanya dapat dilakukan oleh <strong className="text-[#0369A1]">Superadmin</strong>.
               </div>
             </div>
 
