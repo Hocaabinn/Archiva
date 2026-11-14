@@ -29,18 +29,26 @@ export async function POST(
       )
     }
 
-    // 2. Ambil profil pengguna
+    // 2. Ambil profil pengguna & cek role
     const { data: profile } = await supabase
       .from('profiles')
-      .select('id, nama, nama_lengkap, role')
+      .select('id, nama, nama_lengkap, role, unit_id')
       .eq('id', user.id)
       .single()
+
+    // Blueprint Bab 5: Hanya PIC Arsip Aktif pengentri (atau superadmin) yang dapat memperbaiki & mengajukan ulang
+    if (!profile || (profile.role !== 'pic_aktif' && profile.role !== 'superadmin')) {
+      return NextResponse.json(
+        { error: 'Akses Ditolak: Hanya PIC Arsip Aktif (pic_aktif) yang berhak memperbaiki dan mengajukan ulang dokumen yang ditolak.' },
+        { status: 403 }
+      )
+    }
 
     // 3. Ambil data dokumen
     const admin = createAdminClient()
     const { data: doc, error: docError } = await admin
       .from('dokumen')
-      .select('id, kode_arsip, judul, status, pemilik_id, file_path')
+      .select('id, kode_arsip, judul, status, pemilik_id, unit_id, file_path')
       .eq('id', id)
       .single()
 
@@ -48,29 +56,30 @@ export async function POST(
       return NextResponse.json({ error: 'Dokumen tidak ditemukan.' }, { status: 404 })
     }
 
-    // Hanya pemilik dokumen atau Admin yang dapat mengajukan ulang
-    const isOwnerOrAdmin = doc.pemilik_id === user.id || profile?.role === 'admin'
-    if (!isOwnerOrAdmin) {
+    // Pastikan PIC yang mengajukan ulang adalah pemilik dokumen atau dari unit yang sama
+    const isAuthorized = doc.pemilik_id === user.id || doc.unit_id === profile.unit_id || profile.role === 'superadmin'
+    if (!isAuthorized) {
       return NextResponse.json(
-        { error: 'Akses Ditolak: Hanya pemilik dokumen yang berhak memperbaiki dan mengajukan ulang.' },
+        { error: 'Akses Ditolak: Hanya PIC Arsip Aktif pengentri atau dari unit yang sama yang berhak mengajukan ulang dokumen ini.' },
         { status: 403 }
       )
     }
 
     if (doc.status !== 'ditolak') {
       return NextResponse.json(
-        { error: `Dokumen tidak dalam status ditolak (status saat ini: ${doc.status}). Pengajuan ulang hanya berlaku untuk dokumen yang ditolak.` },
+        { error: `Dokumen tidak dalam status ditolak (status saat ini: ${doc.status}). Pengajuan ulang hanya berlaku untuk dokumen yang berstatus ditolak.` },
         { status: 400 }
       )
     }
 
-    // 4. Baca metadata yang diperbaiki (JSON, atau multipart/form-data bila menyertakan berkas baru)
-    let body: Record<string, any> = {}
+    // 4. Baca metadata yang diperbaiki
+    let body: Record<string, unknown> = {}
     let berkasBaru: File | null = null
     const contentType = request.headers.get('content-type') || ''
+
     if (contentType.includes('multipart/form-data')) {
       const form = await request.formData()
-      for (const key of ['judul', 'nomor_dokumen', 'nomor_ppl', 'penandatangan', 'kategori_id', 'deskripsi', 'lokasi_saat_ini']) {
+      for (const key of ['judul', 'penandatangan', 'kategori_id', 'deskripsi', 'lokasi_saat_ini', 'jumlah_halaman']) {
         const v = form.get(key)
         if (typeof v === 'string') body[key] = v.trim()
       }
@@ -80,7 +89,7 @@ export async function POST(
       body = await request.json().catch(() => ({}))
     }
 
-    // 4a. Unggah berkas pengganti (opsional). Berkas lama TIDAK dihapus agar jejak arsip tetap ada.
+    // 4a. Unggah berkas pengganti bila ada
     let fileUpdate: Record<string, unknown> = {}
     let keteranganBerkas = ''
     if (berkasBaru) {
@@ -111,31 +120,33 @@ export async function POST(
         file_tipe: berkasBaru.type || 'application/pdf',
         ukuran_file: berkasBaru.size,
       }
-      keteranganBerkas = ` Berkas utama diganti dengan "${berkasBaru.name}" (berkas sebelumnya tetap tersimpan: ${doc.file_path || '-'}).`
+      keteranganBerkas = ` Berkas utama diganti dengan "${berkasBaru.name}".`
     }
 
+    const nowISO = new Date().toISOString()
     const updatePayload: Record<string, unknown> = {
       status: 'menunggu_persetujuan',
-      verifikasi_pic_oleh: null,
       disetujui_oleh: null,
       tanggal_disetujui: null,
       tanggal_kadaluarsa: null,
       alasan_penolakan: null,
-      updated_at: new Date().toISOString(),
+      updated_at: nowISO,
       ...fileUpdate,
     }
 
     if (body.judul && typeof body.judul === 'string' && body.judul.trim()) {
       updatePayload.judul = body.judul.trim()
     }
-    if (body.nomor_dokumen !== undefined) updatePayload.nomor_dokumen = body.nomor_dokumen || null
-    if (body.nomor_ppl !== undefined) updatePayload.nomor_ppl = body.nomor_ppl || null
     if (body.penandatangan !== undefined) updatePayload.penandatangan = body.penandatangan || null
     if (body.kategori_id !== undefined) updatePayload.kategori_id = body.kategori_id || null
     if (body.deskripsi !== undefined) updatePayload.deskripsi = body.deskripsi || null
     if (body.lokasi_saat_ini !== undefined) updatePayload.lokasi_saat_ini = body.lokasi_saat_ini || 'Ruang Arsip Aktif'
+    if (body.jumlah_halaman) {
+      const jml = parseInt(String(body.jumlah_halaman), 10)
+      if (!isNaN(jml) && jml > 0) updatePayload.jumlah_halaman = jml
+    }
 
-    // 5. Eksekusi pengajuan ulang
+    // 5. Eksekusi update
     const { error: updateError } = await admin
       .from('dokumen')
       .update(updatePayload)
@@ -148,26 +159,26 @@ export async function POST(
       )
     }
 
-    // 6. Catat log aktivitas
-    const pengajuNama = profile?.nama_lengkap || profile?.nama || user.email || 'Pengaju'
+    // 6. Catat log aktivitas (aksi: 'ajukan_ulang')
+    const pengajuNama = profile?.nama_lengkap || profile?.nama || user.email || 'PIC Arsip Aktif'
     await catatLogAktivitas({
       dokumen_id: doc.id,
       user_id: user.id,
       aksi: 'ajukan_ulang',
-      keterangan: `Dokumen diperbaiki dan diajukan ulang oleh ${pengajuNama}. Alur verifikasi diulang dari tahap 1.${keteranganBerkas}`,
+      keterangan: `Dokumen diperbaiki dan diajukan ulang oleh PIC Arsip Aktif (${pengajuNama}). Masuk ke antrean persetujuan Atasan.${keteranganBerkas}`,
     })
 
     // 7. Kirim notifikasi ke Atasan Arsip Aktif
     await kirimNotifikasiKePeran({
       roles: ['atasan_aktif'],
-      judul: 'Pengajuan Ulang Dokumen',
-      isi: `Dokumen "${updatePayload.judul || doc.judul}" (${doc.kode_arsip}) telah diperbaiki oleh PIC Arsip Aktif dan menunggu persetujuan Atasan.`,
+      judul: 'Dokumen Diajukan Ulang',
+      isi: `Dokumen "${updatePayload.judul || doc.judul}" (${doc.kode_arsip}) telah diperbaiki oleh PIC Arsip Aktif dan menunggu persetujuan Anda.`,
       dokumenId: doc.id,
     })
 
     return NextResponse.json({
       success: true,
-      message: `Dokumen ${doc.kode_arsip} berhasil diajukan ulang dan masuk ke antrean persetujuan Atasan.`,
+      message: `Dokumen ${doc.kode_arsip} berhasil diajukan ulang dan berstatus Menunggu Persetujuan Atasan.`,
     })
   } catch (err: unknown) {
     console.error('Error ajukan-ulang:', err)
@@ -175,4 +186,3 @@ export async function POST(
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
-

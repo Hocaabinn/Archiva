@@ -86,12 +86,12 @@ interface DetailDokumen {
   tanggal_masuk: string
   tanggal_disetujui: string | null
   tanggal_kadaluarsa: string | null
-  verifikasi_pic_oleh: string | null
-  verifikator_nama?: string
   disetujui_oleh: string | null
   approver_nama?: string
   alasan_penolakan: string | null
   created_at: string
+  jumlah_halaman?: number
+  unit_nama?: string
 }
 
 export default function DetailDokumenPage({ params }: PageProps) {
@@ -108,7 +108,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null)
 
   // Modal State untuk Aksi Approval / Tolak / Ajukan Ulang / Pembatalan
-  const [modalType, setModalType] = useState<'verifikasi' | 'approve' | 'tolak' | 'ajukan_ulang' | 'batal' | null>(null)
+  const [modalType, setModalType] = useState<'approve' | 'tolak' | 'ajukan_ulang' | 'batal' | null>(null)
   const [alasanTolak, setAlasanTolak] = useState('')
   const [alasanBatal, setAlasanBatal] = useState('')
   const [isSubmittingModal, setIsSubmittingModal] = useState(false)
@@ -155,12 +155,12 @@ export default function DetailDokumenPage({ params }: PageProps) {
           id, kode_arsip, nomor_dokumen, nomor_ppl, judul, kategori_id,
           penandatangan, deskripsi, status, bucket, file_path, file_tipe, ukuran_file,
           pemilik_id, pemegang_saat_ini, lokasi_saat_ini, tanggal_dokumen, tanggal_masuk,
-          tanggal_disetujui, tanggal_kadaluarsa, verifikasi_pic_oleh, disetujui_oleh,
-          alasan_penolakan, created_at,
+          tanggal_disetujui, tanggal_kadaluarsa, disetujui_oleh,
+          alasan_penolakan, created_at, jumlah_halaman, unit_id,
           kategori_dokumen ( nama ),
+          unit:unit_organisasi ( nama ),
           pemilik:profiles!dokumen_pemilik_id_fkey ( nama_lengkap, email ),
           pemegang:profiles!dokumen_pemegang_saat_ini_fkey ( nama_lengkap, email ),
-          verifikator:profiles!dokumen_verifikasi_pic_oleh_fkey ( nama_lengkap, email ),
           approver:profiles!dokumen_disetujui_oleh_fkey ( nama_lengkap, email )
         `)
         .eq('id', id)
@@ -186,7 +186,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
         file_tipe: d.file_tipe,
         ukuran_file: d.ukuran_file,
         pemilik_id: d.pemilik_id,
-        pemilik_nama: (d.pemilik as any)?.nama_lengkap || (d.pemilik as any)?.email || 'Pengaju',
+        pemilik_nama: (d.pemilik as any)?.nama_lengkap || (d.pemilik as any)?.email || 'PIC Arsip Aktif',
         pemegang_saat_ini: d.pemegang_saat_ini,
         pemegang_nama: (d.pemegang as any)?.nama_lengkap || (d.pemegang as any)?.email || 'Pemegang',
         lokasi_saat_ini: d.lokasi_saat_ini || 'Ruang Arsip Aktif',
@@ -194,12 +194,12 @@ export default function DetailDokumenPage({ params }: PageProps) {
         tanggal_masuk: d.tanggal_masuk,
         tanggal_disetujui: d.tanggal_disetujui,
         tanggal_kadaluarsa: d.tanggal_kadaluarsa,
-        verifikasi_pic_oleh: d.verifikasi_pic_oleh,
-        verifikator_nama: (d.verifikator as any)?.nama_lengkap || (d.verifikator as any)?.email,
         disetujui_oleh: d.disetujui_oleh,
         approver_nama: (d.approver as any)?.nama_lengkap || (d.approver as any)?.email,
         alasan_penolakan: d.alasan_penolakan,
         created_at: d.created_at,
+        jumlah_halaman: d.jumlah_halaman,
+        unit_nama: (d.unit as any)?.nama || 'Keuangan',
       }
 
       setDoc(formatted)
@@ -276,12 +276,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
     setIsSubmittingModal(true)
 
     try {
-      if (modalType === 'verifikasi') {
-        const res = await fetch(`/api/dokumen/${doc.id}/verifikasi`, { method: 'POST' })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Gagal memverifikasi dokumen.')
-        showToast('success', 'Dokumen lolos verifikasi tahap 1 dan diteruskan ke Atasan.')
-      } else if (modalType === 'approve') {
+      if (modalType === 'approve') {
         const res = await fetch(`/api/dokumen/${doc.id}/approve`, { method: 'POST' })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Gagal menyetujui dokumen.')
@@ -397,11 +392,8 @@ export default function DetailDokumenPage({ params }: PageProps) {
     { icon: MapPin, label: 'Lokasi Fisik', value: doc.lokasi_saat_ini },
     { icon: Pencil, label: 'Penandatangan', value: doc.penandatangan || '-' },
     { icon: Calendar, label: 'Tanggal Dokumen', value: formatTanggal(doc.tanggal_dokumen, 'long') },
-    {
-      icon: ShieldCheck,
-      label: 'Verifikator PIC',
-      value: doc.verifikator_nama || (doc.verifikasi_pic_oleh ? 'Terverifikasi PIC' : 'Belum diverifikasi'),
-    },
+    { icon: FileText, label: 'Lembar Fisik', value: `${doc.jumlah_halaman || 1} lembar` },
+    { icon: ShieldCheck, label: 'Unit Organisasi', value: doc.unit_nama || 'Keuangan' },
     {
       icon: CheckCircle2,
       label: 'Approver Atasan',
@@ -576,16 +568,14 @@ export default function DetailDokumenPage({ params }: PageProps) {
             <div className="flex items-start gap-3">
               <Clock className="mt-0.5 h-5 w-5 shrink-0 text-[#B06000]" />
               <div className="text-sm">
-                <p className="font-semibold text-[#1F2333]">Menunggu persetujuan</p>
+                <p className="font-semibold text-[#1F2333]">Menunggu Persetujuan Atasan</p>
                 <p className="mt-0.5 text-[#4B5163]">
-                  {!doc.verifikasi_pic_oleh
-                    ? 'Tahap 1 — menunggu verifikasi kelengkapan format SIG oleh PIC Arsip.'
-                    : 'Tahap 2 — menunggu pengesahan akhir arsip aktif 3 tahun oleh Atasan.'}
+                  Dokumen telah dientri oleh PIC Arsip Aktif dan sedang menunggu pengesahan menjadi arsip aktif oleh Atasan Arsip Aktif.
                 </p>
               </div>
             </div>
 
-            {((!doc.verifikasi_pic_oleh && isPicArsip) || (doc.verifikasi_pic_oleh && isAtasan)) && (
+            {(isAtasan || currentUserRole === 'superadmin') && (
               <div className="flex shrink-0 items-center gap-2">
                 <button
                   type="button"
@@ -593,15 +583,15 @@ export default function DetailDokumenPage({ params }: PageProps) {
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#F5C2C2] bg-white px-4 py-2 text-sm font-semibold text-[#D64545] hover:bg-[#FDECEC] sm:flex-none"
                 >
                   <XCircle className="h-4 w-4" />
-                  Tolak
+                  Tolak Dokumen
                 </button>
                 <button
                   type="button"
-                  onClick={() => setModalType(doc.verifikasi_pic_oleh ? 'approve' : 'verifikasi')}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#2A92D6] sm:flex-none"
+                  onClick={() => setModalType('approve')}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#16A34A] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#15803D] sm:flex-none"
                 >
                   <CheckCircle2 className="h-4 w-4" />
-                  {doc.verifikasi_pic_oleh ? 'Sahkan Aktif (+3 Tahun)' : 'Loloskan Verifikasi'}
+                  Sahkan Aktif (+3 Tahun)
                 </button>
               </div>
             )}
@@ -843,9 +833,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
                 </span>
                 <div className="min-w-0">
                   <h3 className="text-base font-semibold text-[#1F2333]">
-                    {modalType === 'verifikasi'
-                      ? 'Verifikasi Tahap 1 (PIC Arsip)'
-                      : modalType === 'approve'
+                    {modalType === 'approve'
                       ? 'Pengesahan Akhir (Atasan)'
                       : modalType === 'tolak'
                       ? 'Tolak Pengajuan Dokumen'
@@ -866,12 +854,6 @@ export default function DetailDokumenPage({ params }: PageProps) {
             </div>
 
             <div className="space-y-4 p-5 text-sm text-[#4B5163]">
-              {modalType === 'verifikasi' && (
-                <p className="leading-relaxed">
-                  Nyatakan bahwa dokumen <strong className="text-[#1F2333]">{doc.judul}</strong> telah diperiksa kelengkapan fisiknya dan sesuai standar penomoran SIG? Dokumen akan diteruskan ke antrean persetujuan Atasan.
-                </p>
-              )}
-
               {modalType === 'approve' && (
                 <p className="leading-relaxed">
                   Status dokumen akan menjadi <strong className="text-[#1F2333]">Aktif</strong> dengan masa retensi <strong className="text-[#1F2333]">3 tahun</strong>, dan label QR resmi siap diterbitkan.
@@ -1028,10 +1010,8 @@ export default function DetailDokumenPage({ params }: PageProps) {
                 {isSubmittingModal && <Loader2 className="h-4 w-4 animate-spin" />}
                 {isSubmittingModal
                   ? 'Memproses...'
-                  : modalType === 'verifikasi'
-                  ? 'Loloskan Verifikasi'
                   : modalType === 'approve'
-                  ? 'Sahkan Aktif'
+                  ? 'Sahkan Aktif (+3 Tahun)'
                   : modalType === 'tolak'
                   ? 'Tolak Dokumen'
                   : modalType === 'batal'

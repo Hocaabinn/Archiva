@@ -30,7 +30,7 @@ export async function POST(
       )
     }
 
-    // 2. Cek peran pengguna: Hanya Atasan Arsip Aktif yang berhak memberikan persetujuan
+    // 2. Cek peran pengguna: Hanya Atasan Arsip Aktif yang berhak memberikan persetujuan (Blueprint Bab 5)
     const { data: profile } = await supabase
       .from('profiles')
       .select('id, nama, nama_lengkap, role, unit_id')
@@ -48,7 +48,7 @@ export async function POST(
     const admin = createAdminClient()
     const { data: doc, error: docError } = await admin
       .from('dokumen')
-      .select('id, kode_arsip, judul, status, verifikasi_pic_oleh, pemilik_id')
+      .select('id, kode_arsip, judul, status, pemilik_id, unit_id')
       .eq('id', id)
       .single()
 
@@ -63,15 +63,15 @@ export async function POST(
       )
     }
 
-    // Alur Tabel 14: Dokumen harus melalui verifikasi tahap 1 PIC Arsip sebelum persetujuan akhir Atasan
-    if (!doc.verifikasi_pic_oleh) {
+    // Blueprint 3.3 poin 2: Meminta persetujuan dari Atasan Arsip Aktif unit yang sama
+    if (profile.unit_id && doc.unit_id && profile.unit_id !== doc.unit_id) {
       return NextResponse.json(
-        { error: 'Dokumen belum melalui verifikasi tahap 1 oleh PIC Arsip.' },
-        { status: 400 }
+        { error: 'Akses Ditolak: Anda hanya berhak menyetujui dokumen dari unit organisasi Anda sendiri.' },
+        { status: 403 }
       )
     }
 
-    // 4. Hitung masa retensi aktif: persis 3 tahun dari tanggal disetujui (Blueprint 3.3 poin 4)
+    // 4. Hitung masa aktif: persis 3 tahun dari tanggal disetujui (Blueprint 3.3 poin 4)
     const now = new Date()
     const expDate = new Date(now)
     expDate.setFullYear(expDate.getFullYear() + 3)
@@ -96,7 +96,7 @@ export async function POST(
         })
       if (!qrErr) barcodeStoragePath = qrFileName
     } catch (e) {
-      console.warn('Gagal menerbitkan file QR di storage:', e)
+      console.warn('Peringatan: Gagal menerbitkan file QR di storage barcode:', e)
     }
 
     // 6. Update data: ubah status menjadi aktif, isi tanggal disetujui, tanggal kadaluarsa, barcode_path, dan disetujui_oleh
@@ -123,21 +123,21 @@ export async function POST(
       )
     }
 
-    // 6. Catat log aktivitas
-    const approverNama = profile.nama_lengkap || profile.nama || user.email || 'Atasan'
+    // 7. Catat log aktivitas (aksi: 'persetujuan Atasan Arsip Aktif')
+    const approverNama = profile.nama_lengkap || profile.nama || user.email || 'Atasan Arsip Aktif'
     await catatLogAktivitas({
       dokumen_id: doc.id,
       user_id: user.id,
-      aksi: 'approve',
-      keterangan: `Persetujuan akhir disahkan oleh ${approverNama}. Dokumen berstatus Aktif selama 3 tahun (kedaluwarsa: ${expDateISO}).`,
+      aksi: 'persetujuan Atasan Arsip Aktif',
+      keterangan: `Persetujuan akhir disahkan oleh Atasan Arsip Aktif (${approverNama}). Dokumen resmi Aktif selama 3 tahun (berlaku s.d. ${expDateISO}).`,
     })
 
-    // 7. Kirim notifikasi ke Pengaju (pemilik_id)
+    // 8. Kirim notifikasi ke PIC Arsip Aktif pengentri (pemilik_id)
     if (doc.pemilik_id) {
       await kirimNotifikasiKeUser({
         userId: doc.pemilik_id,
-        judul: 'Dokumen Disetujui (Aktif)',
-        isi: `Dokumen Anda "${doc.judul}" (${doc.kode_arsip}) telah disahkan oleh Atasan dan berstatus Aktif dengan masa retensi hingga ${expDateISO}.`,
+        judul: 'Dokumen Disetujui (Aktif 3 Tahun)',
+        isi: `Dokumen Anda "${doc.judul}" (${doc.kode_arsip}) telah disahkan oleh Atasan Arsip Aktif dan resmi berstatus Aktif hingga ${expDateISO}.`,
         dokumenId: doc.id,
       })
     }
@@ -149,9 +149,8 @@ export async function POST(
       tanggal_kadaluarsa: expDateISO,
     })
   } catch (err: unknown) {
-    console.error('Error approve:', err)
+    console.error('Error approval:', err)
     const msg = err instanceof Error ? err.message : 'Terjadi kesalahan sistem'
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
-

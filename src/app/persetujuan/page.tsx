@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useEffect, useCallback, Suspense } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { UserRole } from '@/types'
 import {
@@ -14,22 +13,18 @@ import {
   Eye,
   User,
   MapPin,
-  HardDrive,
-  ShieldCheck,
-  UserCheck,
-  ClipboardCheck,
+  Building2,
   Check,
-  ArrowRight,
   Inbox,
   Loader2,
   Calendar,
+  Layers,
+  AlertCircle,
   Clock,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { KodeArsip } from '@/components/documents/kode-arsip'
 import { skorPencarian } from '@/lib/pencarian-kode-arsip'
-
-type Tahap = 'tahap_1_pic' | 'tahap_2_atasan'
 
 interface VerificationDoc {
   id: string
@@ -42,59 +37,18 @@ interface VerificationDoc {
   tanggal_dokumen: string
   created_at: string
   lokasi_saat_ini: string
-  tahap: Tahap
   ukuran_file: number | null
-  verifikasi_pic_oleh: string | null
-}
-
-const inputClass =
-  'w-full rounded-lg border border-[#E3E6F0] bg-white px-3.5 py-2.5 text-sm text-[#1F2333] placeholder:text-[#A5ABBC] focus:border-[#3BA4E8] focus:outline-none focus:ring-2 focus:ring-[#3BA4E8]/15'
-
-function StageProgress({ tahap }: { tahap: Tahap }) {
-  const steps = [
-    { label: 'Pengajuan', done: true, current: false },
-    { label: 'Verifikasi PIC', done: tahap === 'tahap_2_atasan', current: tahap === 'tahap_1_pic' },
-    { label: 'Pengesahan Atasan', done: false, current: tahap === 'tahap_2_atasan' },
-  ]
-  return (
-    <div className="flex items-center gap-1.5 text-xs">
-      {steps.map((s, i) => (
-        <div key={s.label} className="flex items-center gap-1.5">
-          <span
-            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-              s.done
-                ? 'bg-[#3BA4E8] text-white'
-                : s.current
-                ? 'bg-white text-[#1E86C8] ring-2 ring-[#3BA4E8]'
-                : 'bg-[#EEF0F4] text-[#9AA0B2]'
-            }`}
-          >
-            {s.done ? <Check className="h-3 w-3" /> : i + 1}
-          </span>
-          <span
-            className={`whitespace-nowrap ${
-              s.current ? 'font-semibold text-[#1E86C8]' : s.done ? 'text-[#4B5163]' : 'text-[#9AA0B2]'
-            }`}
-          >
-            {s.label}
-          </span>
-          {i < steps.length - 1 && (
-            <span className={`h-px w-4 sm:w-8 ${s.done ? 'bg-[#3BA4E8]' : 'bg-[#E3E6F0]'}`} />
-          )}
-        </div>
-      ))}
-    </div>
-  )
+  jumlah_halaman: number | null
+  unit_id: string | null
+  unit_nama: string | null
 }
 
 function VerifikasiContent() {
-  const searchParams = useSearchParams()
-  const roleParam = searchParams.get('demo_role') as UserRole | null
-
   const [currentUserRole, setCurrentUserRole] = useState<UserRole>('staff')
+  const [currentUnitId, setCurrentUnitId] = useState<string | null>(null)
+  const [currentUnitNama, setCurrentUnitNama] = useState<string>('Keuangan')
   const [items, setItems] = useState<VerificationDoc[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<Tahap>('tahap_1_pic')
   const [searchQuery, setSearchQuery] = useState('')
   const [processed, setProcessed] = useState({ disahkan: 0, ditolak: 0 })
 
@@ -120,59 +74,78 @@ function VerifikasiContent() {
         data: { user },
       } = await supabase.auth.getUser()
 
+      let userRole: UserRole = 'staff'
+      let unitId: string | null = null
+
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, unit_id, unit:unit_organisasi(id, nama)')
           .eq('id', user.id)
           .single()
 
         if (profile?.role) {
-          setCurrentUserRole(profile.role as UserRole)
-          // Default tab: jika Atasan, buka Tahap 2; selain itu Tahap 1
-          if (profile.role === 'atasan_aktif' || profile.role === 'atasan_inaktif') {
-            setActiveTab('tahap_2_atasan')
-          }
+          userRole = profile.role as UserRole
+          setCurrentUserRole(userRole)
+        }
+        if (profile?.unit_id) {
+          unitId = profile.unit_id
+          setCurrentUnitId(unitId)
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const u = profile?.unit as any
+        if (u?.nama) {
+          setCurrentUnitNama(u.nama)
         }
       }
 
       // Query dokumen status menunggu_persetujuan
-      const { data, error } = await supabase
+      let query = supabase
         .from('dokumen')
         .select(`
           id, kode_arsip, nomor_dokumen, nomor_ppl, judul,
           lokasi_saat_ini, ukuran_file, tanggal_dokumen, created_at,
-          verifikasi_pic_oleh,
+          jumlah_halaman, unit_id,
+          unit:unit_organisasi ( id, nama ),
           kategori_dokumen ( nama ),
           pemilik:profiles!dokumen_pemilik_id_fkey ( nama_lengkap, email )
         `)
         .eq('status', 'menunggu_persetujuan')
         .order('created_at', { ascending: false })
 
+      // Blueprint 3.3 poin 2: Atasan Arsip Aktif hanya melihat antrean dari unitnya sendiri
+      if (userRole === 'atasan_aktif' && unitId) {
+        query = query.eq('unit_id', unitId)
+      }
+
+      const { data, error } = await query
+
       if (error) {
-        console.error('Error fetch dokumen antrean:', error)
+        console.error('Error load pending docs:', error)
         return
       }
 
-      const formatted: VerificationDoc[] = (data || []).map((d: any) => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mapped: VerificationDoc[] = (data || []).map((d: any) => ({
         id: d.id,
         kode_arsip: d.kode_arsip,
         nomor_dokumen: d.nomor_dokumen,
         nomor_ppl: d.nomor_ppl,
         judul: d.judul,
         kategori_nama: d.kategori_dokumen?.nama || 'Umum',
-        pengaju_nama: d.pemilik?.nama_lengkap || d.pemilik?.email || 'Pengaju',
+        pengaju_nama: d.pemilik?.nama_lengkap || d.pemilik?.email || 'PIC Arsip Aktif',
         tanggal_dokumen: d.tanggal_dokumen,
         created_at: d.created_at,
         lokasi_saat_ini: d.lokasi_saat_ini || 'Ruang Arsip Aktif',
-        tahap: d.verifikasi_pic_oleh ? 'tahap_2_atasan' : 'tahap_1_pic',
         ukuran_file: d.ukuran_file,
-        verifikasi_pic_oleh: d.verifikasi_pic_oleh,
+        jumlah_halaman: d.jumlah_halaman || 1,
+        unit_id: d.unit_id,
+        unit_nama: d.unit?.nama || 'Keuangan',
       }))
 
-      setItems(formatted)
+      setItems(mapped)
     } catch (err) {
-      console.error('Error loading pending verifications:', err)
+      console.error('Error fetch pending docs:', err)
     } finally {
       setIsLoading(false)
     }
@@ -182,39 +155,50 @@ function VerifikasiContent() {
     fetchPendingDocs()
   }, [fetchPendingDocs])
 
-  // Pencarian pintar kode arsip (sama dengan Daftar Dokumen), ditambah nama pengaju
+  // Filter & Search
   const filteredItems = useMemo(() => {
-    const q = searchQuery.trim()
-    const skor = new Map<string, number>()
+    if (!searchQuery.trim()) return items
+
+    const q = searchQuery.toLowerCase().trim()
     return items
-      .filter((item) => {
-        if (item.tahap !== activeTab) return false
-        if (!q) return true
-        const s = Math.max(skorPencarian(q, item), item.pengaju_nama.toLowerCase().includes(q.toLowerCase()) ? 1 : 0)
-        skor.set(item.id, s)
-        return s > 0
+      .map((item) => {
+        const scoreKode = skorPencarian(q, item)
+        const matchJudul = item.judul.toLowerCase().includes(q)
+        const matchKategori = item.kategori_nama.toLowerCase().includes(q)
+        const matchPengaju = item.pengaju_nama.toLowerCase().includes(q)
+        const matchPpl = item.nomor_ppl ? item.nomor_ppl.toLowerCase().includes(q) : false
+        const matchDoc = item.nomor_dokumen ? item.nomor_dokumen.toLowerCase().includes(q) : false
+
+        let totalScore = scoreKode
+        if (matchJudul) totalScore += 50
+        if (matchPpl || matchDoc) totalScore += 40
+        if (matchKategori || matchPengaju) totalScore += 20
+
+        return { item, totalScore }
       })
-      .sort((a, b) => (q ? (skor.get(b.id) ?? 0) - (skor.get(a.id) ?? 0) : 0))
-  }, [items, activeTab, searchQuery])
+      .filter((x) => x.totalScore > 0)
+      .sort((a, b) => b.totalScore - a.totalScore)
+      .map((x) => x.item)
+  }, [items, searchQuery])
 
-  const countTahap1 = items.filter((i) => i.tahap === 'tahap_1_pic').length
-  const countTahap2 = items.filter((i) => i.tahap === 'tahap_2_atasan').length
-
-  const closeModal = () => {
-    if (isSubmittingAction) return
-    setModalAction(null)
-    setAlasan('')
-  }
-
-  // Handler Konfirmasi Aksi (Verifikasi / Approve / Tolak)
+  // Eksekusi Aksi: Approve / Reject
   const handleConfirmAction = async () => {
     if (!modalAction) return
     const { item, type } = modalAction
 
     setIsSubmittingAction(true)
-
     try {
-      if (type === 'reject') {
+      if (type === 'approve') {
+        const res = await fetch(`/api/dokumen/${item.id}/approve`, {
+          method: 'POST',
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Gagal mengesahkan dokumen.')
+
+        setItems((prev) => prev.filter((i) => i.id !== item.id))
+        setProcessed((p) => ({ ...p, disahkan: p.disahkan + 1 }))
+        showToast('success', `Dokumen ${item.kode_arsip} berhasil disahkan menjadi Aktif (+3 Tahun).`)
+      } else {
         if (!alasan.trim()) {
           showToast('reject', 'Alasan penolakan wajib diisi.')
           setIsSubmittingAction(false)
@@ -231,419 +215,376 @@ function VerifikasiContent() {
 
         setItems((prev) => prev.filter((i) => i.id !== item.id))
         setProcessed((p) => ({ ...p, ditolak: p.ditolak + 1 }))
-        showToast('reject', `Dokumen ${item.kode_arsip} ditolak: "${alasan.trim()}"`)
-      } else if (item.tahap === 'tahap_1_pic') {
-        // PIC Arsip Verifikasi
-        const res = await fetch(`/api/dokumen/${item.id}/verifikasi`, {
-          method: 'POST',
-        })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Gagal memverifikasi dokumen.')
-
-        setItems((prev) =>
-          prev.map((i) =>
-            i.id === item.id ? { ...i, tahap: 'tahap_2_atasan', verifikasi_pic_oleh: 'done' } : i
-          )
-        )
-        showToast('success', `Dokumen ${item.kode_arsip} lolos verifikasi tahap 1 dan diteruskan ke Atasan.`)
-      } else {
-        // Atasan Persetujuan Akhir
-        const res = await fetch(`/api/dokumen/${item.id}/approve`, {
-          method: 'POST',
-        })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Gagal menyetujui dokumen.')
-
-        setItems((prev) => prev.filter((i) => i.id !== item.id))
-        setProcessed((p) => ({ ...p, disahkan: p.disahkan + 1 }))
-        showToast(
-          'success',
-          `Dokumen ${item.kode_arsip} disahkan menjadi Arsip Aktif (+3 Tahun s.d. ${data.tanggal_kadaluarsa}).`
-        )
+        showToast('reject', `Dokumen ${item.kode_arsip} telah ditolak dan dikembalikan ke PIC Arsip Aktif.`)
       }
 
-      closeModal()
+      setModalAction(null)
+      setAlasan('')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Terjadi kesalahan sistem'
+      console.error('Error aksi persetujuan:', err)
+      const msg = err instanceof Error ? err.message : 'Terjadi kesalahan'
       showToast('reject', msg)
     } finally {
       setIsSubmittingAction(false)
     }
   }
 
-  const isReject = modalAction?.type === 'reject'
-  const confirmDisabled = isSubmittingAction || (isReject && !alasan.trim())
+  const formatTanggal = (str: string) => {
+    try {
+      return new Date(str).toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+    } catch {
+      return str
+    }
+  }
 
-
-  const formatTanggal = (iso: string) =>
-    new Date(iso).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+  const isAtasanAktif = currentUserRole === 'atasan_aktif'
+  const isSuperadmin = currentUserRole === 'superadmin'
+  const canApprove = isAtasanAktif || isSuperadmin
 
   return (
-    <AppLayout currentRole={roleParam || undefined}>
-      <div className="mx-auto max-w-7xl space-y-6 pb-16">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight text-[#1F2333] sm:text-[28px]">Verifikasi Dokumen</h1>
-            <p className="mt-1 text-sm text-[#4B5163]">
-              Verifikasi kelengkapan format SIG oleh PIC Arsip, lalu pengesahan arsip aktif 3 tahun oleh Atasan.
-            </p>
-          </div>
-          <Link
-            href="/dokumen"
-            className="flex items-center justify-center gap-2 self-stretch rounded-lg border border-[#E3E6F0] bg-white px-4 py-2 text-sm font-medium text-[#4B5163] transition-colors hover:border-[#3BA4E8] hover:text-[#1E86C8] sm:self-start"
+    <AppLayout>
+      <div className="space-y-6 max-w-6xl mx-auto pb-16 font-mono text-xs">
+        {/* Toast Notifikasi */}
+        {toast && (
+          <div
+            className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 border px-4 py-3 shadow-lg ${
+              toast.type === 'success'
+                ? 'border-[#16A34A] bg-[#F0FDF4] text-[#166534]'
+                : 'border-[#DC2626] bg-[#FEF2F2] text-[#991B1B]'
+            }`}
           >
-            <FileText className="h-4 w-4" />
-            Daftar Dokumen
-          </Link>
-        </div>
+            {toast.type === 'success' ? (
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-[#16A34A]" />
+            ) : (
+              <XCircle className="h-4 w-4 shrink-0 text-[#DC2626]" />
+            )}
+            <span className="font-semibold">{toast.text}</span>
+          </div>
+        )}
 
-        {/* Kartu ringkasan */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          {[
-            { label: 'Menunggu PIC Arsip', hint: 'Tahap 1', value: countTahap1, icon: ClipboardCheck, color: 'text-[#B06000]', bar: 'bg-[#FBBC04]', iconBox: 'bg-[#FEF7E0] text-[#B06000]' },
-            { label: 'Menunggu Atasan', hint: 'Tahap 2', value: countTahap2, icon: UserCheck, color: 'text-[#1E86C8]', bar: 'bg-[#3BA4E8]', iconBox: 'bg-[#EAF5FD] text-[#3BA4E8]' },
-            { label: 'Disahkan', hint: 'Sesi ini', value: processed.disahkan, icon: ShieldCheck, color: 'text-[#137333]', bar: 'bg-[#34A853]', iconBox: 'bg-[#E6F4EA] text-[#137333]' },
-            { label: 'Ditolak', hint: 'Sesi ini', value: processed.ditolak, icon: XCircle, color: 'text-[#D64545]', bar: 'bg-[#EA4335]', iconBox: 'bg-[#FDECEC] text-[#D64545]' },
-          ].map((s) => {
-            const Icon = s.icon
-            return (
-              <div
-                key={s.label}
-                className="relative flex items-start justify-between gap-2 overflow-hidden rounded-2xl border border-[#ECEEF5] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all hover:shadow-sm sm:p-5"
-              >
-                <span className={`absolute bottom-0 left-0 top-0 w-1 ${s.bar}`} />
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-medium text-[#64748B] sm:text-sm">{s.label}</p>
-                  <p className="truncate text-[11px] text-[#9AA0B2]">{s.hint}</p>
-                  <p className={`mt-1.5 text-2xl font-bold tracking-tight sm:text-[28px] ${s.color}`}>
-                    {isLoading ? '–' : s.value}
-                  </p>
-                </div>
-                <span className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:flex ${s.iconBox}`}>
-                  <Icon className="h-[18px] w-[18px]" />
-                </span>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Antrean */}
-        <div className="rounded-xl border border-[#ECEEF5] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
-          {/* Tab & pencarian */}
-          <div className="flex flex-col gap-3 border-b border-[#ECEEF5] p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-              {(
-                [
-                  { id: 'tahap_1_pic', label: 'Tahap 1 · Verifikasi PIC', count: countTahap1 },
-                  { id: 'tahap_2_atasan', label: 'Tahap 2 · Pengesahan Atasan', count: countTahap2 },
-                ] as const
-              ).map((tab) => {
-                const active = activeTab === tab.id
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                      active
-                        ? 'bg-[#3BA4E8] text-white'
-                        : 'bg-[#F4F5FA] text-[#4B5163] hover:bg-[#EEF7FD] hover:text-[#1E86C8]'
+        {/* Modal Konfirmasi Persetujuan / Penolakan */}
+        {modalAction && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 font-mono">
+            <div className="w-full max-w-lg border-2 border-[#1A1A1A] bg-white p-6 space-y-4 shadow-xl">
+              <div className="flex items-start justify-between border-b border-[#E5E5E5] pb-3">
+                <div className="space-y-1">
+                  <span
+                    className={`inline-block px-2 py-0.5 text-[10px] font-bold ${
+                      modalAction.type === 'approve'
+                        ? 'border border-[#16A34A] bg-[#F0FDF4] text-[#166534]'
+                        : 'border border-[#DC2626] bg-[#FEF2F2] text-[#991B1B]'
                     }`}
                   >
-                    {tab.label}
-                    <span className={`rounded-md px-1.5 text-xs ${active ? 'bg-white/25' : 'bg-white text-[#6B7185]'}`}>
-                      {tab.count}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-
-            <div className="relative w-full lg:max-w-sm">
-              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9AA0B2]" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari kode arsip, no. PPL, doc voucher, judul..."
-                className={`${inputClass} pl-10 pr-9`}
-              />
-              {searchQuery && (
+                    {modalAction.type === 'approve' ? 'PENGESAHAN DOKUMEN AKTIF' : 'PENOLAKAN DOKUMEN'}
+                  </span>
+                  <h3 className="text-sm font-bold text-[#1A1A1A]">
+                    {modalAction.type === 'approve'
+                      ? 'Sahkan Dokumen Menjadi Aktif Selama 3 Tahun'
+                      : 'Tolak Dokumen & Kembalikan ke PIC Arsip Aktif'}
+                  </h3>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9AA0B2] hover:text-[#1F2333]"
+                  onClick={() => {
+                    setModalAction(null)
+                    setAlasan('')
+                  }}
+                  className="text-[#888] hover:text-[#1A1A1A]"
                 >
                   <X className="h-4 w-4" />
                 </button>
-              )}
-            </div>
-          </div>
-
-          {/* Daftar */}
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center gap-3 py-20 text-[#6B7185]">
-              <Loader2 className="h-8 w-8 animate-spin text-[#3BA4E8]" />
-              <p className="text-sm font-medium">Memuat antrean verifikasi...</p>
-            </div>
-          ) : filteredItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 px-4 py-20 text-center">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#EAF5FD] text-[#3BA4E8]">
-                <Inbox className="h-6 w-6" />
-              </span>
-              <p className="mt-1 text-sm font-semibold text-[#1F2333]">Antrean kosong</p>
-              <p className="max-w-sm text-xs text-[#8A90A2]">
-                {searchQuery ? 'Tidak ada dokumen yang cocok dengan pencarian Anda.' : 'Tidak ada dokumen yang menunggu pada tahap ini.'}
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-[#ECEEF5]">
-              {filteredItems.map((item) => (
-                <div key={item.id} className="space-y-4 p-4 transition-colors hover:bg-[#F7FBFE] sm:p-5">
-                  {/* Judul & tahapan */}
-                  <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EAF5FD] text-[#3BA4E8]">
-                        <FileText className="h-5 w-5" />
-                      </span>
-                      <div className="min-w-0">
-                        <Link
-                          href={`/dokumen/${item.id}`}
-                          className="break-words text-base font-semibold leading-snug text-[#1F2333] hover:text-[#1E86C8]"
-                        >
-                          {item.judul}
-                        </Link>
-                        <KodeArsip kode={item.kode_arsip} className="block mt-0.5 font-mono text-xs text-[#1E86C8]" />
-                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                          <span className="inline-flex items-center rounded-full border border-[#ECEEF5] bg-[#F7F8FC] px-2.5 py-0.5 text-xs font-medium text-[#4B5163]">
-                            {item.kategori_nama}
-                          </span>
-                          <span className="inline-flex items-center gap-1 rounded-full border border-[#FEEFC3] bg-[#FEF7E0] px-2.5 py-0.5 text-xs font-semibold text-[#B06000]">
-                            <Clock className="h-3 w-3" />
-                            Menunggu Persetujuan
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="overflow-x-auto pb-1 xl:pb-0">
-                      <StageProgress tahap={item.tahap} />
-                    </div>
-                  </div>
-
-                  {/* Metadata */}
-                  <div className="grid grid-cols-2 gap-3 rounded-xl border border-[#ECEEF5] bg-[#F8FBFE] p-3.5 lg:grid-cols-4">
-                    {[
-                      { icon: User, label: 'Pengaju', value: item.pengaju_nama },
-                      { icon: Calendar, label: 'Tanggal Pengajuan', value: formatTanggal(item.created_at) },
-                      { icon: MapPin, label: 'Lokasi Fisik', value: item.lokasi_saat_ini },
-                      {
-                        icon: HardDrive,
-                        label: 'Ukuran Berkas',
-                        value: item.ukuran_file ? `${(item.ukuran_file / 1024 / 1024).toFixed(2)} MB` : '-',
-                      },
-                    ].map((m) => {
-                      const Icon = m.icon
-                      return (
-                        <div key={m.label} className="flex min-w-0 items-start gap-2">
-                          <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#3BA4E8]" />
-                          <div className="min-w-0">
-                            <p className="text-[11px] text-[#9AA0B2]">{m.label}</p>
-                            <p className="truncate text-sm font-medium text-[#1F2333]">{m.value}</p>
-                          </div>
-                        </div>
-                      )
-                    })}
-                    {(item.nomor_ppl || item.nomor_dokumen) && (
-                      <div className="col-span-2 flex flex-wrap gap-x-6 gap-y-1 border-t border-[#ECEEF5] pt-3 text-xs lg:col-span-4">
-                        {item.nomor_ppl && (
-                          <span className="text-[#8A90A2]">
-                            No. PPL <span className="ml-1 font-mono font-medium text-[#1F2333]">{item.nomor_ppl}</span>
-                          </span>
-                        )}
-                        {item.nomor_dokumen && (
-                          <span className="text-[#8A90A2]">
-                            Doc Voucher <span className="ml-1 font-mono font-medium text-[#1F2333]">{item.nomor_dokumen}</span>
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Aksi */}
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <Link
-                      href={`/dokumen/${item.id}`}
-                      className="inline-flex items-center gap-1.5 text-sm font-medium text-[#1E86C8] hover:underline"
-                    >
-                      <Eye className="h-4 w-4" />
-                      Periksa berkas & riwayat
-                    </Link>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setModalAction({ item, type: 'reject' })}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#F5C2C2] bg-white px-4 py-2 text-sm font-semibold text-[#D64545] transition-colors hover:bg-[#FDECEC] sm:flex-none"
-                      >
-                        <XCircle className="h-4 w-4" />
-                        Tolak
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setModalAction({ item, type: 'approve' })}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#2A92D6] sm:flex-none"
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                        {item.tahap === 'tahap_1_pic' ? 'Verifikasi Lolos' : 'Sahkan (+3 Tahun)'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ================= MODAL KONFIRMASI ================= */}
-      {modalAction && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-xs sm:items-center sm:p-4"
-          onClick={closeModal}
-        >
-          <div
-            className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl animate-in fade-in slide-in-from-bottom-4 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-3 border-b border-[#ECEEF5] p-5">
-              <div className="flex min-w-0 items-start gap-3">
-                <span
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                    isReject ? 'bg-[#FDECEC] text-[#D64545]' : 'bg-[#EAF5FD] text-[#3BA4E8]'
-                  }`}
-                >
-                  {isReject ? <XCircle className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
-                </span>
-                <div className="min-w-0">
-                  <h3 className="text-base font-semibold text-[#1F2333]">
-                    {isReject
-                      ? 'Tolak Pengajuan Dokumen'
-                      : modalAction.item.tahap === 'tahap_1_pic'
-                      ? 'Verifikasi Tahap 1 (PIC Arsip)'
-                      : 'Pengesahan Akhir (Atasan)'}
-                  </h3>
-                  <KodeArsip kode={modalAction.item.kode_arsip} className="block mt-0.5 font-mono text-xs text-[#6B7185]" />
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={closeModal}
-                className="rounded-lg p-1.5 text-[#6B7185] hover:bg-[#F4F5FA] hover:text-[#1F2333]"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4 p-5">
-              <div className="rounded-xl border border-[#ECEEF5] bg-[#F8FBFE] p-3.5 text-sm">
-                <p className="font-semibold text-[#1F2333]">{modalAction.item.judul}</p>
-                <p className="mt-0.5 text-xs text-[#6B7185]">
-                  Pengaju: {modalAction.item.pengaju_nama} · Kategori: {modalAction.item.kategori_nama}
-                </p>
-                {!isReject && (
-                  <p className="mt-2 flex items-start gap-1.5 text-xs font-medium text-[#1E86C8]">
-                    <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    {modalAction.item.tahap === 'tahap_1_pic'
-                      ? 'Dokumen akan diteruskan ke antrean pengesahan Atasan.'
-                      : 'Dokumen akan berstatus Aktif selama 3 tahun dan label QR resmi diterbitkan.'}
-                  </p>
-                )}
               </div>
 
-              {isReject && (
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">
-                    Alasan Penolakan <span className="text-[#D64545]">*</span>
+              {/* Rincian Dokumen */}
+              <div className="border border-[#E5E5E5] bg-[#FAFAFA] p-3 space-y-1 text-[11px]">
+                <div className="flex justify-between">
+                  <span className="text-[#666]">Kode Arsip SIG:</span>
+                  <span className="font-bold text-[#1A1A1A]">{modalAction.item.kode_arsip}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#666]">Judul Dokumen:</span>
+                  <span className="font-semibold text-[#1A1A1A] max-w-xs truncate text-right">
+                    {modalAction.item.judul}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#666]">Unit Organisasi:</span>
+                  <span className="font-semibold text-[#1A1A1A]">{modalAction.item.unit_nama}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#666]">Jumlah Lembar Fisik:</span>
+                  <span className="font-bold text-[#15803D]">{modalAction.item.jumlah_halaman} lembar</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#666]">PIC Pengentri:</span>
+                  <span className="text-[#1A1A1A]">{modalAction.item.pengaju_nama}</span>
+                </div>
+              </div>
+
+              {modalAction.type === 'approve' ? (
+                <div className="space-y-2 text-xs font-sans text-[#444] bg-[#FFFBEB] border border-amber-200 p-3">
+                  <p className="font-semibold text-amber-900">Ketentuan Pengesahan (Blueprint 3.3 poin 4):</p>
+                  <ul className="list-disc pl-5 space-y-1 text-[11px] text-amber-800">
+                    <li>Dokumen resmi berstatus <strong>AKTIF</strong> selama persis 3 tahun.</li>
+                    <li>Tanggal kadaluarsa otomatis dihitung: <strong>hari ini + 3 tahun</strong>.</li>
+                    <li>Label barcode / QR code resmi SIG diterbitkan otomatis.</li>
+                    <li>PIC Arsip Aktif pengentri akan menerima notifikasi pengesahan.</li>
+                  </ul>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-[#1A1A1A]">
+                    ALASAN PENOLAKAN <span className="text-red-600">* (Wajib Diisi)</span>
                   </label>
                   <textarea
                     rows={3}
-                    required
                     value={alasan}
                     onChange={(e) => setAlasan(e.target.value)}
-                    placeholder="Tuliskan alasan penolakan secara jelas agar pengaju dapat memperbaiki dokumen..."
-                    className={`${inputClass} resize-none focus:border-[#D64545] focus:ring-[#D64545]/15`}
+                    placeholder="Tuliskan catatan perbaikan untuk PIC Arsip Aktif..."
+                    className="w-full border border-[#C5BFB0] p-2.5 text-xs font-mono focus:border-[#DC2626] focus:outline-none"
                   />
-                  <p className="mt-1 text-xs text-[#8A90A2]">
-                    Dokumen akan berstatus Ditolak dan dikembalikan ke Pengaju beserta alasan ini.
+                  <p className="text-[10px] text-[#666] font-sans">
+                    Alasan ini akan dikirimkan kepada PIC Arsip Aktif agar dokumen dapat diperbaiki dan diajukan ulang.
                   </p>
                 </div>
               )}
-            </div>
 
-            <div className="flex flex-col-reverse gap-2 border-t border-[#ECEEF5] p-5 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                disabled={isSubmittingAction}
-                onClick={closeModal}
-                className="rounded-lg border border-[#E3E6F0] bg-white px-4 py-2 text-sm font-medium text-[#4B5163] hover:bg-[#F7F8FC]"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                disabled={confirmDisabled}
-                onClick={handleConfirmAction}
-                className={`flex items-center justify-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold text-white shadow-sm transition-colors disabled:opacity-50 ${
-                  isReject ? 'bg-[#D64545] hover:bg-[#C03A3A]' : 'bg-[#3BA4E8] hover:bg-[#2A92D6]'
-                }`}
-              >
-                {isSubmittingAction && <Loader2 className="h-4 w-4 animate-spin" />}
-                {isSubmittingAction
-                  ? 'Memproses...'
-                  : isReject
-                  ? 'Tolak Dokumen'
-                  : modalAction.item.tahap === 'tahap_1_pic'
-                  ? 'Loloskan Verifikasi'
-                  : 'Sahkan Menjadi Aktif'}
-              </button>
+              {/* Tombol Aksi Modal */}
+              <div className="flex justify-end gap-2 pt-2 border-t border-[#E5E5E5]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalAction(null)
+                    setAlasan('')
+                  }}
+                  className="px-4 py-2 border border-[#C5BFB0] text-xs font-semibold hover:bg-[#F5F5F5]"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmAction}
+                  disabled={isSubmittingAction || (modalAction.type === 'reject' && !alasan.trim())}
+                  className={`inline-flex items-center gap-1.5 px-5 py-2 text-xs font-bold text-white transition-colors disabled:opacity-50 ${
+                    modalAction.type === 'approve'
+                      ? 'border-2 border-[#16A34A] bg-[#16A34A] hover:bg-[#15803D]'
+                      : 'border-2 border-[#DC2626] bg-[#DC2626] hover:bg-[#B91C1C]'
+                  }`}
+                >
+                  {isSubmittingAction ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Memproses...</span>
+                    </>
+                  ) : modalAction.type === 'approve' ? (
+                    <>
+                      <Check className="h-3.5 w-3.5" />
+                      <span>Sahkan Dokumen Aktif</span>
+                    </>
+                  ) : (
+                    <>
+                      <X className="h-3.5 w-3.5" />
+                      <span>Kirim Penolakan</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Header Halaman */}
+        <div className="border-b border-[#D9D4C7] pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="px-2 py-0.5 border border-[#9A3412] bg-[#FFF7ED] text-[#9A3412] font-bold text-[10px]">
+                ALUR PERSETUJUAN R.03
+              </span>
+              <span className="text-[#666] text-[11px]">
+                Unit Kerja: <strong>{currentUnitNama}</strong>
+              </span>
+            </div>
+            <h1 className="text-lg font-bold text-[#1A1A1A] tracking-tight">
+              Antrean Persetujuan Dokumen Arsip
+            </h1>
+            <p className="text-[11px] text-[#666] font-sans mt-0.5">
+              {isAtasanAktif
+                ? `Menampilkan seluruh berkas arsip yang baru dientri oleh PIC Arsip Aktif unit ${currentUnitNama} dan menunggu persetujuan Anda.`
+                : isSuperadmin
+                ? 'Mode Superadmin: Menampilkan seluruh dokumen menunggu persetujuan lintas unit.'
+                : 'Halaman ini khusus untuk Atasan Arsip Aktif dalam meninjau dan mengesahkan dokumen arsip unitnya.'}
+            </p>
+          </div>
+
+          {/* Quick Counter */}
+          <div className="flex items-center gap-2">
+            <div className="border border-[#D9D4C7] bg-[#FDFCF7] px-3 py-1.5 text-center">
+              <span className="text-[10px] text-[#777] block">Antrean</span>
+              <span className="font-bold text-sm text-[#1A1A1A]">{items.length}</span>
+            </div>
+            <div className="border border-[#D9D4C7] bg-[#FDFCF7] px-3 py-1.5 text-center">
+              <span className="text-[10px] text-[#166534] block">Disahkan</span>
+              <span className="font-bold text-sm text-[#16A34A]">{processed.disahkan}</span>
+            </div>
+            <div className="border border-[#D9D4C7] bg-[#FDFCF7] px-3 py-1.5 text-center">
+              <span className="text-[10px] text-[#991B1B] block">Ditolak</span>
+              <span className="font-bold text-sm text-[#DC2626]">{processed.ditolak}</span>
             </div>
           </div>
         </div>
-      )}
 
-      {/* ================= TOAST ================= */}
-      {toast && (
-        <div
-          className={`fixed bottom-4 left-4 right-4 z-[60] flex items-start gap-3 rounded-xl border p-4 shadow-lg sm:bottom-6 sm:left-auto sm:right-6 sm:max-w-md animate-in fade-in slide-in-from-bottom-2 duration-200 ${
-            toast.type === 'success'
-              ? 'border-[#2F9E5B]/30 bg-[#E7F6EC] text-[#1E6B3E]'
-              : 'border-[#D64545]/30 bg-[#FDECEC] text-[#A82828]'
-          }`}
-        >
-          {toast.type === 'success' ? (
-            <CheckCircle2 className="h-5 w-5 shrink-0 text-[#2F9E5B]" />
-          ) : (
-            <XCircle className="h-5 w-5 shrink-0 text-[#D64545]" />
-          )}
-          <p className="flex-1 text-sm font-medium leading-relaxed">{toast.text}</p>
-          <button type="button" onClick={() => setToast(null)} className="rounded-md p-0.5 hover:bg-black/10">
-            <X className="h-4 w-4" />
-          </button>
+        {/* Peringatan Hak Akses jika bukan Atasan / Superadmin */}
+        {!canApprove && (
+          <div className="border border-[#DC2626] bg-[#FEF2F2] p-4 text-[#991B1B] text-xs flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#DC2626]" />
+            <div>
+              <p className="font-bold">Akses Penyetujuan Terbatas</p>
+              <p className="mt-0.5 font-sans leading-relaxed">
+                Anda masuk sebagai peran <strong>{currentUserRole}</strong>. Sesuai Blueprint Bab 5, hak persetujuan dan pengesahan dokumen arsip baru berada di bawah kewenangan <strong>Atasan Arsip Aktif (atasan_aktif)</strong> unit terkait.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Pencarian Antrean */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-[#888]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari berdasarkan kode arsip SIG, judul dokumen, nomor payment..."
+              className="w-full border border-[#C5BFB0] bg-white pl-8 pr-3 py-2 text-xs focus:outline-none focus:border-[#1A1A1A]"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-2.5 text-[#888] hover:text-[#1A1A1A]"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
-      )}
+
+        {/* Tabel / Daftar Antrean Persetujuan */}
+        {isLoading ? (
+          <div className="border border-[#D9D4C7] bg-white p-12 text-center space-y-2">
+            <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#9A3412]" />
+            <p className="text-xs text-[#666]">Memuat antrean persetujuan dokumen...</p>
+          </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="border border-[#D9D4C7] bg-[#FAF9F5] p-12 text-center space-y-2">
+            <Inbox className="w-8 h-8 mx-auto text-[#999]" />
+            <p className="font-bold text-sm text-[#1A1A1A]">Antrean Persetujuan Kosong</p>
+            <p className="text-xs text-[#666] font-sans max-w-md mx-auto">
+              {searchQuery
+                ? 'Tidak ada dokumen yang cocok dengan kata kunci pencarian.'
+                : `Saat ini tidak ada dokumen baru yang menunggu persetujuan dari unit ${currentUnitNama}.`}
+            </p>
+          </div>
+        ) : (
+          <div className="border border-[#D9D4C7] bg-white divide-y divide-[#E5E5E5]">
+            {filteredItems.map((item) => (
+              <div key={item.id} className="p-4 sm:p-5 hover:bg-[#FDFCF7] transition-colors space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-sm text-[#1A1A1A] tracking-wider">
+                      {item.kode_arsip}
+                    </span>
+                    <span className="px-2 py-0.5 border border-[#B45309] bg-[#FFFBEB] text-[#B45309] font-bold text-[10px]">
+                      MENUNGGU PERSETUJUAN
+                    </span>
+                    <span className="px-2 py-0.5 border border-[#E2E8F0] bg-[#F8FAFC] text-[#475569] text-[10px]">
+                      {item.kategori_nama}
+                    </span>
+                    <span className="px-2 py-0.5 border border-[#D9D4C7] bg-[#FAF9F5] text-[#15803D] font-bold text-[10px]">
+                      {item.jumlah_halaman} Lembar
+                    </span>
+                  </div>
+
+                  <div className="text-[11px] text-[#666] flex items-center gap-3">
+                    <span className="flex items-center gap-1">
+                      <Building2 className="w-3.5 h-3.5" />
+                      <span>{item.unit_nama}</span>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>{formatTanggal(item.created_at)}</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                  <div className="space-y-0.5 max-w-2xl">
+                    <h2 className="font-bold text-sm text-[#1A1A1A]">
+                      {item.judul}
+                    </h2>
+                    <div className="text-[11px] text-[#666] font-sans flex items-center gap-4 flex-wrap">
+                      <span>Pengentri: <strong>{item.pengaju_nama}</strong></span>
+                      {item.nomor_ppl && <span>No. Payment: <strong className="font-mono">{item.nomor_ppl}</strong></span>}
+                      {item.nomor_dokumen && <span>Doc Voucher: <strong className="font-mono">{item.nomor_dokumen}</strong></span>}
+                      <span>Lokasi Awal: {item.lokasi_saat_ini}</span>
+                    </div>
+                  </div>
+
+                  {/* Tombol Aksi */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Link
+                      href={`/dokumen/${item.id}`}
+                      className="inline-flex items-center gap-1.5 border border-[#C5BFB0] bg-white px-3 py-1.5 text-xs font-semibold text-[#1A1A1A] hover:bg-[#F5F5F5]"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Lihat Detail</span>
+                    </Link>
+
+                    {canApprove && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setModalAction({ item, type: 'reject' })}
+                          className="inline-flex items-center gap-1.5 border border-[#DC2626] bg-white px-3 py-1.5 text-xs font-bold text-[#DC2626] hover:bg-red-50"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          <span>Tolak</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setModalAction({ item, type: 'approve' })}
+                          className="inline-flex items-center gap-1.5 border border-[#16A34A] bg-[#16A34A] px-3.5 py-1.5 text-xs font-bold text-white hover:bg-[#15803D]"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Setujui (Aktif 3 Thn)</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </AppLayout>
   )
 }
 
-export default function VerifikasiPage() {
+export default function PersetujuanPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex flex-col items-center justify-center gap-3 py-24 text-[#6B7185]">
-          <Loader2 className="h-8 w-8 animate-spin text-[#3BA4E8]" />
-          <p className="text-sm font-medium">Memuat antrean verifikasi...</p>
-        </div>
+        <AppLayout>
+          <div className="p-8 text-center text-xs font-mono text-[#666]">
+            Memuat antrean persetujuan...
+          </div>
+        </AppLayout>
       }
     >
       <VerifikasiContent />

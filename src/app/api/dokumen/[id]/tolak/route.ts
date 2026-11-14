@@ -29,7 +29,7 @@ export async function POST(
       )
     }
 
-    // 2. Cek peran pengguna: Hanya Atasan Arsip Aktif yang berhak menolak dokumen
+    // 2. Cek peran pengguna: Hanya Atasan Arsip Aktif yang berhak menolak dokumen (Blueprint Bab 5)
     const { data: profile } = await supabase
       .from('profiles')
       .select('id, nama, nama_lengkap, role, unit_id')
@@ -43,13 +43,13 @@ export async function POST(
       )
     }
 
-    // 3. Baca alasan penolakan (wajib diisi)
+    // 3. Baca alasan penolakan (wajib diisi sesuai Blueprint 3.3 poin 3 & 6.3)
     const body = await request.json().catch(() => ({}))
     const alasan = (body.alasan || '').trim()
 
     if (!alasan) {
       return NextResponse.json(
-        { error: 'Alasan penolakan wajib diisi untuk mengembalikan dokumen ke pembuat.' },
+        { error: 'Alasan penolakan wajib diisi untuk mengembalikan dokumen ke PIC Arsip Aktif.' },
         { status: 400 }
       )
     }
@@ -58,7 +58,7 @@ export async function POST(
     const admin = createAdminClient()
     const { data: doc, error: docError } = await admin
       .from('dokumen')
-      .select('id, kode_arsip, judul, status, pemilik_id, verifikasi_pic_oleh')
+      .select('id, kode_arsip, judul, status, pemilik_id, unit_id')
       .eq('id', id)
       .single()
 
@@ -73,7 +73,15 @@ export async function POST(
       )
     }
 
-    // 5. Update data: ubah status menjadi ditolak dan simpan alasan
+    // Blueprint 3.3 poin 2: Hanya Atasan Arsip Aktif dari unit yang sama
+    if (profile.unit_id && doc.unit_id && profile.unit_id !== doc.unit_id) {
+      return NextResponse.json(
+        { error: 'Akses Ditolak: Anda hanya berhak menolak dokumen dari unit organisasi Anda sendiri.' },
+        { status: 403 }
+      )
+    }
+
+    // 5. Update data: ubah status menjadi ditolak dan simpan alasan penolakan
     const { error: updateError } = await admin
       .from('dokumen')
       .update({
@@ -90,34 +98,33 @@ export async function POST(
       )
     }
 
-    // 6. Catat log aktivitas
-    const penolakNama = profile.nama_lengkap || profile.nama || user.email || 'Peninjau'
-    const tahapPenolakan = doc.verifikasi_pic_oleh ? 'Persetujuan Akhir Atasan' : 'Verifikasi PIC Arsip'
+    // 6. Catat log aktivitas (aksi: 'tolak')
+    const penolakNama = profile.nama_lengkap || profile.nama || user.email || 'Atasan Arsip Aktif'
     await catatLogAktivitas({
       dokumen_id: doc.id,
       user_id: user.id,
       aksi: 'tolak',
-      keterangan: `Dokumen ditolak pada tahap ${tahapPenolakan} oleh ${penolakNama}. Alasan: "${alasan}"`,
+      keterangan: `Dokumen ditolak oleh Atasan Arsip Aktif (${penolakNama}). Alasan: "${alasan}". Dokumen dikembalikan ke PIC Arsip Aktif untuk diperbaiki.`,
     })
 
-    // 7. Kirim notifikasi ke Pengaju (pemilik_id)
+    // 7. Kirim notifikasi ke PIC Arsip Aktif pengentri (pemilik_id)
     if (doc.pemilik_id) {
       await kirimNotifikasiKeUser({
         userId: doc.pemilik_id,
-        judul: 'Dokumen Ditolak',
-        isi: `Dokumen "${doc.judul}" (${doc.kode_arsip}) ditolak oleh ${profile.role === 'pic_arsip' ? 'PIC Arsip' : 'Atasan'} dengan alasan: "${alasan}". Silakan perbaiki dan ajukan ulang.`,
+        judul: 'Dokumen Ditolak oleh Atasan',
+        isi: `Dokumen Anda "${doc.judul}" (${doc.kode_arsip}) telah ditolak oleh Atasan. Alasan: "${alasan}". Silakan perbaiki metadata/berkas dan ajukan ulang.`,
         dokumenId: doc.id,
       })
     }
 
     return NextResponse.json({
       success: true,
-      message: `Dokumen ${doc.kode_arsip} telah ditolak dan dikembalikan ke pembuat.`,
+      message: `Dokumen ${doc.kode_arsip} telah ditolak dan dikembalikan ke PIC Arsip Aktif untuk perbaikan.`,
+      alasan_penolakan: alasan,
     })
   } catch (err: unknown) {
-    console.error('Error tolak:', err)
+    console.error('Error penolakan:', err)
     const msg = err instanceof Error ? err.message : 'Terjadi kesalahan sistem'
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
-
