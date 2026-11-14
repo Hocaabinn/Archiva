@@ -75,6 +75,59 @@ export function extractSigTokens(filenameOrText: string): {
 }
 
 /**
+ * Menerbitkan nomor Doc Voucher otomatis sistem (10 digit, diawali '19').
+ * Mencari nomor voucher tertinggi yang ada di database, lalu menambahkan 1.
+ * Format standar SIG: 1900000001 s.d. 1999999999.
+ */
+export async function generateNextDocVoucher(): Promise<string> {
+  const admin = createAdminClient()
+  
+  // Ambil dokumen dengan nomor_dokumen 10 digit yang diawali '19'
+  const { data: docs } = await admin
+    .from('dokumen')
+    .select('nomor_dokumen')
+    .like('nomor_dokumen', '19%')
+    .order('nomor_dokumen', { ascending: false })
+    .limit(20)
+
+  let highestNum = 1900000000
+  if (docs && docs.length > 0) {
+    for (const d of docs) {
+      if (d.nomor_dokumen && /^\d{10}$/.test(d.nomor_dokumen)) {
+        const parsed = parseInt(d.nomor_dokumen, 10)
+        if (!isNaN(parsed) && parsed > highestNum) {
+          highestNum = parsed
+        }
+      }
+    }
+  }
+
+  let candidate = highestNum + 1
+
+  // Pastikan kandidat unik terhadap nomor_dokumen maupun kode_arsip
+  let candidateStr = String(candidate).padStart(10, '0')
+  let isUnique = false
+  let attempts = 0
+  while (!isUnique && attempts < 100) {
+    attempts++
+    candidateStr = String(candidate).padStart(10, '0')
+    const { data: existing } = await admin
+      .from('dokumen')
+      .select('id')
+      .or(`nomor_dokumen.eq.${candidateStr},kode_arsip.ilike.%_${candidateStr}`)
+      .limit(1)
+
+    if (!existing || existing.length === 0) {
+      isUnique = true
+    } else {
+      candidate++
+    }
+  }
+
+  return candidateStr
+}
+
+/**
  * Mencatat log aktivitas ke tabel log_aktivitas
  */
 export async function catatLogAktivitas(params: {
