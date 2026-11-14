@@ -306,7 +306,7 @@ export default function RegisterForm() {
 
               <div>
                 <label className="block text-xs font-medium text-[#1E3A5F] uppercase tracking-wider mb-1.5" htmlFor="email">
-                  Alamat Surel Kedinasan
+                  Alamat Email
                 </label>
                 <input
                   id="email"

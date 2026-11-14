@@ -288,7 +288,7 @@ export default function LoginForm() {
             <form onSubmit={handlePasswordLogin} className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-[#1E3A5F] uppercase tracking-wider mb-1.5" htmlFor="email">
-                  Alamat Surel Kedinasan
+                  Alamat Email
                 </label>
                 <input
                   id="email"
@@ -467,7 +467,7 @@ export default function LoginForm() {
               <form onSubmit={handleRequestPasswordOtp} className="space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-[#1E3A5F] uppercase tracking-wider mb-1.5" htmlFor="forgotEmail">
-                    Alamat Surel Kedinasan
+                    Alamat Email
                   </label>
                   <input
                     id="forgotEmail"
