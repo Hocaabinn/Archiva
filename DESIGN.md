@@ -51,9 +51,15 @@ Metafora visual: **kertas kerja kedinasan, tinta stempel, cap status dokumen, ma
    - Filter dropdown status, kategori, tanggal, pemegang, dan lokasi master.
    - Tabel padat menampilkan kode SIG monospace, judul, status cap, pemegang saat ini, lokasi rak/boks, dan batas retensi (dengan penanda 'Akan Kadaluarsa' untuk masa < 90 hari).
 
-4. **Serah Terima & Peminjaman:**
+4. **Serah Terima, Transfer Dokumen & Peminjaman:**
    - Scan barcode/QR kamera beresolusi tinggi + kolom input scanner USB.
-   - Bukti Berita Acara Serah Terima (BAST) otomatis diterbitkan dalam format PDF kedinasan.
+   - Bukti Berita Acara Serah Terima (BAST) dan Berita Acara Penyerahan Arsip (Transfer) otomatis diterbitkan dalam format PDF kedinasan.
    - Perpindahan pemegang fisik hanya sah setelah penerima mengonfirmasi scan.
+
+5. **Dasbor Kapasitas & Metrik Kearsipan (M8):**
+   - Toggle metrik dwi-satuan: Berkas/Lembar vs Satuan Boks.
+   - Widget Okupansi & Kapasitas per Ruangan & Rak berbasis pembacaan data master boks/tabel `boks`.
+   - Kartu statistik 4 kuadran padat informasi dengan lencana peringatan kedaluwarsa.
+   - Grafik tren arsip tahunan yang menunjukkan volume dokumen masuk dan pergeseran ke inaktif.
 
 <!-- Catatan verifikasi anti-slop design R.03: Seluruh komponen telah divalidasi -->

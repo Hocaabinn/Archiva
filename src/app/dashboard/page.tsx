@@ -425,7 +425,7 @@ function DashboardBody() {
 
       const boksDiRak = boksList.filter((b) => b.rak_id === rak.id)
       const totalLembar = boksDiRak.reduce((sum, b) => sum + (b.jumlah_lembar_terisi || 0), 0)
-      const kapasitasMaks = boksDiRak.reduce((sum, b) => sum + (b.kapasitas_maks_lembar || 500), 0)
+      const kapasitasMaks = boksDiRak.reduce((sum, b) => sum + (Number(b.kapasitas_maks_lembar) || 0), 0)
       const persen = kapasitasMaks > 0 ? Math.min(100, Math.round((totalLembar / kapasitasMaks) * 100)) : 0
 
       return {
@@ -822,7 +822,7 @@ function DashboardBody() {
                     <div className="flex items-center justify-between text-[11px] text-[#6B7185]">
                       <span>{rak.totalBoks} Boks Terisi</span>
                       <span>
-                        {rak.totalLembar} / {rak.kapasitasMaksLembar || 500} lbr
+                        {rak.totalLembar} / {rak.kapasitasMaksLembar} lbr
                       </span>
                     </div>
                   </div>

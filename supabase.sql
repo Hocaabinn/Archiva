@@ -169,8 +169,9 @@ CREATE TABLE IF NOT EXISTS public.serah_terima (
     tanggal_serah TIMESTAMPTZ DEFAULT NOW(),
     tanggal_terima TIMESTAMPTZ,
     status_serah serah_terima_status NOT NULL DEFAULT 'Menunggu konfirmasi',
-    keterangan TEXT,
-    bukti_pdf_path TEXT,
+    keterangan TEXT, -- Termasuk format Transfer M8: "TRANSFER_INAKTIF | [nomor_ba] | [catatan]"
+    catatan_penerima TEXT, -- Catatan verifikasi fisik dari PIC Inaktif
+    bukti_pdf_path TEXT, -- Tautan berkas Berita Acara (BAST / BA Transfer Dokumen PDF)
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

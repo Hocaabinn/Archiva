@@ -5,7 +5,7 @@
 **Stack:** Next.js (App Router), Supabase (Auth, Postgres, Storage), Nodemailer (SMTP Surel)  
 **Dokumen pendamping:** `BLUEPRINT.md` R.03, `erd.dbml`, `supabase.sql`  
 **Status:** Produksi / Operasional Kedinasan PT Semen Indonesia Group (SIG).
-**Verifikasi:** Lolos Uji M0-M7.
+**Verifikasi:** Lolos Uji M0-M8 (Tahap M8: Transfer Dokumen, Verifikasi Fisik Inaktif, dan Dasbor Kapasitas/Okupansi Rak).
 
 ---
 
@@ -95,3 +95,26 @@ Notifikasi dikirimkan melalui dua kanal: **Dashboard (Lonceng)** dan **Surel (SM
 8. Dokumen mendekati kadaluarsa (H-90, H-30, H-7) → PIC Arsip Aktif & PIC Arsip Inaktif.
 9. Dokumen pindah ke Inaktif → PIC Arsip Aktif & PIC Arsip Inaktif.
 10. Dokumen dibatalkan → PIC Arsip Aktif.
+11. Transfer Dokumen diajukan (Berita Acara diterbitkan) → PIC Arsip Inaktif.
+12. Transfer Dokumen diverifikasi fisik (diterima / ditolak) → PIC Arsip Aktif & Pemilik Dokumen.
+
+---
+
+## 7. Fitur Kearsipan Lanjutan (Tahap M8)
+
+1. **Transfer Dokumen (PIC Arsip Aktif)**:
+   - Menampilkan berkas aktif mendekati/lewat batas retensi (H-90, H-30, H-7, Lewat Retensi).
+   - Pengajuan penyerahan tunggal/batch dengan penerbitan Berita Acara Penyerahan Arsip (PDF) resmi.
+   - Status serah terima diawali `Menunggu konfirmasi` dengan prefix `TRANSFER_INAKTIF`.
+   - Idempotensi: Dokumen dalam proses transfer dilewati (*skip*) oleh cron harian agar tidak terjadi pemrosesan ganda.
+
+2. **Verifikasi Dokumen Fisik Inaktif (PIC Arsip Inaktif)**:
+   - Pemindaian fisik QR / Barcode Kode Arsip SIG.
+   - Aksi Terima: Pencatatan tanda tangan digital penerima + timestamp, transisi status dokumen ke `inaktif`, pemindahan fisik ke Gudang Inaktif (Rak Inaktif 01), alokasi boks inaktif otomatis berkapasitas 500 lembar dari master boks, dan migrasi file storage dari `arsip-aktif` ke `arsip-inaktif`.
+   - Aksi Tolak: Wajib mencantumkan alasan fisik, dokumen tetap berstatus `aktif` di bawah PIC Arsip Aktif.
+
+3. **Dasbor Metrik & Okupansi Kapasitas**:
+   - Toggle satuan metrik (Berkas / Lembar vs Boks) pada seluruh kartu statistik dan grafik tren tahunan.
+   - Widget Okupansi & Kapasitas per Ruangan & Rak yang membaca kapasitas riil dari master boks/tabel `boks`.
+   - Peringatan dokumen dan boks mendekati masa kedaluwarsa.
+   - Filter status dinamis menyesuaikan peran login.

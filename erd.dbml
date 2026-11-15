@@ -102,8 +102,9 @@ Table serah_terima {
   tanggal_serah timestamptz [default: `now()`]
   tanggal_terima timestamptz
   status_serah text [not null, default: 'Menunggu konfirmasi'] // Menunggu konfirmasi, Diterima, Ditolak
-  keterangan text
-  bukti_pdf_path text
+  keterangan text // Format Transfer M8: "TRANSFER_INAKTIF | [nomor_ba] | [catatan]"
+  catatan_penerima text // Catatan/alasan verifikasi penerima
+  bukti_pdf_path text // Path Berita Acara (BAST / BA Transfer Dokumen) di storage
   created_at timestamptz [default: `now()`]
 }
 
