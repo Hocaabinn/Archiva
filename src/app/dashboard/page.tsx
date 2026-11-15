@@ -581,7 +581,7 @@ function DashboardBody() {
               }`}
             >
               <Package className="h-3.5 w-3.5" />
-              <span>Satuan Boks</span>
+              <span>Satuan Boks Fisik</span>
             </button>
           </div>
 
