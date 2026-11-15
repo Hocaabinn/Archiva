@@ -82,7 +82,7 @@ Detail boleh / tidak boleh tiap role ada di BLUEPRINT.md Bab 5.
 
 ## Perintah pertama yang disarankan
 
-> Baca BLUEPRINT.md (R.03) di folder revisi-12-nov-2026. Kode live masih model R.02 — jangan coding sebelum user memberi prompt migrasi R.03. Lalu kerjakan Tahap 1: migrasi
+> Baca BLUEPRINT.md (R.03) di root project. Kode live masih model R.02 — jangan coding sebelum user memberi prompt migrasi R.03. Lalu kerjakan Tahap 1: migrasi
 > Supabase live ke skema blueprint (4.3 / 4.4). Jangan jalankan supabase.sql mentah.
 > Jangan ubah role, skema, atau alur approval tanpa konfirmasi.
 
