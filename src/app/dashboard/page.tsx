@@ -745,6 +745,7 @@ function DashboardContent() {
   )
 }
 
+/** Dasbor statistik kearsipan padat informasi: antrean, retensi aktif, dan boks */
 export default function DashboardPage() {
   return (
     <Suspense fallback={<div className="p-8 text-center text-sm text-[#6B7185]">Memuat dashboard...</div>}>
