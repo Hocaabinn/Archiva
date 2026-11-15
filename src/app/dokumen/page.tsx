@@ -733,7 +733,7 @@ function DaftarDokumenContent() {
                 <span>Transfer Dokumen</span>
               </Link>
             )}
-            {(role === 'pic_inaktif' || role === 'superadmin') && (
+            {(role === 'pic_inaktif' || role === 'superadmin' || role === 'atasan_inaktif') && (
               <Link
                 href="/persetujuan/verifikasi-transfer"
                 className="flex items-center gap-1.5 rounded-lg border border-[#CEEAD6] bg-[#E6F4EA] px-3.5 py-2 text-sm font-semibold text-[#137333] hover:bg-[#D5EEDC] transition-colors"
