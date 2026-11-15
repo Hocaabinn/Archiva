@@ -362,10 +362,9 @@ function DaftarDokumenContent() {
   const isOwnerPending = (doc: DocRow) => doc.pemilik_id === userId && doc.status === 'menunggu_persetujuan'
 
   // PIC Arsip Aktif: boleh ubah metadata dokumen miliknya yang berstatus menunggu_persetujuan atau ditolak
-  // Superadmin: akses darurat maintainer
+  // Superadmin: mode audit/view (ikon pensil ditiadakan untuk admin)
   const canEdit = (doc: DocRow) => {
-    if (role === 'pic_aktif') return doc.status === 'menunggu_persetujuan' || doc.status === 'ditolak'
-    return role === 'superadmin'
+    return role === 'pic_aktif' && (doc.status === 'menunggu_persetujuan' || doc.status === 'ditolak')
   }
 
   // Tombol hapus ditiadakan di halaman daftar dokumen (hanya di halaman detail dokumen sesuai aturan kedinasan)
@@ -704,24 +703,14 @@ function DaftarDokumenContent() {
         <Eye className="h-4 w-4" />
       </Link>
       {canEdit(doc) && (
-        role === 'superadmin' ? (
-          <Link
-            href={`/dokumen/${doc.id}`}
-            title="Audit Dokumen"
-            className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]"
-          >
-            <Pencil className="h-4 w-4" />
-          </Link>
-        ) : (
-          <button
-            type="button"
-            onClick={() => openEdit(doc)}
-            title="Ubah"
-            className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]"
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
-        )
+        <button
+          type="button"
+          onClick={() => openEdit(doc)}
+          title="Ubah"
+          className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]"
+        >
+          <Pencil className="h-4 w-4" />
+        </button>
       )}
       {canDelete(doc) && (
         <button
