@@ -60,6 +60,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Pastikan caller memiliki hak peran pengajuan transfer (pic_aktif atau superadmin)
+    if (profile.role !== 'pic_aktif' && profile.role !== 'superadmin') {
+      return NextResponse.json(
+        { error: 'Akses Ditolak: Hanya PIC Arsip Aktif atau Superadmin yang dapat mengajukan transfer dokumen.' },
+        { status: 403 }
+      )
+    }
+
     // 2. Ambil dokumen-dokumen yang dipilih
     const { data: docs, error: docErr } = await admin
       .from('dokumen')
