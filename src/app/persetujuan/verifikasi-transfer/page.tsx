@@ -122,7 +122,7 @@ function VerifikasiTransferContent() {
       const res = await fetch('/api/transfer-arsip/antrean')
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Gagal memuat antrean transfer.')
-      setItems(data.antrean || [])
+      setItems(data.antrean || data.data || [])
     } catch (err: any) {
       console.error('Error fetching antrean:', err)
       showToast('reject', err.message || 'Gagal memuat antrean berkas.')
