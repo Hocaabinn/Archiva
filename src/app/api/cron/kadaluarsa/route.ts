@@ -172,7 +172,7 @@ async function runKadaluarsaCron(request: NextRequest) {
       return NextResponse.json({ error: expError.message }, { status: 500 })
     }
 
-    // Ambil daftar dokumen_id yang sedang dalam proses Transfer Arsip (Menunggu konfirmasi)
+    // Ambil daftar dokumen_id yang sedang dalam proses Transfer Dokumen (Menunggu konfirmasi)
     // agar proses cron bersifat IDEMPOTENT dan tidak memproses ulang dokumen yang sedang ditransfer manual.
     const { data: pendingTransfers } = await admin
       .from('serah_terima')
