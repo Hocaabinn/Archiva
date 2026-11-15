@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      antrean: list || [],
       data: list || [],
     })
   } catch (err: unknown) {
