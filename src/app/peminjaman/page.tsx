@@ -455,7 +455,7 @@ function PeminjamanContent() {
               Peminjaman Dokumen Inaktif
             </h1>
             <p className="mt-1 text-sm text-[#4B5163]">
-              Ajukan, verifikasi, dan pantau peminjaman berkas dari Gudang Inaktif.
+              Ajukan, verifikasi, dan pantau peminjaman berkas dari Gudang Inaktif. Dokumen yang dipinjam tetap berstatus Inaktif.
             </p>
           </div>
           <button
