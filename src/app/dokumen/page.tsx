@@ -742,35 +742,6 @@ function DaftarDokumenContent() {
             <p className="mt-1 text-sm text-[#4B5163]" suppressHydrationWarning>{roleHeader.subtitle}</p>
           </div>
           <div className="flex items-center gap-2.5">
-            {(role === 'pic_aktif' || role === 'superadmin') && (
-              <Link
-                href="/transfer-arsip"
-                className="flex items-center gap-1.5 rounded-lg border border-[#BCE1F9] bg-[#EAF5FD] px-3.5 py-2 text-sm font-semibold text-[#1E86C8] hover:bg-[#D8EEFC] transition-colors"
-                title="Pindahkan dokumen aktif mendekati kedaluwarsa ke Inaktif"
-              >
-                <ArrowRight className="h-4 w-4" />
-                <span>Transfer Dokumen</span>
-              </Link>
-            )}
-            {(role === 'pic_inaktif' || role === 'superadmin' || role === 'atasan_inaktif') && (
-              <Link
-                href="/persetujuan/verifikasi-transfer"
-                className="flex items-center gap-1.5 rounded-lg border border-[#CEEAD6] bg-[#E6F4EA] px-3.5 py-2 text-sm font-semibold text-[#137333] hover:bg-[#D5EEDC] transition-colors"
-                title="Verifikasi fisik berkas transfer masuk dari PIC Aktif"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                <span>Verifikasi Dokumen</span>
-              </Link>
-            )}
-            {(role === 'atasan_aktif' || role === 'atasan_inaktif') && (
-              <Link
-                href="/persetujuan"
-                className="flex items-center gap-1.5 rounded-lg border border-[#B06000]/30 bg-[#FEF7E0] px-3.5 py-2 text-sm font-medium text-[#B06000] hover:bg-[#FEEFC3] transition-colors"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                <span>Persetujuan Dokumen</span>
-              </Link>
-            )}
             {canExport && (
               <div className="relative">
                 <button
@@ -1276,30 +1247,6 @@ function DaftarDokumenContent() {
             </div>
           )}
         </div>
-
-        {/* ================= BANNER PINTASAN TRANSFER ARSIP ================= */}
-        {(role === 'pic_aktif' || role === 'superadmin') && counts.akan_kadaluarsa > 0 && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#FEEFC3] bg-[#FEF7E0] p-4 text-[#B06000] shadow-xs">
-            <div className="flex items-start gap-3">
-              <AlarmClock className="h-5 w-5 shrink-0 mt-0.5 text-[#E37400]" />
-              <div>
-                <p className="font-bold text-sm text-[#8C4600]">
-                  Ada {counts.akan_kadaluarsa} Berkas Aktif Mendekati Masa Kedaluwarsa (&lt; 90 Hari)
-                </p>
-                <p className="text-xs text-[#B06000] mt-0.5">
-                  Segera serahkan berkas ke Gudang Inaktif melalui menu Transfer Dokumen untuk menerbitkan Berita Acara resmi.
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/transfer-arsip"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#E37400] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#C96400] transition-colors whitespace-nowrap self-start sm:self-auto"
-            >
-              <span>Transfer Dokumen Sekarang</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-        )}
       </>
     )}
   </div>
