@@ -67,7 +67,7 @@ function TransferArsipContent() {
       } = await supabase.auth.getUser()
 
       if (!user) {
-        setErrorMessage('Silakan masuk untuk mengakses fitur transfer arsip.')
+        setErrorMessage('Silakan masuk untuk mengakses fitur transfer dokumen.')
         setLoading(false)
         return
       }
@@ -212,7 +212,7 @@ function TransferArsipContent() {
 
       const data = await res.json()
       if (!res.ok) {
-        throw new Error(data.error || 'Gagal mengajukan transfer arsip.')
+        throw new Error(data.error || 'Gagal mengajukan transfer dokumen.')
       }
 
       setSuccessResult({
@@ -247,7 +247,7 @@ function TransferArsipContent() {
               Siklus Hidup Arsip Kedinasan (M8 — R.03)
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-[#1F2333]">
-              Transfer Arsip ke Gudang Inaktif
+              Transfer Dokumen ke Gudang Inaktif
             </h1>
             <p className="text-sm text-[#4B5163]">
               Daftar dokumen Aktif yang mendekati atau telah melampaui masa retensi aktif 3 tahun. Centang berkas yang siap diserahkan fisik beserta Berita Acara resmi.

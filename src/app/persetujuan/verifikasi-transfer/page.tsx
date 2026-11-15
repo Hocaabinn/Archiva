@@ -443,7 +443,7 @@ function VerifikasiTransferContent() {
               Tidak Ada Berkas Menunggu Verifikasi
             </p>
             <p className="text-xs text-[#8A90A2] max-w-md mx-auto">
-              Saat ini tidak ada permohonan transfer arsip yang menunggu konfirmasi dari PIC Arsip Aktif.
+              Saat ini tidak ada permohonan transfer dokumen yang menunggu konfirmasi dari PIC Arsip Aktif.
             </p>
           </div>
         ) : (

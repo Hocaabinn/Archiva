@@ -730,7 +730,7 @@ function DaftarDokumenContent() {
                 title="Pindahkan dokumen aktif mendekati kedaluwarsa ke Inaktif"
               >
                 <ArrowRight className="h-4 w-4" />
-                <span>Transfer Arsip</span>
+                <span>Transfer Dokumen</span>
               </Link>
             )}
             {(role === 'pic_inaktif' || role === 'superadmin') && (
@@ -1268,7 +1268,7 @@ function DaftarDokumenContent() {
                   Ada {counts.akan_kadaluarsa} Berkas Aktif Mendekati Masa Kedaluwarsa (&lt; 90 Hari)
                 </p>
                 <p className="text-xs text-[#B06000] mt-0.5">
-                  Segera serahkan berkas ke Gudang Inaktif melalui menu Transfer Arsip untuk menerbitkan Berita Acara resmi.
+                  Segera serahkan berkas ke Gudang Inaktif melalui menu Transfer Dokumen untuk menerbitkan Berita Acara resmi.
                 </p>
               </div>
             </div>
@@ -1276,7 +1276,7 @@ function DaftarDokumenContent() {
               href="/transfer-arsip"
               className="inline-flex items-center gap-1.5 rounded-lg bg-[#E37400] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#C96400] transition-colors whitespace-nowrap self-start sm:self-auto"
             >
-              <span>Transfer Arsip Sekarang</span>
+              <span>Transfer Dokumen Sekarang</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>

@@ -190,7 +190,7 @@ export default function RiwayatPage() {
             <div className="flex items-center gap-2 mb-1">
               <History className="h-6 w-6 text-[#1E3A5F]" />
               <h1 className="text-2xl font-serif font-bold tracking-tight text-[#111827] sm:text-3xl">
-                Buku Log Riwayat & Jejak Audit
+                Log Riwayat & Jejak Audit
               </h1>
             </div>
             <p className="text-sm text-[#4B5E76]">
@@ -352,7 +352,7 @@ export default function RiwayatPage() {
           {isLoading ? (
             <div className="py-16 text-center text-xs text-[#64748B] flex flex-col items-center justify-center gap-2">
               <Loader2 className="h-6 w-6 animate-spin text-[#1E3A5F]" />
-              <span>Memuat buku log riwayat...</span>
+              <span>Memuat log riwayat...</span>
             </div>
           ) : logs.length === 0 ? (
             <div className="p-12 text-center text-xs text-[#64748B]">

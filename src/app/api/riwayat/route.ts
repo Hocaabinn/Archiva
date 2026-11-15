@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/riwayat
- * Mengambil data Buku Log Riwayat / Audit Trail (Blueprint 3.7 & 1210).
+ * Mengambil data Log Riwayat / Audit Trail (Blueprint 3.7 & 1210).
  * Filter didukung:
  * - `dokumen_id`: riwayat spesifik per dokumen
  * - `user_id`: riwayat spesifik per pelaku / pengguna

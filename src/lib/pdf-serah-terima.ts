@@ -317,7 +317,7 @@ export async function generateBuktiSerahTerimaPDF(data: BuktiSerahTerimaData): P
   y -= 125
 
   // 6. PERNYATAAN KESEPAKATAN
-  const pernyataan = 'Dengan ditandatanganinya berita acara ini, tanggung jawab penyimpanan fisik dokumen arsip resmi berpindah kepada Pihak Kedua. Seluruh perubahan tercatat secara permanen di dalam sistem basis data dan Buku Log Riwayat Kearsipan.'
+  const pernyataan = 'Dengan ditandatanganinya berita acara ini, tanggung jawab penyimpanan fisik dokumen arsip resmi berpindah kepada Pihak Kedua. Seluruh perubahan tercatat secara permanen di dalam sistem basis data dan Log Riwayat Kearsipan.'
   page.drawText(pernyataan, {
     x: 50,
     y,

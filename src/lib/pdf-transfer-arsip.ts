@@ -255,7 +255,7 @@ export async function generateBeritaAcaraTransferPDF(data: BeritaAcaraTransferDa
   page.drawText(data.penerima.nama, { x: width - 225, y: ttdY - 32, size: 8, font: fontBold, color: darkGray })
 
   // Footer Dokumen
-  page.drawText(`Archiva — Berita Acara Transfer Arsip | Dicetak: ${new Date().toISOString()}`, {
+  page.drawText(`Archiva — Berita Acara Transfer Dokumen | Dicetak: ${new Date().toISOString()}`, {
     x: 50,
     y: 25,
     size: 7,
@@ -265,3 +265,4 @@ export async function generateBeritaAcaraTransferPDF(data: BeritaAcaraTransferDa
 
   return await pdfDoc.save()
 }
+

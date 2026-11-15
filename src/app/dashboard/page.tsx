@@ -539,7 +539,7 @@ function DashboardBody() {
               href="/transfer-arsip"
               className="inline-flex items-center gap-1.5 rounded-lg bg-[#E37400] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#C96400] transition-colors whitespace-nowrap self-start sm:self-auto"
             >
-              <span>Transfer Arsip</span>
+              <span>Transfer Dokumen</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           )}
