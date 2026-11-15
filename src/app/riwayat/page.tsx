@@ -68,7 +68,7 @@ const aksiLabels: Record<string, { label: string; className: string }> = {
   pembatalan: { label: 'Pembatalan', className: 'bg-[#FEF2F2] text-[#991B1B] border-[#FECACA]' },
 }
 
-/** Halaman buku log riwayat aktivitas audit kearsipan: filter dokumen dan user */
+/** Halaman log riwayat aktivitas audit kearsipan: filter dokumen dan user */
 export default function RiwayatPage() {
   const [supabase] = useState(() => createClient())
 
@@ -190,7 +190,7 @@ export default function RiwayatPage() {
             <div className="flex items-center gap-2 mb-1">
               <History className="h-6 w-6 text-[#1E3A5F]" />
               <h1 className="text-2xl font-serif font-bold tracking-tight text-[#111827] sm:text-3xl">
-                Log Riwayat & Jejak Audit
+                Log Riwayat &amp; Jejak Audit
               </h1>
             </div>
             <p className="text-sm text-[#4B5E76]">
