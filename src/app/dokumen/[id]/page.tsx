@@ -31,6 +31,8 @@ import {
   Loader2,
   BookOpenCheck,
   Upload,
+  Trash2,
+  ShieldAlert,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { KodeArsip } from '@/components/documents/kode-arsip'
@@ -107,10 +109,14 @@ export default function DetailDokumenPage({ params }: PageProps) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null)
 
-  // Modal State untuk Aksi Approval / Tolak / Ajukan Ulang / Pembatalan
-  const [modalType, setModalType] = useState<'approve' | 'tolak' | 'ajukan_ulang' | 'batal' | null>(null)
+  // Modal State untuk Aksi Approval / Tolak / Ajukan Ulang / Pembatalan / Persetujuan Hapus / Hapus Permanen
+  const [modalType, setModalType] = useState<
+    'approve' | 'tolak' | 'ajukan_ulang' | 'batal' | 'persetujuan_hapus' | 'hapus_permanen' | null
+  >(null)
   const [alasanTolak, setAlasanTolak] = useState('')
   const [alasanBatal, setAlasanBatal] = useState('')
+  const [alasanPersetujuanHapus, setAlasanPersetujuanHapus] = useState('')
+  const [alasanHapusPermanen, setAlasanHapusPermanen] = useState('')
   const [isSubmittingModal, setIsSubmittingModal] = useState(false)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -328,11 +334,44 @@ export default function DetailDokumenPage({ params }: PageProps) {
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Gagal membatalkan dokumen.')
         showToast('success', `Dokumen ${doc.kode_arsip} resmi dibatalkan dan berstatus DIBATALKAN.`)
+      } else if (modalType === 'persetujuan_hapus') {
+        if (!alasanPersetujuanHapus.trim()) {
+          showToast('error', 'Alasan persetujuan hapus wajib diisi.')
+          setIsSubmittingModal(false)
+          return
+        }
+        const res = await fetch(`/api/dokumen/${doc.id}/persetujuan-hapus`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ alasan: alasanPersetujuanHapus.trim() }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Gagal memberikan persetujuan hapus.')
+        showToast('success', data.message || 'Persetujuan hapus berhasil dicatat di log aktivitas.')
+        setAlasanPersetujuanHapus('')
+      } else if (modalType === 'hapus_permanen') {
+        if (!alasanHapusPermanen.trim()) {
+          showToast('error', 'Alasan penghapusan permanen wajib diisi.')
+          setIsSubmittingModal(false)
+          return
+        }
+        const res = await fetch(`/api/dokumen/${doc.id}/hapus-permanen`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ alasan: alasanHapusPermanen.trim() }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Gagal menghapus permanen dokumen.')
+        showToast('success', data.message || 'Dokumen berhasil dimusnahkan secara permanen.')
+        router.push('/dokumen')
+        return
       }
 
       setModalType(null)
       setAlasanTolak('')
       setAlasanBatal('')
+      setAlasanPersetujuanHapus('')
+      setAlasanHapusPermanen('')
       await loadDocumentData()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Terjadi kesalahan sistem'
@@ -375,8 +414,9 @@ export default function DetailDokumenPage({ params }: PageProps) {
   }
 
   const isOwner = currentUserId === doc.pemilik_id
-  const isPicArsip = currentUserRole === 'pic_aktif' || currentUserRole === 'superadmin'
-  const isAtasan = currentUserRole === 'atasan_aktif'
+  const isPicArsip = currentUserRole === 'pic_aktif'
+  const isAtasan = currentUserRole === 'atasan_aktif' || currentUserRole === 'atasan_inaktif'
+  const hasApprovalHapus = logList.some((l) => l.aksi === 'persetujuan_hapus')
   const status = STATUS_PILL[doc.status] || STATUS_PILL.inaktif
   const StatusIcon = status.icon
   const namaFile = doc.file_path.split('/').pop()?.replace(/^\d+_/, '') || 'Berkas dokumen'
@@ -444,6 +484,57 @@ export default function DetailDokumenPage({ params }: PageProps) {
                 <BookOpenCheck className="h-4 w-4" />
                 Ajukan Peminjaman
               </Link>
+            )}
+
+            {/* Aksi Persetujuan Hapus bagi Atasan */}
+            {isAtasan && !hasApprovalHapus && (
+              <button
+                type="button"
+                onClick={() => setModalType('persetujuan_hapus')}
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-[#FEEFC3] bg-[#FEF7E0] px-4 py-2 text-sm font-semibold text-[#B06000] transition-colors hover:bg-[#FEEFC3] sm:flex-none"
+                title="Beri persetujuan hapus dokumen untuk dieksekusi Superadmin"
+              >
+                <ShieldAlert className="h-4 w-4" />
+                Setujui Hapus
+              </button>
+            )}
+
+            {/* Status bila Atasan telah menyetujui hapus */}
+            {hasApprovalHapus && (
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-[#CEEAD6] bg-[#E6F4EA] px-3 py-2 text-xs font-semibold text-[#137333]">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Persetujuan Hapus Atasan Terverifikasi
+              </span>
+            )}
+
+            {/* Aksi Hapus Permanen HANYA untuk Superadmin */}
+            {currentUserRole === 'superadmin' && (
+              hasApprovalHapus ? (
+                <button
+                  type="button"
+                  onClick={() => setModalType('hapus_permanen')}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#D64545] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#B91C1C] sm:flex-none"
+                  title="Eksekusi pemusnahan permanen berkas dan database"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Hapus Permanen
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled
+                    className="flex items-center justify-center gap-2 rounded-lg bg-[#EEF0F4] border border-[#D1D5DB] px-4 py-2 text-sm font-semibold text-[#8A90A2] cursor-not-allowed opacity-60 sm:flex-none"
+                    title="Tombol nonaktif: Memerlukan persetujuan hapus dari Atasan yang tercatat di log aktivitas."
+                  >
+                    <Lock className="h-4 w-4" />
+                    Hapus Permanen
+                  </button>
+                  <span className="hidden xl:inline text-[11px] text-[#8A90A2] italic">
+                    * Menunggu persetujuan Atasan di log
+                  </span>
+                </div>
+              )
             )}
           </div>
         </div>
@@ -574,7 +665,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
               </div>
             </div>
 
-            {(isAtasan || currentUserRole === 'superadmin') && (
+            {isAtasan && (
               <div className="flex shrink-0 items-center gap-2">
                 <button
                   type="button"
@@ -817,13 +908,19 @@ export default function DetailDokumenPage({ params }: PageProps) {
               <div className="flex min-w-0 items-start gap-3">
                 <span
                   className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                    modalType === 'tolak' || modalType === 'batal'
+                    modalType === 'tolak' || modalType === 'batal' || modalType === 'hapus_permanen'
                       ? 'bg-[#FDECEC] text-[#D64545]'
+                      : modalType === 'persetujuan_hapus'
+                      ? 'bg-[#FEF7E0] text-[#B06000]'
                       : 'bg-[#EAF5FD] text-[#3BA4E8]'
                   }`}
                 >
                   {modalType === 'tolak' || modalType === 'batal' ? (
                     <XCircle className="h-5 w-5" />
+                  ) : modalType === 'hapus_permanen' ? (
+                    <Trash2 className="h-5 w-5" />
+                  ) : modalType === 'persetujuan_hapus' ? (
+                    <ShieldAlert className="h-5 w-5" />
                   ) : modalType === 'ajukan_ulang' ? (
                     <Send className="h-5 w-5" />
                   ) : (
@@ -838,6 +935,10 @@ export default function DetailDokumenPage({ params }: PageProps) {
                       ? 'Tolak Pengajuan Dokumen'
                       : modalType === 'batal'
                       ? 'Pembatalan Dokumen Aktif'
+                      : modalType === 'persetujuan_hapus'
+                      ? 'Persetujuan Hapus Dokumen (Atasan)'
+                      : modalType === 'hapus_permanen'
+                      ? 'Hapus Permanen Dokumen (Superadmin)'
                       : 'Perbaiki & Ajukan Ulang'}
                   </h3>
                   <KodeArsip kode={doc.kode_arsip} className="block mt-0.5 font-mono text-xs text-[#6B7185]" />
@@ -890,6 +991,54 @@ export default function DetailDokumenPage({ params }: PageProps) {
                       value={alasanBatal}
                       onChange={(e) => setAlasanBatal(e.target.value)}
                       placeholder="Tuliskan alasan resmi pembatalan dokumen ini..."
+                      className={`${fieldInput} resize-none focus:border-[#D64545] focus:ring-[#D64545]/15`}
+                    />
+                  </div>
+                </>
+              )}
+
+              {modalType === 'persetujuan_hapus' && (
+                <>
+                  <p className="leading-relaxed text-xs text-[#B06000] bg-[#FEF7E0] border border-[#FEEFC3] p-3 rounded-xl">
+                    Persetujuan ini memberikan wewenang kepada Superadmin untuk memusnahkan arsip secara permanen. Tindakan ini akan dicatat dalam audit trail log aktivitas kearsipan.
+                  </p>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">
+                      Alasan Persetujuan Hapus <span className="text-[#D64545]">*</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      required
+                      value={alasanPersetujuanHapus}
+                      onChange={(e) => setAlasanPersetujuanHapus(e.target.value)}
+                      placeholder="Tuliskan alasan dan dasar persetujuan penghapusan dokumen ini..."
+                      className={`${fieldInput} resize-none focus:border-[#B06000] focus:ring-[#B06000]/15`}
+                    />
+                  </div>
+                </>
+              )}
+
+              {modalType === 'hapus_permanen' && (
+                <>
+                  <div className="rounded-xl border border-[#F5C2C2] bg-[#FFF5F5] p-3.5 space-y-1">
+                    <p className="text-xs font-bold text-[#A82828] flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4" />
+                      Peringatan Tindakan Pemusnahan Permanen
+                    </p>
+                    <p className="text-xs text-[#4B5163] leading-relaxed">
+                      Dokumen <strong className="font-mono text-[#1F2333]">{doc.kode_arsip}</strong> beserta seluruh berkas digital di storage akan <strong>dihapus permanen</strong>. Log persetujuan Atasan telah terverifikasi.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">
+                      Alasan Penghapusan Permanen (Audit) <span className="text-[#D64545]">*</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      required
+                      value={alasanHapusPermanen}
+                      onChange={(e) => setAlasanHapusPermanen(e.target.value)}
+                      placeholder="Tuliskan alasan pemusnahan dokumen untuk catatan audit Superadmin..."
                       className={`${fieldInput} resize-none focus:border-[#D64545] focus:ring-[#D64545]/15`}
                     />
                   </div>
@@ -988,12 +1137,16 @@ export default function DetailDokumenPage({ params }: PageProps) {
                 disabled={
                   isSubmittingModal ||
                   (modalType === 'tolak' && !alasanTolak.trim()) ||
-                  (modalType === 'batal' && !alasanBatal.trim())
+                  (modalType === 'batal' && !alasanBatal.trim()) ||
+                  (modalType === 'persetujuan_hapus' && !alasanPersetujuanHapus.trim()) ||
+                  (modalType === 'hapus_permanen' && !alasanHapusPermanen.trim())
                 }
                 onClick={handleExecuteModal}
                 className={`flex items-center justify-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold text-white shadow-sm transition-colors disabled:opacity-50 ${
-                  modalType === 'tolak' || modalType === 'batal'
+                  modalType === 'tolak' || modalType === 'batal' || modalType === 'hapus_permanen'
                     ? 'bg-[#D64545] hover:bg-[#C03A3A]'
+                    : modalType === 'persetujuan_hapus'
+                    ? 'bg-[#E37400] hover:bg-[#C26300]'
                     : 'bg-[#3BA4E8] hover:bg-[#2A92D6]'
                 }`}
               >
@@ -1006,6 +1159,10 @@ export default function DetailDokumenPage({ params }: PageProps) {
                   ? 'Tolak Dokumen'
                   : modalType === 'batal'
                   ? 'Batalkan Dokumen'
+                  : modalType === 'persetujuan_hapus'
+                  ? 'Setujui Penghapusan'
+                  : modalType === 'hapus_permanen'
+                  ? 'Eksekusi Hapus Permanen'
                   : 'Kirim Ajukan Ulang'}
               </button>
             </div>

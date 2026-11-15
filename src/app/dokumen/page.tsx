@@ -368,8 +368,9 @@ function DaftarDokumenContent() {
     return role === 'superadmin'
   }
 
+  // Tombol hapus ditiadakan di halaman daftar dokumen (hanya di halaman detail dokumen sesuai aturan kedinasan)
   const canDelete = (_doc: DocRow) => {
-    return role === 'superadmin'
+    return false
   }
 
   // PIC Arsip Aktif — boleh entri / upload (dokumen unitnya)

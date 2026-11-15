@@ -205,49 +205,90 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
     }
   }
 
-  const navItems: NavItem[] = [
+  const superadminNavItems: NavItem[] = [
     {
       label: 'Dashboard',
       href: '/dashboard',
       icon: LayoutDashboard,
-      roles: ['superadmin', 'pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif', 'staff'],
+      roles: ['superadmin'],
+    },
+    {
+      label: 'Daftar Dokumen',
+      href: '/dokumen',
+      icon: FolderArchive,
+      roles: ['superadmin'],
+    },
+    {
+      label: 'Kelola Pengguna',
+      href: '/pengaturan/pengguna',
+      icon: UserRound,
+      roles: ['superadmin'],
+    },
+    {
+      label: 'Master Data',
+      href: '/master-data',
+      icon: Building2,
+      roles: ['superadmin'],
+    },
+    {
+      label: 'Log Aktivitas',
+      href: '/riwayat',
+      icon: History,
+      roles: ['superadmin'],
+    },
+    {
+      label: 'Pengaturan Sistem',
+      href: '/pengaturan/sistem',
+      icon: Settings,
+      roles: ['superadmin'],
+    },
+  ]
+
+  const normalNavItems: NavItem[] = [
+    {
+      label: 'Dashboard',
+      href: '/dashboard',
+      icon: LayoutDashboard,
+      roles: ['pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif', 'staff'],
     },
     {
       label: 'Katalog Dokumen',
       icon: FolderArchive,
-      roles: ['superadmin', 'pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif', 'staff'],
+      roles: ['pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif', 'staff'],
       children: [
-        { label: 'Daftar Dokumen', href: '/dokumen', roles: ['superadmin', 'pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif', 'staff'] },
-        { label: 'Transfer Dokumen', href: '/transfer-arsip', roles: ['pic_aktif', 'superadmin'] },
-        { label: 'Verifikasi Dokumen', href: '/persetujuan/verifikasi-transfer', roles: ['pic_inaktif', 'superadmin'] },
-        { label: 'Persetujuan Entri', href: '/persetujuan', roles: ['atasan_aktif', 'atasan_inaktif', 'superadmin'] },
-        { label: 'Penyimpanan Dokumen', href: '/serah-terima', roles: ['pic_aktif', 'pic_inaktif', 'superadmin'] },
+        { label: 'Daftar Dokumen', href: '/dokumen', roles: ['pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif', 'staff'] },
+        { label: 'Transfer Dokumen', href: '/transfer-arsip', roles: ['pic_aktif', 'pic_inaktif'] },
+        { label: 'Verifikasi Dokumen', href: '/persetujuan/verifikasi-transfer', roles: ['pic_inaktif'] },
+        { label: 'Persetujuan Entri', href: '/persetujuan', roles: ['atasan_aktif', 'atasan_inaktif'] },
+        { label: 'Penyimpanan Dokumen', href: '/serah-terima', roles: ['pic_aktif', 'pic_inaktif'] },
       ],
     },
     {
       label: 'Peminjaman Inaktif',
       href: '/peminjaman',
       icon: BookOpenCheck,
-      roles: ['superadmin', 'pic_inaktif', 'atasan_inaktif', 'pic_aktif', 'staff'],
+      roles: ['pic_inaktif', 'atasan_inaktif', 'pic_aktif', 'staff'],
     },
     {
       label: 'Log Riwayat',
       href: '/riwayat',
       icon: History,
-      roles: ['superadmin', 'pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif'],
+      roles: ['pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif'],
     },
   ]
 
-  const accessibleNavs = navItems
-    .map((item) => {
-      if (item.children) {
-        const filteredChildren = item.children.filter((child) => child.roles.includes(currentRole))
-        if (filteredChildren.length === 0) return null
-        return { ...item, children: filteredChildren }
-      }
-      return item.roles.includes(currentRole) ? item : null
-    })
-    .filter(Boolean) as NavItem[]
+  const accessibleNavs = currentRole === 'superadmin'
+    ? superadminNavItems
+    : normalNavItems
+        .map((item) => {
+          if (item.children) {
+            const filteredChildren = item.children.filter((child) => child.roles.includes(currentRole))
+            if (filteredChildren.length === 0) return null
+            return { ...item, children: filteredChildren }
+          }
+          return item.roles.includes(currentRole) ? item : null
+        })
+        .filter(Boolean) as NavItem[]
 
   const roleTitle = roleTitles[currentRole] || currentRole
 
@@ -365,20 +406,6 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
               </nav>
 
               <div className="px-3 py-4 border-t border-[#ECEEF5] space-y-1">
-                {currentRole === 'superadmin' && (
-                  <Link
-                    href="/pengaturan/pengguna"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                      pathname.startsWith('/pengaturan')
-                        ? 'bg-[#3BA4E8] text-white'
-                        : 'text-[#4B5163] hover:bg-[#EEF7FD] hover:text-[#1F2333]'
-                    }`}
-                  >
-                    <Settings className="w-[18px] h-[18px] shrink-0" />
-                    <span>Pengaturan</span>
-                  </Link>
-                )}
                 <button
                   type="button"
                   onClick={handleLogout}
@@ -498,16 +525,6 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
 
           {/* Bagian bawah sidebar */}
           <div className="px-3 py-4 border-t border-[#ECEEF5] space-y-1">
-            {currentRole === 'superadmin' && (
-              <Link
-                href="/pengaturan/pengguna"
-                title="Pengaturan Sistem"
-                className={navLinkClass(pathname.startsWith('/pengaturan'))}
-              >
-                <Settings className="w-[18px] h-[18px] shrink-0" />
-                {!isCollapsed && <span>Pengaturan</span>}
-              </Link>
-            )}
             <button
               type="button"
               onClick={handleLogout}
