@@ -60,6 +60,9 @@ export async function generateNextDocVoucher(): Promise<string> {
 /**
  * Mencatat log aktivitas ke tabel log_aktivitas
  */
+/**
+ * Mencatat jejak audit keamanan ke dalam tabel log_aktivitas (R.03)
+ */
 export async function catatLogAktivitas(params: {
   dokumen_id?: string
   user_id?: string
