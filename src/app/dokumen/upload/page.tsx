@@ -227,6 +227,31 @@ export default function UploadDokumenPage() {
     setCameraError(null)
   }
 
+  // Helper pembuat deskripsi/catatan otomatis berdasarkan metadata berkas & form
+  const generateAutoDeskripsi = (file: File | null, currJudul: string, currKatId: string, currPpl: string) => {
+    const parts: string[] = []
+    const katName = kategoriList.find((k) => k.id === currKatId)?.nama || ''
+
+    if (file) {
+      const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ')
+      parts.push(`Berkas: ${file.name}`)
+    }
+
+    if (katName) {
+      parts.push(`Kategori: ${katName}`)
+    }
+
+    if (currPpl) {
+      parts.push(`No. Payment/PPL: ${currPpl}`)
+    }
+
+    if (currJudul) {
+      parts.push(`Perihal: ${currJudul}`)
+    }
+
+    return parts.length > 0 ? parts.join(' | ') : ''
+  }
+
   // File Upload Handlers
   const handleMainFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -241,6 +266,21 @@ export default function UploadDokumenPage() {
       }
       setSelectedFile(file)
       setErrorMsg(null)
+
+      // Otomatis isi judul jika masih kosong dari nama berkas yang bersih
+      if (!judul.trim()) {
+        const cleanTitle = file.name
+          .replace(/\.[^/.]+$/, '')
+          .replace(/[_-]/g, ' ')
+          .replace(/\b\w/g, (l) => l.toUpperCase())
+        setJudul(cleanTitle)
+      }
+
+      // Otomatis buatkan deskripsi jika belum diisi manual
+      if (!deskripsi.trim()) {
+        const autoText = generateAutoDeskripsi(file, judul, kategoriId, nomorPpl)
+        setDeskripsi(autoText)
+      }
     }
   }
 
@@ -801,16 +841,36 @@ export default function UploadDokumenPage() {
 
             {/* DESKRIPSI / CATATAN */}
             <div className="space-y-2 pt-1">
-              <label className="block font-bold text-[#0F172A]">
-                DESKRIPSI / CATATAN TAMBAHAN
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block font-bold text-[#0F172A]">
+                  DESKRIPSI / CATATAN TAMBAHAN
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const autoText = generateAutoDeskripsi(selectedFile, judul, kategoriId, nomorPpl)
+                    if (autoText) {
+                      setDeskripsi(autoText)
+                    } else {
+                      setDeskripsi('Dokumen arsip resmi instansi PT Semen Indonesia Group (SIG).')
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 text-[11px] font-mono text-[#0284C7] hover:text-[#0369A1] hover:underline"
+                >
+                  <Sparkles className="w-3 h-3 text-[#38BDF8]" />
+                  <span>Generate Otomatis</span>
+                </button>
+              </div>
               <textarea
                 value={deskripsi}
                 onChange={(e) => setDeskripsi(e.target.value)}
                 rows={2}
-                placeholder="Catatan ringkas mengenai isi dokumen arsip..."
+                placeholder="Catatan ringkas mengenai isi dokumen arsip (terisi otomatis saat memilih berkas)..."
                 className="w-full border border-[#BAE6FD] bg-white rounded-lg p-3 text-xs font-mono text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
               />
+              <p className="text-[10px] text-[#64748B] font-sans">
+                Terisi otomatis berdasarkan nama berkas yang diunggah, kategori, dan nomor payment. Anda tetap bisa mengedit atau menambah catatan khusus kapan saja.
+              </p>
             </div>
 
             {/* UNGGAH BERKAS UTAMA (PDF) */}
