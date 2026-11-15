@@ -8,19 +8,6 @@ import { createClient } from '@/lib/supabase/client'
 import { ShieldAlert, ArrowRight, Loader2, CheckCircle2, Info, Sparkles, Eye, EyeOff, UserCheck } from 'lucide-react'
 import ArchiveAnimation from '@/app/ArchiveAnimation'
 
-// Representasi hashing acak (angka & simbol unik) dengan panjang pas 1:1 (8 - 15 digit)
-function getScrambledHash(pass: string): string {
-  if (!pass) return ''
-  const symbols = ['#', '$', '%', '&', '*', '!', '@', '^', '9', '7', '3', '4', '8', '2', '5', 'x', 'z', 'k', 'q']
-  let res = ''
-  for (let i = 0; i < pass.length; i++) {
-    const code = pass.charCodeAt(i)
-    const idx = (code * 31 + i * 17 + 7) % symbols.length
-    res += symbols[idx]
-  }
-  return res
-}
-
 export default function RegisterForm() {
   const router = useRouter()
   const [email, setEmail] = useState('')
@@ -341,29 +328,19 @@ export default function RegisterForm() {
                     required
                     minLength={8}
                     maxLength={15}
-                    value={showPassword ? getScrambledHash(password) : password}
-                    onChange={(e) => {
-                      if (!showPassword) setPassword(e.target.value.slice(0, 15))
-                    }}
-                    onClick={() => {
-                      if (showPassword) setShowPassword(false)
-                    }}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value.slice(0, 15))}
                     placeholder="Ketik kata sandi (8 - 15 karakter)"
-                    className={`w-full h-12 pl-4 pr-11 text-sm bg-[#F8FAFC] border border-[#CBD7E3] rounded-lg focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F] transition-all ${
-                      showPassword
-                        ? 'font-mono text-sm text-[#0284C7] bg-[#F0F7FF] select-all tracking-widest cursor-pointer'
-                        : 'text-[#111827] placeholder-[#94A3B8]'
-                    }`}
-                    title={showPassword ? 'Klik kolom untuk kembali mengedit kata sandi' : undefined}
+                    className="w-full h-12 pl-4 pr-11 text-sm bg-[#F8FAFC] border border-[#CBD7E3] rounded-lg focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F] text-[#111827] placeholder-[#94A3B8] transition-all"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
                     className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#4B5E76] hover:text-[#1E3A5F] p-1 transition-colors cursor-pointer"
-                    aria-label={showPassword ? 'Kembali ke mode sembunyi' : 'Lihat representasi hashing'}
+                    aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
                   >
                     {showPassword ? (
-                      <EyeOff className="w-4 h-4 text-[#0284C7]" />
+                      <EyeOff className="w-4 h-4 text-[#1E3A5F]" />
                     ) : (
                       <Eye className="w-4 h-4" />
                     )}

@@ -14,14 +14,13 @@ import {
   Loader2,
   Mic,
   MicOff,
-  QrCode,
   Scan,
   X,
   Camera,
-  Layers,
   Building2,
-  Calendar,
-  Hash,
+  Sparkles,
+  UploadCloud,
+  FileUp,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { KategoriDokumen, UserRole } from '@/types'
@@ -120,45 +119,42 @@ export default function UploadDokumenPage() {
 
         if (infoRes.ok) {
           const infoData = await infoRes.json()
-          if (infoData.user?.role) setCurrentUserRole(infoData.user.role)
-          if (infoData.unit) setUnitInfo(infoData.unit)
-          if (infoData.nextDocVoucher) setNextDocVoucher(infoData.nextDocVoucher)
-        } else if (infoRes.status === 403) {
-          // Bukan pic_aktif
-          const errData = await infoRes.json()
-          setErrorMsg(errData.error || 'Akses entri dokumen hanya untuk PIC Arsip Aktif.')
-          setCurrentUserRole('staff')
+          setCurrentUserRole(infoData.userRole)
+          if (infoData.unit) {
+            setUnitInfo(infoData.unit)
+          }
+          if (infoData.nextDocVoucher) {
+            setNextDocVoucher(infoData.nextDocVoucher)
+          }
         }
 
         if (katsRes.data && katsRes.data.length > 0) {
-          setKategoriList(katsRes.data)
+          setKategoriList(katsRes.data as KategoriDokumen[])
           setKategoriId(katsRes.data[0].id)
         }
       } catch (err) {
-        console.error('Error inisialisasi entri:', err)
+        console.error('Gagal inisialisasi form upload:', err)
+        setErrorMsg('Gagal memuat parameter entri dokumen dari server.')
       } finally {
         setLoadingInitial(false)
       }
     }
+
     init()
   }, [router])
 
-  // Voice Typing Handler
+  // Voice Typing Handler (Web Speech API)
   const toggleVoiceTyping = () => {
+    if (!voiceSupported) return
+
     if (isListening) {
       setIsListening(false)
       return
     }
 
-    if (typeof window === 'undefined') return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SpeechRecognition) {
-      alert('Peramban Anda belum mendukung fitur Voice Typing.')
-      return
-    }
-
     try {
+      const SpeechRecognition =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
       const recognition = new SpeechRecognition()
       recognition.lang = 'id-ID'
       recognition.interimResults = false
@@ -168,20 +164,20 @@ export default function UploadDokumenPage() {
         setIsListening(true)
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript
-        // Ambil digit angka dari ucapan suara
-        const digits = transcript.replace(/\D/g, '')
-        if (digits) {
-          setNomorPpl(digits)
+        // Bersihkan spasi dan ambil angka saja untuk nomor payment
+        const cleanedDigits = transcript.replace(/\D/g, '')
+        if (cleanedDigits) {
+          setNomorPpl(cleanedDigits)
         } else {
           setNomorPpl(transcript.trim())
         }
         setIsListening(false)
       }
 
-      recognition.onerror = () => {
+      recognition.onerror = (event: any) => {
+        console.warn('Speech recognition error:', event.error)
         setIsListening(false)
       }
 
@@ -191,64 +187,34 @@ export default function UploadDokumenPage() {
 
       recognition.start()
     } catch (err) {
-      console.error('Gagal memulai Voice Typing:', err)
+      console.error('Voice typing error:', err)
       setIsListening(false)
     }
   }
 
-  // Scanner Kamera Handler (jsQR / BarcodeDetector)
+  // Camera Scanner Handler (MediaDevices getUserMedia)
   const startCamera = async () => {
     setIsScanning(true)
     setCameraError(null)
 
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Kamera tidak didukung oleh browser ini.')
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' },
       })
       streamRef.current = stream
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         videoRef.current.play()
       }
-
-      // Loop scanning dengan jsQR
-      const jsQR = (await import('jsqr')).default
-      const canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d', { willReadFrequently: true })
-
-      const scanLoop = () => {
-        const video = videoRef.current
-        if (!streamRef.current || !video || !ctx) return
-
-        if (video.readyState >= 2 && video.videoWidth > 0) {
-          canvas.width = video.videoWidth
-          canvas.height = video.videoHeight
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-          const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
-          const result = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' })
-
-          if (result?.data) {
-            // Jika yang di-scan adalah kode SIG lengkap, ekstrak nomor payment
-            const raw = result.data.trim()
-            const sigMatch = raw.match(/^\d{4}_\d{4}_(\d{5,10})_\d{5,10}$/)
-            if (sigMatch) {
-              setNomorPpl(sigMatch[1])
-            } else {
-              // Bersihkan hanya digit
-              const cleanDigits = raw.replace(/\D/g, '')
-              setNomorPpl(cleanDigits || raw)
-            }
-            stopCamera()
-            return
-          }
-        }
-        requestAnimationFrame(scanLoop)
-      }
-      requestAnimationFrame(scanLoop)
     } catch (err: unknown) {
-      console.error('Kamera error:', err)
-      const msg = err instanceof Error ? err.message : 'Tidak dapat mengakses kamera'
-      setCameraError(`Gagal membuka kamera: ${msg}. Pastikan izin kamera telah diberikan.`)
+      console.error('Camera error:', err)
+      const msg = err instanceof Error ? err.message : 'Gagal mengakses kamera perangkat.'
+      setCameraError(msg)
     }
   }
 
@@ -258,31 +224,55 @@ export default function UploadDokumenPage() {
       streamRef.current = null
     }
     setIsScanning(false)
+    setCameraError(null)
   }
 
-  // Handler Berkas
+  // File Upload Handlers
   const handleMainFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0])
+      const file = e.target.files[0]
+      if (file.type !== 'application/pdf') {
+        setErrorMsg('Berkas dokumen utama harus berformat PDF.')
+        return
+      }
+      if (file.size > 25 * 1024 * 1024) {
+        setErrorMsg('Ukuran berkas utama melebihi batas maksimal 25 MB.')
+        return
+      }
+      setSelectedFile(file)
       setErrorMsg(null)
     }
   }
 
   const handleLampiranChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return
-    const incoming = Array.from(e.target.files)
-    const MAX_TOTAL_SIZE = 25 * 1024 * 1024
+    if (e.target.files && e.target.files.length > 0) {
+      const allowedTypes = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'image/jpeg',
+        'image/png',
+      ]
+      const newFiles: File[] = []
+      let totalSize = lampiranFiles.reduce((acc, f) => acc + f.size, 0)
 
-    const updated = [...lampiranFiles, ...incoming]
-    const totalSize = updated.reduce((acc, f) => acc + f.size, 0)
+      for (let i = 0; i < e.target.files.length; i++) {
+        const file = e.target.files[i]
+        if (!allowedTypes.includes(file.type)) {
+          setErrorMsg(`Format berkas "${file.name}" tidak didukung. Lampiran harus PDF, XLSX, DOCX, JPG, atau PNG.`)
+          return
+        }
+        totalSize += file.size
+        if (totalSize > 25 * 1024 * 1024) {
+          setErrorMsg('Total seluruh berkas lampiran tidak boleh melebihi batas sistem 25 MB.')
+          return
+        }
+        newFiles.push(file)
+      }
 
-    if (totalSize > MAX_TOTAL_SIZE) {
-      setErrorMsg('Total seluruh berkas lampiran melebihi batas maksimal 25 MB.')
-      return
+      setLampiranFiles((prev) => [...prev, ...newFiles])
+      setErrorMsg(null)
     }
-
-    setLampiranFiles(updated)
-    setErrorMsg(null)
   }
 
   const removeLampiran = (index: number) => {
@@ -293,6 +283,7 @@ export default function UploadDokumenPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Validasi Form Wajib
     if (!judul.trim()) {
       setErrorMsg('Judul dokumen arsip wajib diisi.')
       return
@@ -381,9 +372,9 @@ export default function UploadDokumenPage() {
     return (
       <AppLayout>
         <div className="flex h-96 items-center justify-center">
-          <div className="flex items-center gap-3 text-sm text-[#555]">
-            <Loader2 className="w-5 h-5 animate-spin text-[#9A3412]" />
-            <span className="font-mono">Menyiapkan formulir entri arsip...</span>
+          <div className="flex items-center gap-3 text-sm text-[#0284C7] bg-[#F0F9FF] border border-[#BAE6FD] px-5 py-3 rounded-xl shadow-xs">
+            <Loader2 className="w-5 h-5 animate-spin text-[#0284C7]" />
+            <span className="font-mono text-xs font-semibold tracking-wide">Menyiapkan formulir entri arsip...</span>
           </div>
         </div>
       </AppLayout>
@@ -395,19 +386,19 @@ export default function UploadDokumenPage() {
     return (
       <AppLayout>
         <div className="max-w-xl mx-auto py-12">
-          <div className="border border-[#DC2626] bg-[#FEF2F2] p-6 text-[#991B1B] text-xs font-mono shadow-xs">
-            <div className="flex items-center gap-2 mb-2 font-bold text-sm text-[#7F1D1D]">
+          <div className="border border-[#FCA5A5] bg-[#FEF2F2] rounded-xl p-6 text-[#991B1B] text-xs font-mono shadow-sm">
+            <div className="flex items-center gap-2 mb-2 font-bold text-sm text-[#991B1B]">
               <AlertCircle className="w-4 h-4 text-[#DC2626]" />
               <span>AKSES DITOLAK (403 FORBIDDEN)</span>
             </div>
-            <p className="leading-relaxed">
+            <p className="leading-relaxed text-[#7F1D1D]">
               Sesuai aturan Blueprint Bab 5 dan R.03: <strong>HANYA PIC Arsip Aktif (pic_aktif)</strong> yang berhak mengentri dokumen baru.
-              Akun Anda memiliki peran: <span className="bg-red-200 px-1 py-0.5 font-bold uppercase">{currentUserRole}</span>.
+              Akun Anda memiliki peran: <span className="bg-[#FEE2E2] px-1.5 py-0.5 rounded font-bold uppercase">{currentUserRole}</span>.
             </p>
             <div className="mt-4">
               <Link
                 href="/dokumen"
-                className="inline-flex items-center gap-2 border border-[#991B1B] bg-white px-3 py-1.5 text-xs font-semibold text-[#7F1D1D] hover:bg-red-50"
+                className="inline-flex items-center gap-2 border border-[#CBD7E3] bg-white px-3.5 py-2 rounded-lg text-xs font-semibold text-[#0369A1] hover:bg-[#F0F9FF] transition-colors"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Kembali ke Katalog Dokumen</span>
@@ -422,70 +413,72 @@ export default function UploadDokumenPage() {
   return (
     <AppLayout>
       <div className="space-y-6 max-w-4xl mx-auto pb-16">
+        
         {/* Navigasi Atas & Status Cap */}
-        <div className="flex items-center justify-between border-b border-[#D9D4C7] pb-3">
+        <div className="flex items-center justify-between border-b border-[#BAE6FD]/80 pb-3.5">
           <Link
             href="/dokumen"
-            className="inline-flex items-center gap-2 text-xs font-mono text-[#555] hover:text-[#1A1A1A] transition-colors"
+            className="inline-flex items-center gap-2 text-xs font-medium text-[#0284C7] hover:text-[#0369A1] transition-colors px-2.5 py-1.5 rounded-lg hover:bg-[#E0F2FE]"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>KEMBALI KE KATALOG DOKUMEN</span>
+            <span className="font-semibold tracking-wide">KEMBALI KE KATALOG DOKUMEN</span>
           </Link>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono px-2.5 py-0.5 border border-[#9A3412] bg-[#FFF7ED] text-[#9A3412] font-semibold tracking-wider">
+            <span className="text-[11px] font-mono px-3 py-1 border border-[#BAE6FD] bg-[#F0F9FF] text-[#0284C7] font-semibold tracking-wider rounded-full shadow-2xs">
               STATUS AWAL: MENUNGGU PERSETUJUAN
             </span>
           </div>
         </div>
 
-        {/* Notifikasi Alert */}
+        {/* Notifikasi Alert Error */}
         {errorMsg && (
-          <div className="p-3.5 border border-[#DC2626] bg-[#FEF2F2] text-[#991B1B] text-xs font-mono flex items-start gap-2.5 shadow-xs">
+          <div className="p-4 border border-[#FCA5A5] bg-[#FEF2F2] text-[#991B1B] text-xs font-mono rounded-xl flex items-start gap-3 shadow-xs">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#DC2626]" />
             <div>
-              <p className="font-bold">GAGAL MENDAFTARKAN DOKUMEN</p>
+              <p className="font-bold tracking-wide">GAGAL MENDAFTARKAN DOKUMEN</p>
               <p className="mt-0.5 leading-relaxed">{errorMsg}</p>
             </div>
           </div>
         )}
 
+        {/* Notifikasi Alert Sukses */}
         {successMsg && (
-          <div className="p-3.5 border border-[#16A34A] bg-[#F0FDF4] text-[#166534] text-xs font-mono flex items-start gap-2.5 shadow-xs">
+          <div className="p-4 border border-[#86EFAC] bg-[#F0FDF4] text-[#166534] text-xs font-mono rounded-xl flex items-start gap-3 shadow-xs">
             <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-[#16A34A]" />
             <div>
-              <p className="font-bold">PENGAJUAN DOKUMEN BERHASIL</p>
-              <p className="mt-0.5">{successMsg}</p>
+              <p className="font-bold tracking-wide">PENGAJUAN DOKUMEN BERHASIL</p>
+              <p className="mt-0.5 leading-relaxed">{successMsg}</p>
             </div>
           </div>
         )}
 
         {/* Modal Scanner Kamera */}
         {isScanning && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-            <div className="bg-white border-2 border-[#1A1A1A] p-5 max-w-md w-full space-y-4 shadow-xl">
-              <div className="flex items-center justify-between border-b border-[#E5E5E5] pb-2">
-                <div className="flex items-center gap-2 font-mono text-xs font-bold text-[#1A1A1A]">
-                  <Camera className="w-4 h-4" />
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+            <div className="bg-white border border-[#BAE6FD] rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between border-b border-[#E0F2FE] pb-3">
+                <div className="flex items-center gap-2 font-mono text-xs font-bold text-[#0369A1]">
+                  <Camera className="w-4 h-4 text-[#0284C7]" />
                   <span>PEMINDAI BARCODE / QR NO. PAYMENT</span>
                 </div>
                 <button
                   type="button"
                   onClick={stopCamera}
-                  className="p-1 text-[#666] hover:text-[#1A1A1A]"
+                  className="p-1 rounded-lg text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
               {cameraError ? (
-                <div className="p-3 border border-red-300 bg-red-50 text-red-800 text-xs font-mono">
+                <div className="p-3 border border-red-200 bg-red-50 text-red-800 text-xs font-mono rounded-lg">
                   {cameraError}
                 </div>
               ) : (
-                <div className="relative aspect-video bg-black rounded overflow-hidden flex items-center justify-center">
+                <div className="relative aspect-video bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center">
                   <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
-                  <div className="absolute inset-8 border-2 border-dashed border-[#3BA4E8] pointer-events-none flex items-center justify-center">
-                    <span className="text-[10px] font-mono bg-black/60 text-white px-2 py-0.5">
+                  <div className="absolute inset-8 border-2 border-dashed border-[#38BDF8] pointer-events-none flex items-center justify-center rounded-lg">
+                    <span className="text-[10px] font-mono bg-black/70 text-white px-2.5 py-1 rounded">
                       Arahkan kamera ke Barcode / QR
                     </span>
                   </div>
@@ -496,7 +489,7 @@ export default function UploadDokumenPage() {
                 <button
                   type="button"
                   onClick={stopCamera}
-                  className="px-4 py-1.5 border border-[#1A1A1A] text-xs font-mono font-semibold hover:bg-[#F5F5F5]"
+                  className="px-4 py-2 border border-[#CBD7E3] rounded-lg text-xs font-mono font-semibold text-[#334155] hover:bg-[#F8FAFC] transition-colors"
                 >
                   Tutup Pemindai
                 </button>
@@ -505,55 +498,58 @@ export default function UploadDokumenPage() {
           </div>
         )}
 
-        {/* KARTU PREVIEW KODE ARSIP OTOMATIS (SIG) */}
-        <div className="border border-[#D9D4C7] bg-[#FDFCF7] p-5 shadow-xs space-y-3">
-          <div className="flex items-center justify-between border-b border-[#E8E4DA] pb-2">
+        {/* KARTU PREVIEW KODE ARSIP OTOMATIS (SIG) - BIRU LANGIT & PUTIH */}
+        <div className="border border-[#BAE6FD] bg-linear-to-b from-[#F0F9FF] to-[#E0F2FE]/50 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#BAE6FD] pb-3">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[11px] font-bold text-[#1A1A1A] tracking-wider uppercase">
+              <span className="flex items-center justify-center w-6 h-6 rounded-md bg-[#0284C7] text-white">
+                <Sparkles className="w-3.5 h-3.5" />
+              </span>
+              <span className="font-mono text-xs font-bold text-[#0369A1] tracking-wider uppercase">
                 SUSUNAN KODE ARSIP OTOMATIS (STANDAR SIG)
               </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 border border-[#16A34A] bg-[#F0FDF4] text-[#166534]">
-                TIDAK BISA DIUBAH MANUAL
+              <span className="text-[10px] font-mono px-2.5 py-0.5 border border-[#86EFAC] bg-[#F0FDF4] text-[#15803D] font-bold rounded-full">
+                SISTEM SIG
               </span>
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-[#555] font-mono">
-              <Building2 className="w-3.5 h-3.5" />
-              <span>Unit: <strong>{unitInfo.nama}</strong> ({kodePerusahaan})</span>
+            <div className="flex items-center gap-1.5 text-xs text-[#0369A1] font-mono bg-white/80 border border-[#BAE6FD] px-3 py-1 rounded-lg">
+              <Building2 className="w-3.5 h-3.5 text-[#0284C7]" />
+              <span>Unit: <strong className="text-[#0369A1]">{unitInfo.nama}</strong> ({kodePerusahaan})</span>
             </div>
           </div>
 
           {/* Kotak Kode Arsip Monospace Besar */}
-          <div className="p-3.5 bg-white border border-[#C5BFB0] flex items-center justify-between">
+          <div className="p-4 bg-white border border-[#BAE6FD] rounded-xl shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <div className="text-[10px] font-mono text-[#777] mb-0.5">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-[#64748B] mb-1">
                 KODE ARSIP LENGKAP (PREVIEW HASIL GENERATE):
               </div>
-              <div className="font-mono font-bold text-base sm:text-lg text-[#1A1A1A] tracking-wider">
+              <div className="font-mono font-bold text-base sm:text-xl text-[#0F172A] tracking-wider">
                 {isNonPayment ? (
                   nomorDokumenNonPayment ? (
-                    <span className="text-[#1A1A1A]">{nomorDokumenNonPayment}</span>
+                    <span className="text-[#0284C7]">{nomorDokumenNonPayment}</span>
                   ) : (
-                    <span className="text-[#999] italic">[Nomor Dokumen Kontrak/Sertifikat]</span>
+                    <span className="text-[#94A3B8] italic font-normal">[Nomor Dokumen Kontrak/Sertifikat]</span>
                   )
                 ) : (
                   <>
-                    <span className="text-[#0369A1]">{tahunDokumen}</span>
-                    <span className="text-[#777]">_</span>
-                    <span className="text-[#15803D]">{kodePerusahaan}</span>
-                    <span className="text-[#777]">_</span>
-                    <span className={nomorPpl.trim() ? 'text-[#B45309]' : 'text-[#DC2626] font-bold'}>
+                    <span className="text-[#0284C7]">{tahunDokumen}</span>
+                    <span className="text-[#94A3B8]">_</span>
+                    <span className="text-[#0369A1]">{kodePerusahaan}</span>
+                    <span className="text-[#94A3B8]">_</span>
+                    <span className={nomorPpl.trim() ? 'text-[#0284C7] underline decoration-[#38BDF8] decoration-2' : 'text-[#E11D48] font-bold'}>
                       {displayPayment}
                     </span>
-                    <span className="text-[#777]">_</span>
-                    <span className="text-[#6D28D9]">{nextDocVoucher}</span>
+                    <span className="text-[#94A3B8]">_</span>
+                    <span className="text-[#0369A1]">{nextDocVoucher}</span>
                   </>
                 )}
               </div>
             </div>
 
-            <div className="hidden sm:block text-right">
-              <span className="text-[10px] font-mono text-[#666] block">Format Pola SIG:</span>
-              <span className="text-[10px] font-mono font-semibold text-[#1A1A1A]">
+            <div className="sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-[#F1F5F9]">
+              <span className="text-[10px] font-mono text-[#64748B] block">Format Pola SIG:</span>
+              <span className="text-[11px] font-mono font-semibold text-[#0369A1] bg-[#F0F9FF] border border-[#BAE6FD] px-2 py-0.5 rounded">
                 TAHUN_KODEPERUSAHAAN_NOPAYMENT_DOCVOUCHER
               </span>
             </div>
@@ -561,75 +557,80 @@ export default function UploadDokumenPage() {
 
           {/* Breakdown Komponen Token */}
           {!isNonPayment && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px] font-mono">
-              <div className="border border-[#E2E8F0] bg-white p-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1 text-[11px] font-mono">
+              <div className="border border-[#BAE6FD] bg-white rounded-lg p-2.5 shadow-2xs">
                 <span className="text-[#64748B] block text-[10px]">1. Tahun Dokumen</span>
-                <span className="font-bold text-[#0369A1]">{tahunDokumen}</span>
-                <span className="text-[9px] text-[#94A3B8] block">(dari Tanggal Dokumen)</span>
+                <span className="font-bold text-[#0284C7] text-xs">{tahunDokumen}</span>
+                <span className="text-[9px] text-[#94A3B8] block mt-0.5">(dari Tanggal Dokumen)</span>
               </div>
-              <div className="border border-[#E2E8F0] bg-white p-2">
+              <div className="border border-[#BAE6FD] bg-white rounded-lg p-2.5 shadow-2xs">
                 <span className="text-[#64748B] block text-[10px]">2. Kode Perusahaan</span>
-                <span className="font-bold text-[#15803D]">{kodePerusahaan}</span>
-                <span className="text-[9px] text-[#94A3B8] block">(Master: {unitInfo.nama})</span>
+                <span className="font-bold text-[#0369A1] text-xs">{kodePerusahaan}</span>
+                <span className="text-[9px] text-[#94A3B8] block mt-0.5">(Master: {unitInfo.nama})</span>
               </div>
-              <div className="border border-[#E2E8F0] bg-white p-2">
+              <div className="border border-[#BAE6FD] bg-white rounded-lg p-2.5 shadow-2xs">
                 <span className="text-[#64748B] block text-[10px]">3. No. Payment (PPL)</span>
-                <span className="font-bold text-[#B45309] truncate block">
+                <span className="font-bold text-[#0284C7] text-xs truncate block">
                   {nomorPpl.trim() || '(Wajib diisi)'}
                 </span>
-                <span className="text-[9px] text-[#94A3B8] block">(Input PIC Aktif)</span>
+                <span className="text-[9px] text-[#94A3B8] block mt-0.5">(Input PIC Aktif)</span>
               </div>
-              <div className="border border-[#E2E8F0] bg-white p-2">
+              <div className="border border-[#BAE6FD] bg-white rounded-lg p-2.5 shadow-2xs">
                 <span className="text-[#64748B] block text-[10px]">4. Doc Voucher</span>
-                <span className="font-bold text-[#6D28D9]">{nextDocVoucher}</span>
-                <span className="text-[9px] text-[#94A3B8] block">(Otomatis Sistem)</span>
+                <span className="font-bold text-[#0369A1] text-xs">{nextDocVoucher}</span>
+                <span className="text-[9px] text-[#94A3B8] block mt-0.5">(Otomatis Sistem)</span>
               </div>
             </div>
           )}
         </div>
 
-        {/* FORMULIR PENDAFTARAN DOKUMEN */}
+        {/* FORMULIR PENDAFTARAN DOKUMEN - BERSIH PUTIH & BIRU LANGIT */}
         <form
           onSubmit={handleSubmit}
-          className="bg-white border border-[#D9D4C7] p-6 sm:p-7 space-y-6 shadow-xs font-mono text-xs"
+          className="bg-white border border-[#BAE6FD] rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs font-mono text-xs"
         >
-          <div className="border-b border-[#E5E5E5] pb-3">
-            <h1 className="text-base font-bold text-[#1A1A1A] tracking-tight">
-              FORMULIR PENDAFTARAN DOKUMEN ARSIP AKTIF
-            </h1>
-            <p className="text-[11px] text-[#666] mt-1 font-sans">
-              Dokumen akan otomatis diverifikasi polanya, diterbitkan Doc Voucher oleh sistem, dan diajukan ke antrean persetujuan Atasan Arsip Aktif unit {unitInfo.nama}.
+          <div className="border-b border-[#E0F2FE] pb-4">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-[#E0F2FE] text-[#0284C7]">
+                <FileUp className="w-4 h-4" />
+              </span>
+              <h1 className="text-base sm:text-lg font-bold text-[#0F172A] tracking-tight">
+                FORMULIR PENDAFTARAN DOKUMEN ARSIP AKTIF
+              </h1>
+            </div>
+            <p className="text-[11px] text-[#64748B] font-sans leading-relaxed">
+              Dokumen akan otomatis diverifikasi polanya, diterbitkan Doc Voucher oleh sistem, dan diajukan ke antrean persetujuan Atasan Arsip Aktif unit <strong className="text-[#0369A1]">{unitInfo.nama}</strong>.
             </p>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* Opsi Dokumen Non-Payment Toggle */}
-            <div className="flex items-center justify-between border border-[#E5E5E5] bg-[#FAFAFA] p-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border border-[#BAE6FD] bg-[#F0F9FF]/70 rounded-xl p-3.5">
               <div>
-                <span className="font-bold text-[#1A1A1A]">Jenis Penomoran Dokumen:</span>
-                <p className="text-[10px] text-[#666] font-sans">
+                <span className="font-bold text-[#0F172A]">Jenis Penomoran Dokumen:</span>
+                <p className="text-[10px] text-[#64748B] font-sans">
                   Pilih apakah dokumen memiliki nomor pembayaran SIG (PPL) atau dokumen khusus (kontrak/sertifikat).
                 </p>
               </div>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 border border-[#BAE6FD] rounded-lg shadow-2xs hover:bg-[#F8FAFC] transition-colors">
                 <input
                   type="checkbox"
                   checked={isNonPayment}
                   onChange={(e) => setIsNonPayment(e.target.checked)}
-                  className="rounded border-[#C5BFB0] text-[#9A3412] focus:ring-[#9A3412]"
+                  className="rounded border-[#CBD7E3] text-[#0284C7] focus:ring-[#0284C7]"
                 />
-                <span className="text-[11px] font-semibold text-[#1A1A1A]">Dokumen Non-Payment (Kontrak/Sertifikat)</span>
+                <span className="text-[11px] font-semibold text-[#0369A1]">Dokumen Non-Payment (Kontrak/Sertifikat)</span>
               </label>
             </div>
 
             {/* FIELD UTAMA: NOMOR PAYMENT / PPL (1 Field untuk SIG) */}
             {!isNonPayment ? (
-              <div className="space-y-1.5 border-l-2 border-[#9A3412] pl-3 py-1">
-                <div className="flex items-center justify-between">
-                  <label className="block font-bold text-[#1A1A1A]">
-                    NOMOR PAYMENT / PPL (10 DIGIT) <span className="text-red-600">*</span>
+              <div className="space-y-2 border-l-3 border-[#0284C7] pl-3.5 py-1 bg-[#F8FBFE] rounded-r-xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <label className="block font-bold text-[#0F172A]">
+                    NOMOR PAYMENT / PPL (10 DIGIT) <span className="text-red-500">*</span>
                   </label>
-                  <span className="text-[10px] text-[#666] font-sans">
+                  <span className="text-[10px] text-[#64748B] font-sans">
                     Bisa diketik manual, discan kamera, atau voice typing
                   </span>
                 </div>
@@ -643,15 +644,15 @@ export default function UploadDokumenPage() {
                       placeholder="Contoh: 1500013765"
                       maxLength={15}
                       required={!isNonPayment}
-                      className="w-full border border-[#C5BFB0] px-3 py-2 text-xs font-mono font-bold tracking-wider text-[#1A1A1A] focus:outline-none focus:border-[#9A3412]"
+                      className="w-full h-10 border border-[#BAE6FD] bg-white rounded-lg px-3 text-xs font-mono font-bold tracking-wider text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
                     />
                     {nomorPpl && (
                       <button
                         type="button"
                         onClick={() => setNomorPpl('')}
-                        className="absolute right-2.5 top-2 text-[#999] hover:text-[#333]"
+                        className="absolute right-2.5 top-2.5 text-[#94A3B8] hover:text-[#334155]"
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <X className="w-4 h-4" />
                       </button>
                     )}
                   </div>
@@ -661,9 +662,9 @@ export default function UploadDokumenPage() {
                     type="button"
                     onClick={startCamera}
                     title="Scan Barcode / QR dari Kamera"
-                    className="flex items-center gap-1.5 border border-[#1A1A1A] bg-[#F5F5F5] hover:bg-[#EAEAEA] px-3 py-2 text-xs font-semibold text-[#1A1A1A] transition-colors"
+                    className="flex items-center gap-1.5 border border-[#BAE6FD] bg-white hover:bg-[#F0F9FF] px-3.5 h-10 rounded-lg text-xs font-semibold text-[#0369A1] transition-colors shadow-2xs"
                   >
-                    <Scan className="w-4 h-4 text-[#9A3412]" />
+                    <Scan className="w-4 h-4 text-[#0284C7]" />
                     <span className="hidden sm:inline">Scan QR</span>
                   </button>
 
@@ -673,25 +674,25 @@ export default function UploadDokumenPage() {
                       type="button"
                       onClick={toggleVoiceTyping}
                       title="Ketik dengan Suara (Voice Typing)"
-                      className={`flex items-center gap-1.5 border px-3 py-2 text-xs font-semibold transition-colors ${
+                      className={`flex items-center gap-1.5 border h-10 px-3.5 rounded-lg text-xs font-semibold transition-colors shadow-2xs ${
                         isListening
-                          ? 'border-red-600 bg-red-50 text-red-700 animate-pulse'
-                          : 'border-[#1A1A1A] bg-[#F5F5F5] hover:bg-[#EAEAEA] text-[#1A1A1A]'
+                          ? 'border-red-400 bg-red-50 text-red-700 animate-pulse'
+                          : 'border-[#BAE6FD] bg-white hover:bg-[#F0F9FF] text-[#0369A1]'
                       }`}
                     >
-                      {isListening ? <MicOff className="w-4 h-4 text-red-600" /> : <Mic className="w-4 h-4 text-[#9A3412]" />}
+                      {isListening ? <MicOff className="w-4 h-4 text-red-600" /> : <Mic className="w-4 h-4 text-[#0284C7]" />}
                       <span className="hidden sm:inline">{isListening ? 'Mendengarkan...' : 'Voice'}</span>
                     </button>
                   )}
                 </div>
-                <p className="text-[10px] text-[#666] font-sans">
+                <p className="text-[10px] text-[#64748B] font-sans">
                   Sesuai Blueprint 3.2 poin 2: input satu field nomor payment saja; tahun, kode perusahaan, dan doc voucher disusun otomatis oleh sistem.
                 </p>
               </div>
             ) : (
-              <div className="space-y-1.5 border-l-2 border-[#0284C7] pl-3 py-1">
-                <label className="block font-bold text-[#1A1A1A]">
-                  NOMOR DOKUMEN / KONTRAK / SERTIFIKAT <span className="text-red-600">*</span>
+              <div className="space-y-2 border-l-3 border-[#0284C7] pl-3.5 py-1 bg-[#F8FBFE] rounded-r-xl">
+                <label className="block font-bold text-[#0F172A]">
+                  NOMOR DOKUMEN / KONTRAK / SERTIFIKAT <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -699,9 +700,9 @@ export default function UploadDokumenPage() {
                   onChange={(e) => setNomorDokumenNonPayment(e.target.value)}
                   placeholder="Contoh: KTR/2026/001 atau NO-SERT-889"
                   required={isNonPayment}
-                  className="w-full border border-[#C5BFB0] px-3 py-2 text-xs font-mono font-bold tracking-wider text-[#1A1A1A] focus:outline-none focus:border-[#0284C7]"
+                  className="w-full h-10 border border-[#BAE6FD] bg-white rounded-lg px-3 text-xs font-mono font-bold tracking-wider text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
                 />
-                <p className="text-[10px] text-[#666] font-sans">
+                <p className="text-[10px] text-[#64748B] font-sans">
                   Sesuai Blueprint 3.2 poin 5: Untuk dokumen tanpa payment/doc voucher, nomor dokumen dicatat langsung sebagai kode arsip.
                 </p>
               </div>
@@ -709,9 +710,9 @@ export default function UploadDokumenPage() {
 
             {/* FIELD WAJIB M3: JUMLAH HALAMAN (LEMBAR FISIK) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5 border-l-2 border-[#15803D] pl-3 py-1">
-                <label className="block font-bold text-[#1A1A1A]">
-                  JUMLAH HALAMAN FISIK (LEMBAR) <span className="text-red-600">*</span>
+              <div className="space-y-2 border-l-3 border-[#38BDF8] pl-3.5 py-1 bg-[#F8FBFE] rounded-r-xl">
+                <label className="block font-bold text-[#0F172A]">
+                  JUMLAH HALAMAN FISIK (LEMBAR) <span className="text-red-500">*</span>
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -722,19 +723,19 @@ export default function UploadDokumenPage() {
                     onChange={(e) => setJumlahHalaman(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
                     required
                     placeholder="Contoh: 15"
-                    className="w-full border border-[#C5BFB0] px-3 py-2 text-xs font-mono font-bold text-[#1A1A1A] focus:outline-none focus:border-[#15803D]"
+                    className="w-full h-10 border border-[#BAE6FD] bg-white rounded-lg px-3 text-xs font-mono font-bold text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
                   />
-                  <span className="text-xs font-mono text-[#555] shrink-0">lembar</span>
+                  <span className="text-xs font-mono text-[#64748B] shrink-0 font-medium">lembar</span>
                 </div>
-                <p className="text-[10px] text-[#666] font-sans">
+                <p className="text-[10px] text-[#64748B] font-sans">
                   Wajib diisi (Blueprint 3.5 & 4.4): untuk alokasi otomatis kapasitas boks (maks. 500 lembar per boks).
                 </p>
               </div>
 
               {/* TANGGAL DOKUMEN */}
-              <div className="space-y-1.5 border-l-2 border-[#0369A1] pl-3 py-1">
-                <label className="block font-bold text-[#1A1A1A]">
-                  TANGGAL DOKUMEN <span className="text-red-600">*</span>
+              <div className="space-y-2 border-l-3 border-[#0369A1] pl-3.5 py-1 bg-[#F8FBFE] rounded-r-xl">
+                <label className="block font-bold text-[#0F172A]">
+                  TANGGAL DOKUMEN <span className="text-red-500">*</span>
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -742,26 +743,26 @@ export default function UploadDokumenPage() {
                     value={tanggalDokumen}
                     onChange={(e) => setTanggalDokumen(e.target.value)}
                     required
-                    className="w-full border border-[#C5BFB0] px-3 py-2 text-xs font-mono font-bold text-[#1A1A1A] focus:outline-none focus:border-[#0369A1]"
+                    className="w-full h-10 border border-[#BAE6FD] bg-white rounded-lg px-3 text-xs font-mono font-bold text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
                   />
                 </div>
-                <p className="text-[10px] text-[#666] font-sans">
+                <p className="text-[10px] text-[#64748B] font-sans">
                   Tahun ({tahunDokumen}) diambil otomatis sebagai segmen pertama kode arsip SIG.
                 </p>
               </div>
             </div>
 
             {/* KATEGORI MASTER & JUDUL DOKUMEN */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-              <div className="space-y-1.5">
-                <label className="block font-bold text-[#1A1A1A]">
-                  KATEGORI MASTER <span className="text-red-600">*</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+              <div className="space-y-2">
+                <label className="block font-bold text-[#0F172A]">
+                  KATEGORI MASTER <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={kategoriId}
                   onChange={(e) => setKategoriId(e.target.value)}
                   required
-                  className="w-full border border-[#C5BFB0] bg-white px-3 py-2 text-xs font-mono font-semibold text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A]"
+                  className="w-full h-10 border border-[#BAE6FD] bg-white rounded-lg px-3 text-xs font-mono font-semibold text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
                 >
                   {kategoriList.map((kat) => (
                     <option key={kat.id} value={kat.id}>
@@ -771,9 +772,9 @@ export default function UploadDokumenPage() {
                 </select>
               </div>
 
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className="block font-bold text-[#1A1A1A]">
-                  JUDUL DOKUMEN ARSIP <span className="text-red-600">*</span>
+              <div className="space-y-2 sm:col-span-2">
+                <label className="block font-bold text-[#0F172A]">
+                  JUDUL DOKUMEN ARSIP <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -781,15 +782,15 @@ export default function UploadDokumenPage() {
                   onChange={(e) => setJudul(e.target.value)}
                   placeholder="Contoh: Pembayaran Jasa Pengangkutan Semen Q1 2026"
                   required
-                  className="w-full border border-[#C5BFB0] px-3 py-2 text-xs font-mono text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A]"
+                  className="w-full h-10 border border-[#BAE6FD] bg-white rounded-lg px-3 text-xs font-mono text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
                 />
               </div>
             </div>
 
             {/* PENANDATANGAN & LOKASI AWAL DARI MASTER */}
             <div className="space-y-4 pt-1">
-              <div className="space-y-1.5">
-                <label className="block font-bold text-[#1A1A1A]">
+              <div className="space-y-2">
+                <label className="block font-bold text-[#0F172A]">
                   PENANDATANGAN DOKUMEN
                 </label>
                 <input
@@ -797,12 +798,12 @@ export default function UploadDokumenPage() {
                   value={penandatangan}
                   onChange={(e) => setPenandatangan(e.target.value)}
                   placeholder="Nama penandatangan dokumen (opsional)"
-                  className="w-full border border-[#C5BFB0] px-3 py-2 text-xs font-mono text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A]"
+                  className="w-full h-10 border border-[#BAE6FD] bg-white rounded-lg px-3 text-xs font-mono text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
                 />
               </div>
 
               {/* LOKASI BERTINGKAT DARI MASTER LOKASI (BLUEPRINT 3.5 & M5) */}
-              <div className="space-y-1.5 border-l-2 border-[#15803D] pl-3 py-1 bg-[#F9F7F2]/60">
+              <div className="space-y-2 border-l-3 border-[#0284C7] pl-3.5 py-2.5 bg-[#F0F9FF]/60 rounded-r-xl border-y border-r border-[#BAE6FD]">
                 <LokasiCascadeSelect
                   onChange={(val) => setSelectedLokasi(val)}
                   required
@@ -812,8 +813,8 @@ export default function UploadDokumenPage() {
             </div>
 
             {/* DESKRIPSI / CATATAN */}
-            <div className="space-y-1.5 pt-1">
-              <label className="block font-bold text-[#1A1A1A]">
+            <div className="space-y-2 pt-1">
+              <label className="block font-bold text-[#0F172A]">
                 DESKRIPSI / CATATAN TAMBAHAN
               </label>
               <textarea
@@ -821,16 +822,16 @@ export default function UploadDokumenPage() {
                 onChange={(e) => setDeskripsi(e.target.value)}
                 rows={2}
                 placeholder="Catatan ringkas mengenai isi dokumen arsip..."
-                className="w-full border border-[#C5BFB0] px-3 py-2 text-xs font-mono text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A]"
+                className="w-full border border-[#BAE6FD] bg-white rounded-lg p-3 text-xs font-mono text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
               />
             </div>
 
             {/* UNGGAH BERKAS UTAMA (PDF) */}
-            <div className="space-y-2 pt-2 border-t border-[#E5E5E5]">
-              <label className="block font-bold text-[#1A1A1A]">
-                BERKAS UTAMA DOKUMEN (PDF) <span className="text-red-600">*</span>
+            <div className="space-y-2 pt-2 border-t border-[#E0F2FE]">
+              <label className="block font-bold text-[#0F172A]">
+                BERKAS UTAMA DOKUMEN (PDF) <span className="text-red-500">*</span>
               </label>
-              <div className="border-2 border-dashed border-[#C5BFB0] hover:border-[#1A1A1A] p-4 text-center bg-[#FAFAF8] transition-colors">
+              <div className="border-2 border-dashed border-[#BAE6FD] hover:border-[#0284C7] rounded-xl p-5 text-center bg-[#F0F9FF]/40 hover:bg-[#F0F9FF] transition-all">
                 <input
                   type="file"
                   id="main-file"
@@ -839,18 +840,20 @@ export default function UploadDokumenPage() {
                   className="hidden"
                 />
                 <label htmlFor="main-file" className="cursor-pointer block">
-                  <FileText className="w-8 h-8 text-[#9A3412] mx-auto mb-2" />
+                  <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-[#E0F2FE] text-[#0284C7] flex items-center justify-center shadow-2xs">
+                    <UploadCloud className="w-6 h-6" />
+                  </div>
                   {selectedFile ? (
                     <div className="text-xs font-mono">
-                      <span className="font-bold text-[#1A1A1A]">{selectedFile.name}</span>
-                      <span className="text-[#666] block">
+                      <span className="font-bold text-[#0369A1]">{selectedFile.name}</span>
+                      <span className="text-[#64748B] block mt-0.5">
                         ({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB) — Klik untuk mengganti berkas
                       </span>
                     </div>
                   ) : (
-                    <div className="text-xs font-mono text-[#666]">
-                      <span className="font-bold text-[#1A1A1A] underline">Pilih Berkas PDF</span> atau seret file ke area ini
-                      <span className="text-[10px] text-[#999] block mt-0.5">Format file dokumen utama wajib PDF</span>
+                    <div className="text-xs font-mono text-[#64748B]">
+                      <span className="font-bold text-[#0284C7] underline underline-offset-2">Pilih Berkas PDF</span> atau seret file ke area ini
+                      <span className="text-[10px] text-[#94A3B8] block mt-1">Format file dokumen utama wajib PDF (Maks. 25 MB)</span>
                     </div>
                   )}
                 </label>
@@ -859,16 +862,16 @@ export default function UploadDokumenPage() {
 
             {/* UNGGAH LAMPIRAN TAMBAHAN */}
             <div className="space-y-2 pt-2">
-              <div className="flex items-center justify-between">
-                <label className="block font-bold text-[#1A1A1A]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                <label className="block font-bold text-[#0F172A]">
                   BERKAS LAMPIRAN TAMBAHAN (OPSIONAL)
                 </label>
-                <span className="text-[10px] text-[#666]">
+                <span className="text-[10px] text-[#64748B]">
                   Maksimal total 25 MB (PDF, XLSX, DOCX, JPG, PNG)
                 </span>
               </div>
 
-              <div className="border border-[#D9D4C7] bg-[#FAFAF8] p-3 space-y-2">
+              <div className="border border-[#BAE6FD] bg-[#F8FBFE] rounded-xl p-3.5 space-y-2.5">
                 <input
                   type="file"
                   id="lampiran-file"
@@ -879,28 +882,29 @@ export default function UploadDokumenPage() {
                 />
                 <label
                   htmlFor="lampiran-file"
-                  className="inline-flex items-center gap-1.5 border border-[#1A1A1A] bg-white px-3 py-1.5 text-xs font-mono font-semibold text-[#1A1A1A] hover:bg-[#F5F5F5] cursor-pointer"
+                  className="inline-flex items-center gap-1.5 border border-[#BAE6FD] bg-white px-3.5 py-2 rounded-lg text-xs font-mono font-semibold text-[#0369A1] hover:bg-[#F0F9FF] cursor-pointer shadow-2xs transition-colors"
                 >
-                  <Paperclip className="w-3.5 h-3.5 text-[#9A3412]" />
+                  <Paperclip className="w-3.5 h-3.5 text-[#0284C7]" />
                   <span>Tambah Berkas Lampiran</span>
                 </label>
 
                 {lampiranFiles.length > 0 && (
-                  <div className="space-y-1 pt-2">
+                  <div className="space-y-1.5 pt-2">
                     {lampiranFiles.map((lamp, idx) => (
                       <div
                         key={idx}
-                        className="flex items-center justify-between border border-[#E5E5E5] bg-white px-2.5 py-1 text-xs font-mono"
+                        className="flex items-center justify-between border border-[#BAE6FD] bg-white rounded-lg px-3 py-2 text-xs font-mono shadow-2xs"
                       >
-                        <span className="truncate max-w-sm text-[#1A1A1A]">{lamp.name}</span>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[10px] text-[#777]">
+                        <span className="truncate max-w-sm text-[#0F172A] font-medium">{lamp.name}</span>
+                        <div className="flex items-center gap-2.5 shrink-0">
+                          <span className="text-[10px] text-[#64748B] bg-[#F1F5F9] px-2 py-0.5 rounded">
                             {(lamp.size / (1024 * 1024)).toFixed(2)} MB
                           </span>
                           <button
                             type="button"
                             onClick={() => removeLampiran(idx)}
-                            className="text-red-600 hover:text-red-800"
+                            className="p-1 rounded text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
+                            title="Hapus berkas lampiran"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -914,10 +918,10 @@ export default function UploadDokumenPage() {
           </div>
 
           {/* SUBMIT BUTTON */}
-          <div className="border-t border-[#E5E5E5] pt-5 flex items-center justify-between">
+          <div className="border-t border-[#E0F2FE] pt-5 flex items-center justify-between">
             <Link
               href="/dokumen"
-              className="px-4 py-2 border border-[#C5BFB0] text-xs font-mono font-semibold text-[#555] hover:bg-[#F5F5F5]"
+              className="px-4 py-2.5 border border-[#CBD7E3] rounded-xl text-xs font-mono font-semibold text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
             >
               Batal
             </Link>
@@ -925,7 +929,7 @@ export default function UploadDokumenPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="inline-flex items-center gap-2 border-2 border-[#1A1A1A] bg-[#1A1A1A] text-white hover:bg-[#333] px-6 py-2.5 text-xs font-mono font-bold tracking-wider uppercase transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 border border-[#0284C7] bg-[#0284C7] text-white hover:bg-[#0369A1] px-6 py-2.5 rounded-xl text-xs font-mono font-bold tracking-wider uppercase transition-colors disabled:opacity-50 shadow-sm shadow-[#0284C7]/20"
             >
               {isSubmitting ? (
                 <>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Lora, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { HydrationErrorSuppressor } from "@/components/common/hydration-error-suppressor";
+import { SessionTimeoutListener } from "@/components/auth/session-timeout-listener";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-sans",
@@ -156,6 +157,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col font-sans" suppressHydrationWarning>
         <HydrationErrorSuppressor />
+        <SessionTimeoutListener />
         {children}
       </body>
     </html>
