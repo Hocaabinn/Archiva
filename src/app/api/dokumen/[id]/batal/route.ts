@@ -17,6 +17,9 @@ export const dynamic = 'force-dynamic'
  * 3. Mengecualikan dokumen yang belum Aktif dari pembatalan (PIC Arsip atau Atasan
  *    menolak dokumen menunggu_persetujuan, bukan membatalkannya).
  */
+/**
+ * Pembatalan dokumen aktif oleh Atasan Arsip Aktif dengan alasan penarikan wajib
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
