@@ -841,23 +841,6 @@ export default function UploadDokumenPage() {
               </div>
             </div>
 
-            {/* DESKRIPSI / CATATAN */}
-            <div className="space-y-2 pt-1">
-              <label className="block font-bold text-[#0F172A]">
-                DESKRIPSI / CATATAN TAMBAHAN (OPSIONAL)
-              </label>
-              <textarea
-                value={deskripsi}
-                onChange={(e) => setDeskripsi(e.target.value)}
-                rows={2}
-                placeholder="Dibuat otomatis oleh sistem dari data berkas saat Anda klik Daftarkan Dokumen (atau Anda dapat mengetik catatan khusus sendiri di sini)..."
-                className="w-full border border-[#BAE6FD] bg-white rounded-lg p-3 text-xs font-mono text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
-              />
-              <p className="text-[10px] text-[#64748B] font-sans">
-                Bila dikosongkan, sistem akan otomatis mencatat nama berkas yang diunggah, kategori, nomor payment/kontrak, dan perihal dokumen ke dalam arsip.
-              </p>
-            </div>
-
             {/* UNGGAH BERKAS UTAMA (PDF) */}
             <div className="space-y-2 pt-2 border-t border-[#E0F2FE]">
               <label className="block font-bold text-[#0F172A]">
