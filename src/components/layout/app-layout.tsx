@@ -55,6 +55,7 @@ interface AppUser {
   roleTitle: string
 }
 
+/** Mapping judul resmi 6 peran kearsipan kedinasan R.03 */
 const roleTitles: Record<UserRole, string> = {
   superadmin: 'Superadmin',
   pic_aktif: 'PIC Arsip Aktif',
