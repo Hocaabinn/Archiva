@@ -787,21 +787,8 @@ export default function UploadDokumenPage() {
               </div>
             </div>
 
-            {/* PENANDATANGAN & LOKASI AWAL DARI MASTER */}
+            {/* LOKASI AWAL DARI MASTER */}
             <div className="space-y-4 pt-1">
-              <div className="space-y-2">
-                <label className="block font-bold text-[#0F172A]">
-                  PENANDATANGAN DOKUMEN
-                </label>
-                <input
-                  type="text"
-                  value={penandatangan}
-                  onChange={(e) => setPenandatangan(e.target.value)}
-                  placeholder="Nama penandatangan dokumen (opsional)"
-                  className="w-full h-10 border border-[#BAE6FD] bg-white rounded-lg px-3 text-xs font-mono text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
-                />
-              </div>
-
               {/* LOKASI BERTINGKAT DARI MASTER LOKASI (BLUEPRINT 3.5 & M5) */}
               <div className="space-y-2 border-l-3 border-[#0284C7] pl-3.5 py-2.5 bg-[#F0F9FF]/60 rounded-r-xl border-y border-r border-[#BAE6FD]">
                 <LokasiCascadeSelect
