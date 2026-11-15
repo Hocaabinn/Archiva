@@ -198,8 +198,11 @@ export async function generateBeritaAcaraTransferPDF(data: BeritaAcaraTransferDa
 
   y -= 18
 
-  // Baris Tabel
-  data.dokumenList.forEach((doc, idx) => {
+  // Batasi daftar dokumen yang dirender agar tidak overlap dengan blok tanda tangan pada dokumen multi-item
+  const maxDocsToRender = 16
+  const renderedDocs = data.dokumenList.slice(0, maxDocsToRender)
+
+  renderedDocs.forEach((doc, idx) => {
     const rowH = 18
     const isEven = idx % 2 === 0
     page.drawRectangle({
