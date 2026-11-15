@@ -1,57 +1,57 @@
 # Panduan Desain — Aplikasi Arsip Dokumen (Anti-Slop)
 
-Aturan lengkap ada di skill `anti-slop-design` (`workspace/custom-skills/anti-slop-design/SKILL.md`).
-File ini adalah ringkasan token yang bisa langsung dipakai saat coding, supaya tidak
-kembali ke tampilan SaaS generik.
+Aturan lengkap merujuk pada skill `anti-slop-design` (`custom-skills/anti-slop-design/SKILL.md`) dan disinkronkan dengan `BLUEPRINT.md` R.03.
 
-## Identitas
+## Identitas Sistem
 
-Aplikasi ini adalah **alat kerja arsip**, bukan landing page. Bayangkan: kertas, tinta,
-cap stempel, map folder, dan kode arsip. Kalau logonya dihapus, layarnya tetap harus
-kelihatan seperti aplikasi arsip, bukan aplikasi apa pun.
+Aplikasi ini adalah **alat kerja administrasi kearsipan kedinasan**, bukan landing page atau SaaS komersial.
+Metafora visual: **kertas kerja kedinasan, tinta stempel, cap status dokumen, map arsip fisik, dan kode arsip SIG monospace**.
 
-**Jangan dipakai:** gradien ungu-biru, hero marketing, 3 kartu fitur identik,
-glassmorphism, ilustrasi AI, emoji sebagai ikon, badge warna-warni tanpa arti.
+**Dilarang digunakan:**
+- Gradien ungu-biru generic web3/AI.
+- Hero marketing, gambar 3D kartun, atau panel ilustrasi kosong.
+- Glassmorphism yang mengaburkan kejelasan teks kearsipan.
+- Emoji sebagai ikon status formal.
+- Data palsu / lorem ipsum / dummy generic.
 
-## Token
+---
 
-- Kertas: `#F7F3EB`, permukaan: `#FFFFFF`, tinta: `#1A1D21`, tinta redup: `#5B6166`
-- Border: `#D8D2C4`, sidebar: `#1E2429` atau `#F0EBDD`
-- Cap merah (Ditolak): `#B42318`, amber (Menunggu): `#9A6700`
-- Aktif: `#1F5C55`, Lunas: `#276749`, Non-Aktif: abu-abu cap
-- Judul: serif (formal arsip), isi: system sans, kode: monospace
-- Status: huruf kapital, ada border, isi datar, tanpa gradien. Contoh: `AKTIF`, `MENUNGGU PERSETUJUAN`, `NON-AKTIF`
+## Token Desain (Archiva Kearsipan)
 
-## Layout
+- **Latar Kertas Kedinasan:** `#F0F5FA` / `#F7F8FC`
+- **Permukaan Kartu/Tabel:** `#FFFFFF`
+- **Tinta Teks Utama:** `#111827` / `#1A232E`
+- **Tinta Redup / Keterangan:** `#4B5E76` / `#6B7185`
+- **Border Dokumen:** `#CBD7E3` / `#ECEEF5`
+- **Biru Kedinasan (Primary):** `#1E3A5F` (Hover: `#162A45`)
+- **Aksen Arsip:** `#3BA4E8` / `#1E86C8`
 
-- Desktop: sidebar tetap + topbar (pencarian + role) + konten utama.
-- Dashboard = tabel kerja padat, bukan kartu-kartu besar.
-- Di daftar dokumen, langsung tampil: kode arsip (monospace), judul, status cap,
-  pemegang, lokasi, dan tanggal kadaluarsa. Jangan paksa klik detail hanya untuk tahu itu.
-- Satu aksi utama per layar, tombol solid tanpa gradien. Aksi hapus: teks / outline merah.
+### Status Cap Dokumen (Cap Border Kotak Monospace / Semibold)
+- `MENUNGGU PERSETUJUAN`: Amber cap (`#B06000`, latar `#FEF7E0`, border `#FEEFC3`)
+- `AKTIF`: Hijau cap kedinasan (`#137333`, latar `#E6F4EA`, border `#CEEAD6`)
+- `DITOLAK`: Merah cap penolakan (`#B42318`, latar `#FEF3F2`, border `#FECDCA`)
+- `INAKTIF`: Biru abu-abu retensi (`#1E86C8`, latar `#EAF5FD`, border `#BCE1F9`)
+- `DIBATALKAN`: Merah bata tebal cap pembatalan (`#7F1D1D`, latar `#FEE2E2`, border `#F87171`)
 
-## Komponen kunci
+---
 
-- **Tabel dokumen:** teks rata kiri, angka dan tanggal rata kanan, kode monospace, hover baris saja.
-- **Detail dokumen:** dua kolom — kiri metadata + barcode/QR besar yang bisa di-scan dari print,
-  kanan timeline riwayat.
-- **Form:** label selalu di atas field, bukan placeholder saja. Error menyebut field dan solusinya.
-- **Scan serah terima:** area kamera besar + kolom ketik kode manual sebagai fallback (scanner USB).
-- **Empty state:** jelaskan yang kosong dan satu aksi berikutnya, bukan ilustrasi kosong.
-  Contoh: “Belum ada dokumen menunggu persetujuan.” + tombol “Upload dokumen”.
+## Layout & Tata Kelola Layar
 
-## Data contoh (pakai ini di demo, jangan data generik)
+1. **Halaman Masuk (Login):**
+   - Satu kartu formulir kedinasan tunggal (Email + Kata Sandi + 1 Tombol Masuk).
+   - Tanpa panel promosi/marketing dan tanpa tab pilihan OTP terpisah.
+   - Opsi pemulihan akses via surel kedinasan resmi.
 
-- Kode: `ARS-2026-0001`, `ARS-2026-0002`
-- Kategori: Keuangan, SDM, Kontrak
-- Judul contoh: “Kontrak Kerja Sama Vendor 2026”, “Laporan Keuangan Triwulan III 2026”
-- Harga: `Rp50.000` (Perpanjangan 1 Tahun), `Rp75.000` (Reaktivasi Non-Aktif)
-- Jangan pakai: Dokumen 1, John Doe, lorem ipsum, angka dashboard palsu.
+2. **Tata Letak Navigasi (Sidebar & Topbar):**
+   - **Topbar:** Bersih tanpa kotak pencarian utama (pencarian diletakkan langsung di atas tabel dokumen). Menampilkan lonceng notifikasi dan profil pengguna.
+   - **Sidebar:** Menampilkan peran aktif dengan lencana hierarki, menu disesuaikan menurut 6 peran R.03 (`superadmin`, `pic_aktif`, `atasan_aktif`, `pic_inaktif`, `atasan_inaktif`, `staff`).
 
-## Cek cepat sebelum demo
+3. **Daftar Dokumen:**
+   - Satu kotak pencarian terpadu yang memfilter nomor payment (PPL), doc voucher, kode lengkap SIG, maupun judul dokumen.
+   - Filter dropdown status, kategori, tanggal, pemegang, dan lokasi master.
+   - Tabel padat menampilkan kode SIG monospace, judul, status cap, pemegang saat ini, lokasi rak/boks, dan batas retensi (dengan penanda 'Akan Kadaluarsa' untuk masa < 90 hari).
 
-1. Tanpa logo, masih kelihatan seperti aplikasi arsip?
-2. Ada gradien / hero / ilustrasi AI yang bisa dihapus tanpa kehilangan info? Hapus.
-3. Dalam 5 detik, user tahu aksi berikutnya di layar itu?
-4. Barcode hasil print masih bisa di-scan?
-5. Viewer benar-benar tidak melihat tombol download, bukan cuma tombolnya disembunyikan dengan CSS?
+4. **Serah Terima & Peminjaman:**
+   - Scan barcode/QR kamera beresolusi tinggi + kolom input scanner USB.
+   - Bukti Berita Acara Serah Terima (BAST) otomatis diterbitkan dalam format PDF kedinasan.
+   - Perpindahan pemegang fisik hanya sah setelah penerima mengonfirmasi scan.

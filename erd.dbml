@@ -1,5 +1,6 @@
 // ERD Aplikasi Manajemen Arsip Dokumen (Archiva)
-// Versi Blueprint R.02 — PT Semen Indonesia Group
+// Versi Blueprint R.03 — PT Semen Indonesia Group
+// 10 Tabel: profiles, unit_organisasi, kategori_dokumen, lokasi, boks, dokumen, peminjaman, serah_terima, log_aktivitas, notifikasi
 
 Table profiles {
   id uuid [pk] // references auth.users(id)
@@ -7,55 +8,83 @@ Table profiles {
   nama text [not null]
   nomor_pegawai text
   jabatan text
-  role text [not null, default: 'user'] // admin, pic_arsip, atasan, user, accounting, viewer
+  unit_id uuid [ref: > unit_organisasi.id]
+  role text [not null, default: 'staff'] // superadmin, pic_aktif, atasan_aktif, pic_inaktif, atasan_inaktif, staff
   avatar_url text
   created_at timestamptz [default: `now()`]
   updated_at timestamptz [default: `now()`]
 }
 
+Table unit_organisasi {
+  id uuid [pk]
+  nama text [not null, unique] // Keuangan, Legal
+  kode_perusahaan text [not null, default: '2000']
+  created_at timestamptz [default: `now()`]
+}
+
 Table kategori_dokumen {
   id uuid [pk]
   nama text [not null, unique]
-  kode text [not null, unique]
+  kode text [not null, unique] // mis. KEU, SDM, KTR
   deskripsi text
   is_active boolean [default: true]
   created_at timestamptz [default: `now()`]
 }
 
+Table lokasi {
+  id uuid [pk]
+  nama text [not null] // Gedung A, Ruang Arsip Aktif, Rak 01
+  tingkat text [not null] // Gedung, Ruangan, Rak
+  parent_id uuid [ref: - lokasi.id] // self-referencing hierarchy
+  created_at timestamptz [default: `now()`]
+}
+
+Table boks {
+  id uuid [pk]
+  nomor_boks text [not null] // 01, 02
+  rak_id uuid [not null, ref: > lokasi.id] // lokasi bertingkat Rak
+  kapasitas_maks_lembar int [not null, default: 500]
+  jumlah_lembar_terisi int [not null, default: 0]
+  qr_path text
+  status text [not null, default: 'Aktif'] // Aktif, Penuh
+  created_at timestamptz [default: `now()`]
+}
+
 Table dokumen {
   id uuid [pk]
-  kode_arsip text [not null, unique] // Format: TAHUN_KODEPERUSAHAAN_NOPAYMENT_DOCVOUCHER
+  kode_arsip text [not null, unique] // TAHUN_KODEPERUSAHAAN_NOPAYMENT_DOCVOUCHER
   judul text [not null]
   nomor_dokumen text // Doc Voucher
   nomor_ppl text // No. Payment / PPL (10 digit)
-  penandatangan text
   kategori_id uuid [ref: > kategori_dokumen.id]
-  pemilik_id uuid [ref: > profiles.id]
+  unit_id uuid [ref: > unit_organisasi.id] // Unit PIC Arsip Aktif pengentri
+  pemilik_id uuid [ref: > profiles.id] // PIC Arsip Aktif pengentri
   pemegang_saat_ini uuid [ref: > profiles.id]
-  lokasi_saat_ini text [default: 'Ruang Arsip Aktif']
+  boks_id uuid [ref: > boks.id] // Wadah fisik dokumen
+  lokasi_saat_ini text // Gedung A / Ruangan Arsip / Rak 1
   tanggal_dokumen date [default: `CURRENT_DATE`]
-  tanggal_kadaluarsa date // tanggal_disetujui + 3 tahun
   tanggal_masuk timestamptz [default: `now()`]
   tanggal_disetujui timestamptz
+  tanggal_kadaluarsa date // tanggal_disetujui + 3 tahun
   status text [not null, default: 'menunggu_persetujuan'] // menunggu_persetujuan, aktif, ditolak, inaktif, dibatalkan
-  bucket text [not null, default: 'arsip-aktif']
+  bucket text [not null, default: 'arsip-aktif'] // arsip-aktif, arsip-inaktif
   file_path text [not null]
   file_tipe text
   ukuran_file bigint
+  jumlah_halaman int [not null, default: 1] // lembar fisik dokumen
   barcode_path text
-  verifikasi_pic_oleh uuid [ref: > profiles.id]
-  disetujui_oleh uuid [ref: > profiles.id]
+  disetujui_oleh uuid [ref: > profiles.id] // Atasan Arsip Aktif
+  penandatangan text
   alasan_penolakan text
-  deskripsi text
   created_at timestamptz [default: `now()`]
   updated_at timestamptz [default: `now()`]
 }
 
 Table peminjaman {
   id uuid [pk]
-  dokumen_id uuid [not null, ref: > dokumen.id]
+  dokumen_id uuid [not null, ref: > dokumen.id] // Hanya dokumen Inaktif
   peminjam_id uuid [not null, ref: > profiles.id]
-  pic_inaktif_id uuid [ref: > profiles.id]
+  pic_inaktif_id uuid [ref: > profiles.id] // PIC Arsip Inaktif penyetuju
   tanggal_pinjam timestamptz [default: `now()`]
   tanggal_kembali timestamptz
   status text [not null, default: 'Diajukan'] // Diajukan, Disetujui, Dipinjam, Dikembalikan, Ditolak
@@ -68,8 +97,8 @@ Table serah_terima {
   dokumen_id uuid [not null, ref: > dokumen.id]
   dari_user_id uuid [not null, ref: > profiles.id]
   ke_user_id uuid [not null, ref: > profiles.id]
-  dari_lokasi text
-  ke_lokasi text
+  dari_lokasi text [not null]
+  ke_lokasi text [not null]
   tanggal_serah timestamptz [default: `now()`]
   tanggal_terima timestamptz
   status_serah text [not null, default: 'Menunggu konfirmasi'] // Menunggu konfirmasi, Diterima, Ditolak
@@ -80,9 +109,9 @@ Table serah_terima {
 
 Table log_aktivitas {
   id uuid [pk]
-  dokumen_id uuid [ref: > dokumen.id]
+  dokumen_id uuid [ref: > dokumen.id] // Boleh null untuk aktivitas umum
   user_id uuid [ref: > profiles.id]
-  aksi text [not null] // upload, verifikasi PIC, approve Atasan, tolak, lihat, download, pindah Inaktif, peminjaman, serah terima, pembatalan
+  aksi text [not null] // entri, persetujuan, tolak, lihat, download, pindah_inaktif, peminjaman, serah_terima, pembatalan
   keterangan text
   created_at timestamptz [default: `now()`]
 }
@@ -90,21 +119,9 @@ Table log_aktivitas {
 Table notifikasi {
   id uuid [pk]
   user_id uuid [not null, ref: > profiles.id]
+  dokumen_id uuid [ref: > dokumen.id] // Boleh null
   judul text [not null]
-  isi text [not null]
-  dokumen_id uuid [ref: > dokumen.id]
-  dibaca boolean [default: false]
+  pesan text // teks notifikasi
+  dibaca boolean [not null, default: false]
   created_at timestamptz [default: `now()`]
 }
-
-Table lampiran {
-  id uuid [pk]
-  dokumen_id uuid [not null, ref: > dokumen.id]
-  nama_file text [not null]
-  file_path text [not null]
-  file_size bigint [not null]
-  mime_type text [not null]
-  diunggah_oleh uuid [ref: > profiles.id]
-  created_at timestamptz [default: `now()`]
-}
-

@@ -1,78 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { UserRole } from '@/types'
+import { kirimEmailNotifikasi } from '@/lib/server-email'
 
-/**
- * Validasi pola kode arsip standar Semen Indonesia Group (SIG):
- * Format: TAHUN_KODEPERUSAHAAN_NOPAYMENT_DOCVOUCHER
- * Contoh: 2025_2000_1500013765_1900009386 (31 karakter)
- * Token:
- * - TAHUN: 4 digit angka
- * - KODEPERUSAHAAN: 4 digit angka (misal 2000)
- * - NOPAYMENT: 10 digit angka (nomor PPL / Payment)
- * - DOCVOUCHER: 10 digit angka (nomor doc voucher / dokumen)
- *
- * Blueprint 3.2 poin 5: Untuk dokumen tanpa payment (kontrak/sertifikat),
- * nomor dokumen dapat digunakan setelah diverifikasi PIC Arsip.
- */
-export function validateKodeArsipSIG(code: string): { isValid: boolean; message?: string } {
-  const trimmed = (code || '').trim()
-  if (!trimmed) {
-    return { isValid: false, message: 'Kode arsip tidak boleh kosong' }
-  }
-
-  // Pola standar 31 karakter: 4_4_10_10
-  const sigStandardRegex = /^\d{4}_\d{4}_\d{10}_\d{10}$/
-  if (sigStandardRegex.test(trimmed)) {
-    return { isValid: true }
-  }
-
-  // Blueprint 3.2 poin 5: Pola alternatif untuk dokumen khusus (kontrak/sertifikat)
-  // Format tetap menggunakan underscore sebagai pemisah segmen
-  const flexibleSigRegex = /^[A-Za-z0-9_-]{5,50}$/
-  if (flexibleSigRegex.test(trimmed)) {
-    return { isValid: true }
-  }
-
-  return {
-    isValid: false,
-    message: 'Format kode arsip tidak valid. Standar SIG: TAHUN_KODEPERUSAHAAN_NOPAYMENT_DOCVOUCHER (contoh: 2025_2000_1500013765_1900009386)',
-  }
-}
-
-/**
- * Parsing nama file atau teks untuk mengekstrak token kode arsip SIG
- */
-export function extractSigTokens(filenameOrText: string): {
-  tahun?: string
-  kodePerusahaan?: string
-  noPayment?: string
-  docVoucher?: string
-} {
-  const cleaned = (filenameOrText || '').replace(/\.[^/.]+$/, '') // hilangkan ekstensi
-
-  // Coba cari pola lengkap: 2025_2000_1500013765_1900009386
-  const fullMatch = cleaned.match(/(\d{4})_(\d{4})_(\d{10})_(\d{10})/)
-  if (fullMatch) {
-    return {
-      tahun: fullMatch[1],
-      kodePerusahaan: fullMatch[2],
-      noPayment: fullMatch[3],
-      docVoucher: fullMatch[4],
-    }
-  }
-
-  // Coba cari token 10 digit (No. Payment dan Doc Voucher)
-  const tenDigitMatches = cleaned.match(/\b\d{10}\b/g)
-  const yearMatch = cleaned.match(/\b(202\d)\b/)
-  const companyMatch = cleaned.match(/\b(2000|1000|3000|4000|5000)\b/)
-
-  return {
-    tahun: yearMatch ? yearMatch[1] : new Date().getFullYear().toString(),
-    kodePerusahaan: companyMatch ? companyMatch[1] : '2000',
-    noPayment: tenDigitMatches && tenDigitMatches[0] ? tenDigitMatches[0] : undefined,
-    docVoucher: tenDigitMatches && tenDigitMatches[1] ? tenDigitMatches[1] : undefined,
-  }
-}
+export { validateKodeArsipSIG, extractSigTokens } from '@/lib/kode-arsip'
 
 /**
  * Menerbitkan nomor Doc Voucher otomatis sistem (10 digit, diawali '19').
@@ -150,7 +80,9 @@ export async function catatLogAktivitas(params: {
 }
 
 /**
- * Mengirim notifikasi ke satu pengguna melalui tabel notifikasi (service role)
+ * Mengirim notifikasi ke satu pengguna melalui tabel notifikasi (dashboard) + surel (SMTP)
+ * Sesuai BLUEPRINT 3.8 & Tabel 16: Kanal dashboard (selalu aktif) + surel.
+ * Jika surel gagal terkirim, dashboard tetap tampil sukses tanpa menghentikan sistem.
  */
 export async function kirimNotifikasiKeUser(params: {
   userId: string
@@ -158,8 +90,10 @@ export async function kirimNotifikasiKeUser(params: {
   isi: string
   dokumenId?: string
 }) {
+  const admin = createAdminClient()
+
+  // 1. Catat ke tabel notifikasi (Dashboard)
   try {
-    const admin = createAdminClient()
     await admin.rpc('kirim_notifikasi', {
       p_user_id: params.userId,
       p_judul: params.judul,
@@ -169,7 +103,6 @@ export async function kirimNotifikasiKeUser(params: {
   } catch (err) {
     console.error('Gagal memanggil rpc kirim_notifikasi, fallback insert langsung:', err)
     try {
-      const admin = createAdminClient()
       await admin.from('notifikasi').insert({
         user_id: params.userId,
         judul: params.judul,
@@ -180,6 +113,26 @@ export async function kirimNotifikasiKeUser(params: {
     } catch (insertErr) {
       console.error('Gagal insert notifikasi:', insertErr)
     }
+  }
+
+  // 2. Kirim Surel (SMTP) ke email pengguna jika tersedia
+  try {
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('email, nama_lengkap')
+      .eq('id', params.userId)
+      .maybeSingle()
+
+    if (profile?.email) {
+      await kirimEmailNotifikasi({
+        to: profile.email,
+        subject: params.judul,
+        text: `Yth. ${profile.nama_lengkap || 'Bapak/Ibu'},\n\n${params.isi}`,
+      })
+    }
+  } catch (emailErr) {
+    // Sesuai BLUEPRINT 3.8: Dashboard tetap tampil walau surel gagal
+    console.warn(`[Notifikasi] Surel gagal dikirim ke userId ${params.userId}, dashboard tetap aktif:`, emailErr)
   }
 }
 

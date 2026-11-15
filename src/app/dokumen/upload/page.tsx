@@ -25,7 +25,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { KategoriDokumen, UserRole } from '@/types'
-import { validateKodeArsipSIG } from '@/lib/server-dokumen'
+import { validateKodeArsipSIG } from '@/lib/kode-arsip'
 import { LokasiCascadeSelect, LokasiCascadeValue } from '@/components/documents/lokasi-cascade-select'
 
 interface UnitInfo {
