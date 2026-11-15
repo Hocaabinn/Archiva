@@ -16,6 +16,9 @@ export const dynamic = 'force-dynamic'
  * - Aksi: 'tolak' -> status peminjaman menjadi 'Ditolak'.
  * - ATURAN KERAS: Status dokumen TETAP 'inaktif' dan file berkas TETAP di bucket 'arsip-inaktif'.
  */
+/**
+ * Verifikasi permohonan peminjaman arsip inaktif khusus oleh PIC Arsip Inaktif
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
