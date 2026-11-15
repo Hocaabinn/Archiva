@@ -36,8 +36,9 @@ export async function POST(
       .eq('id', user.id)
       .single()
 
-    // Blueprint Bab 5: Hanya PIC Arsip Aktif pengentri (atau superadmin) yang dapat memperbaiki & mengajukan ulang
-    if (!profile || (profile.role !== 'pic_aktif' && profile.role !== 'superadmin')) {
+    // Blueprint Bab 5: HANYA PIC Arsip Aktif pengentri yang dapat memperbaiki & mengajukan ulang
+    // Superadmin tidak ikut campur operasional transaksi harian normal
+    if (!profile || profile.role !== 'pic_aktif') {
       return NextResponse.json(
         { error: 'Akses Ditolak: Hanya PIC Arsip Aktif (pic_aktif) yang berhak memperbaiki dan mengajukan ulang dokumen yang ditolak.' },
         { status: 403 }
@@ -57,7 +58,7 @@ export async function POST(
     }
 
     // Pastikan PIC yang mengajukan ulang adalah pemilik dokumen atau dari unit yang sama
-    const isAuthorized = doc.pemilik_id === user.id || doc.unit_id === profile.unit_id || profile.role === 'superadmin'
+    const isAuthorized = doc.pemilik_id === user.id || doc.unit_id === profile.unit_id
     if (!isAuthorized) {
       return NextResponse.json(
         { error: 'Akses Ditolak: Hanya PIC Arsip Aktif pengentri atau dari unit yang sama yang berhak mengajukan ulang dokumen ini.' },

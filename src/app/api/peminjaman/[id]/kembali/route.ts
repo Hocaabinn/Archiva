@@ -64,11 +64,13 @@ export async function POST(
       )
     }
 
-    // Hanya peminjam atau PIC Arsip Inaktif/Superadmin yang boleh mengonfirmasi pengembalian
+    // ATURAN KERAS BLUEPRINT 3.6 & BAB 5:
+    // Hanya peminjam atau PIC Arsip Inaktif (pic_inaktif) yang boleh mengonfirmasi pengembalian berkas fisik.
+    // Superadmin tidak ikut campur operasional harian ini.
     const isBorrower = loan.peminjam_id === user.id
-    const isStaff = profile?.role === 'pic_inaktif' || profile?.role === 'superadmin'
+    const isPicInaktif = profile?.role === 'pic_inaktif'
 
-    if (!isBorrower && !isStaff) {
+    if (!isBorrower && !isPicInaktif) {
       return NextResponse.json(
         { error: 'Akses Ditolak: Hanya peminjam dokumen atau PIC Arsip Inaktif yang dapat memproses pengembalian.' },
         { status: 403 }

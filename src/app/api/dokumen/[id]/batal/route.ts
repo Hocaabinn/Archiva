@@ -43,7 +43,8 @@ export async function POST(
       )
     }
 
-    // 2. Cek peran pengguna: Hanya Atasan Arsip Aktif yang berhak membatalkan dokumen (Blueprint 6.6)
+    // 2. Cek peran pengguna: Hanya Atasan Arsip Aktif yang berhak membatalkan dokumen (Blueprint 6.6 & Bab 5)
+    // Superadmin TIDAK BISA membatalkan dokumen
     const { data: profile } = await supabase
       .from('profiles')
       .select('id, nama, nama_lengkap, role, unit_id')
@@ -54,7 +55,7 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            'Akses Ditolak: Sesuai Blueprint 6.6, hanya Atasan Arsip Aktif (atasan_aktif) yang berhak membatalkan dokumen arsip.',
+            'Akses Ditolak: Sesuai Blueprint 6.6 & Bab 5, hanya Atasan Arsip Aktif (atasan_aktif) yang berhak membatalkan dokumen arsip. Superadmin dan peran lain tidak berhak membatalkan dokumen.',
         },
         { status: 403 }
       )

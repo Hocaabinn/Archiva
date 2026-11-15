@@ -337,7 +337,6 @@ function PeminjamanContent() {
   }, [loans, filterStatus, searchQuery])
 
   const isPicArsip = currentUserRole === 'pic_inaktif'
-  const isPicOrAdmin = currentUserRole === 'pic_inaktif' || currentUserRole === 'superadmin'
 
   const counts = useMemo(() => {
     const c = { semua: loans.length, diajukan: 0, dipinjam: 0, dikembalikan: 0, ditolak: 0 } as Record<string, number>
@@ -404,7 +403,7 @@ function PeminjamanContent() {
       )
     }
 
-    if (loan.status === 'Dipinjam' && (isPicOrAdmin || isBorrower)) {
+    if (loan.status === 'Dipinjam' && (isPicArsip || isBorrower)) {
       return (
         <button
           type="button"
@@ -413,7 +412,7 @@ function PeminjamanContent() {
           className={`inline-flex items-center gap-1.5 rounded-lg border border-[#BCE1F9] bg-[#EAF5FD] px-3 py-1.5 text-xs font-semibold text-[#1E86C8] transition-colors hover:bg-[#D6ECFB] disabled:opacity-50 ${w}`}
         >
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
-          {isPicOrAdmin ? 'Konfirmasi Kembali' : 'Kembalikan Berkas'}
+          {isPicArsip ? 'Konfirmasi Kembali' : 'Kembalikan Berkas'}
         </button>
       )
     }

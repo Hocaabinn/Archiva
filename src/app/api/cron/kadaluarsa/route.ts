@@ -6,6 +6,7 @@ import {
   kirimNotifikasiKeUser,
   kirimNotifikasiKePeran,
 } from '@/lib/server-dokumen'
+import { alokasiBoks } from '@/lib/server-boks'
 
 export const dynamic = 'force-dynamic'
 
@@ -142,10 +143,27 @@ async function runKadaluarsaCron(request: NextRequest) {
     // =========================================================================
     // TUGAS 2: PEMINDAHAN DOKUMEN KEDALUWARSA KE INAKTIF (Blueprint 3.4 & 8.2)
     // =========================================================================
+    // Ambil akun PIC Arsip Inaktif untuk pemegang dokumen inaktif baru
+    const { data: picInaktifUser } = await admin
+      .from('profiles')
+      .select('id, nama_lengkap, email')
+      .eq('role', 'pic_inaktif')
+      .limit(1)
+      .maybeSingle()
+
+    // Ambil Master Lokasi Rak Inaktif (Rak Inaktif 01 di Gudang Inaktif)
+    const { data: rakInaktif } = await admin
+      .from('lokasi')
+      .select('id, nama, tingkat, parent_id')
+      .eq('tingkat', 'Rak')
+      .ilike('nama', '%Inaktif%')
+      .limit(1)
+      .maybeSingle()
+
     // Dokumen aktif yang tanggal kedaluwarsanya sudah lewat (<= hari ini)
     const { data: expiredDocs, error: expError } = await admin
       .from('dokumen')
-      .select('id, kode_arsip, judul, file_path, bucket, tanggal_kadaluarsa, pemilik_id')
+      .select('id, kode_arsip, judul, file_path, bucket, tanggal_kadaluarsa, pemilik_id, jumlah_halaman, boks_id')
       .eq('status', 'aktif')
       .lte('tanggal_kadaluarsa', todayStr)
 
@@ -217,13 +235,29 @@ async function runKadaluarsaCron(request: NextRequest) {
             }
           }
 
-          // 2.3 Perbarui status dokumen menjadi inaktif, bucket arsip-inaktif, lokasi Gudang Inaktif
+          // 2.3 Alokasi Boks di Rak Inaktif 01 (buat Boks baru bila belum ada)
+          let inaktifBoksId = doc.boks_id
+          let lokasiInaktifStr = 'Gudang Inaktif > Ruang Arsip Inaktif > Rak Inaktif 01'
+          if (rakInaktif) {
+            try {
+              const inaktifBoks = await alokasiBoks(doc.jumlah_halaman || 1, rakInaktif.id)
+              if (inaktifBoks) {
+                inaktifBoksId = inaktifBoks.id
+              }
+            } catch (boksErr) {
+              console.warn(`Gagal alokasi boks inaktif untuk ${doc.kode_arsip}:`, boksErr)
+            }
+          }
+
+          // 2.4 Perbarui status dokumen: inaktif, bucket arsip-inaktif, pemegang ke PIC Arsip Inaktif, lokasi Gudang Inaktif
           const { error: updateError } = await admin
             .from('dokumen')
             .update({
               status: 'inaktif',
               bucket: 'arsip-inaktif',
-              lokasi_saat_ini: 'Gudang Inaktif',
+              pemegang_saat_ini: picInaktifUser?.id || doc.pemilik_id,
+              boks_id: inaktifBoksId,
+              lokasi_saat_ini: lokasiInaktifStr,
               updated_at: new Date().toISOString(),
             })
             .eq('id', doc.id)
@@ -233,14 +267,14 @@ async function runKadaluarsaCron(request: NextRequest) {
             continue
           }
 
-          // 2.4 Catat ke log_aktivitas
+          // 2.5 Catat ke log_aktivitas
           await catatLogAktivitas({
             dokumen_id: doc.id,
             aksi: 'pindah_inaktif',
-            keterangan: `Dokumen otomatis dialihkan ke status Inaktif dan dipindahkan ke bucket arsip-inaktif (Gudang Inaktif) karena masa retensi telah berakhir pada ${doc.tanggal_kadaluarsa}.`,
+            keterangan: `Dokumen otomatis dialihkan ke status Inaktif, dipindahkan ke bucket arsip-inaktif (Gudang Inaktif), dan pemegang fisik beralih ke PIC Arsip Inaktif karena masa retensi aktif telah berakhir pada ${doc.tanggal_kadaluarsa}.`,
           })
 
-          // 2.5 Kirim notifikasi ke pemilik
+          // 2.6 Kirim notifikasi ke pemilik
           if (doc.pemilik_id) {
             await kirimNotifikasiKeUser({
               userId: doc.pemilik_id,
@@ -250,9 +284,9 @@ async function runKadaluarsaCron(request: NextRequest) {
             })
           }
 
-          // 2.6 Kirim notifikasi ke seluruh PIC Arsip Inaktif
+          // 2.7 Kirim notifikasi ke seluruh PIC Arsip Aktif dan PIC Arsip Inaktif (Blueprint 3.8 poin 6 & Tabel 10 nomor 9)
           await kirimNotifikasiKePeran({
-            roles: ['pic_inaktif'],
+            roles: ['pic_aktif', 'pic_inaktif'],
             judul: 'Dokumen Masuk Gudang Inaktif',
             isi: `Dokumen "${doc.judul}" (${doc.kode_arsip}) telah otomatis beralih ke status Inaktif dan tersimpan di Gudang Inaktif.`,
             dokumenId: doc.id,
