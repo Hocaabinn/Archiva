@@ -6,6 +6,9 @@ import { catatLogAktivitas, kirimNotifikasiKeUser } from '@/lib/server-dokumen'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * Persetujuan dokumen oleh Atasan Arsip Aktif: terbitkan retensi 3 tahun dan alokasi boks
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
