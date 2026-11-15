@@ -1418,6 +1418,7 @@ function DaftarDokumenContent() {
   )
 }
 
+/** Halaman katalog dokumen terpadu: pencarian nomor payment/voucher dan filter multi-kriteria */
 export default function DaftarDokumenPage() {
   return (
     <Suspense fallback={<div className="p-8 text-center text-sm text-[#6B7185]">Memuat daftar dokumen...</div>}>
