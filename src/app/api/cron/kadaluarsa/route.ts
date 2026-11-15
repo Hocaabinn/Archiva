@@ -320,6 +320,9 @@ async function runKadaluarsaCron(request: NextRequest) {
   }
 }
 
+/**
+ * Handler cron harian: migrasi dokumen kadaluarsa ke inaktif dan peringatan H-90/H-30/H-7
+ */
 export async function GET(request: NextRequest) {
   return runKadaluarsaCron(request)
 }
