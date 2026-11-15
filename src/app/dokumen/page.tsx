@@ -687,20 +687,49 @@ function DaftarDokumenContent() {
   const ActionButtons = ({ doc }: { doc: DocRow }) => (
     <div className="flex items-center justify-end gap-1">
       {role !== 'staff' && (
-        <button type="button" onClick={() => setQrDoc(doc)} title="Label QR" className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]">
+        <button
+          type="button"
+          onClick={() => setQrDoc(doc)}
+          title="Label QR"
+          className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]"
+        >
           <QrCode className="h-4 w-4" />
         </button>
       )}
-      <Link href={`/dokumen/${doc.id}`} title="Lihat detail" className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]">
+      <Link
+        href={`/dokumen/${doc.id}`}
+        title={role === 'superadmin' ? 'Lihat / Audit Dokumen' : 'Lihat detail'}
+        className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]"
+      >
         <Eye className="h-4 w-4" />
       </Link>
       {canEdit(doc) && (
-        <button type="button" onClick={() => openEdit(doc)} title="Ubah" className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]">
-          <Pencil className="h-4 w-4" />
-        </button>
+        role === 'superadmin' ? (
+          <Link
+            href={`/dokumen/${doc.id}`}
+            title="Audit Dokumen"
+            className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]"
+          >
+            <Pencil className="h-4 w-4" />
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => openEdit(doc)}
+            title="Ubah"
+            className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+        )
       )}
       {canDelete(doc) && (
-        <button type="button" onClick={() => setDeleting(doc)} title="Hapus" className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#FDECEC] hover:text-[#D64545]">
+        <button
+          type="button"
+          onClick={() => setDeleting(doc)}
+          title="Hapus"
+          className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#FDECEC] hover:text-[#D64545]"
+        >
           <Trash2 className="h-4 w-4" />
         </button>
       )}

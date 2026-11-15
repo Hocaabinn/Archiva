@@ -940,3 +940,4 @@ export default function MasterDataPage() {
     </AppLayout>
   )
 }
+

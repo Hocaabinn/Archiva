@@ -539,6 +539,16 @@ export default function DetailDokumenPage({ params }: PageProps) {
           </div>
         </div>
 
+        {/* Banner Mode Audit Superadmin */}
+        {currentUserRole === 'superadmin' && (
+          <div className="flex items-center gap-2.5 rounded-xl border border-[#BCE1F9] bg-[#F0F8FF] px-4 py-2.5 text-xs text-[#1E86C8] shadow-xs">
+            <ShieldCheck className="h-4 w-4 shrink-0 text-[#3BA4E8]" />
+            <span>
+              <strong>Mode Audit Dokumen (Superadmin):</strong> Meninjau berkas, seluruh metadata, serta jejak audit aktivitas secara lengkap dan transparan.
+            </span>
+          </div>
+        )}
+
         {/* Kartu judul */}
         <div className={`${cardClass} relative overflow-hidden`}>
           <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#3BA4E8] to-[#7CC4F2]" />
