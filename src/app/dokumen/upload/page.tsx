@@ -18,7 +18,7 @@ import {
   X,
   Camera,
   Building2,
-  Sparkles,
+  QrCode,
   UploadCloud,
   FileUp,
 } from 'lucide-react'
@@ -33,6 +33,8 @@ interface UnitInfo {
   kode_perusahaan: string
 }
 
+const FORM_STORAGE_KEY = 'archiva_form_upload_draft'
+
 export default function UploadDokumenPage() {
   const router = useRouter()
   const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null)
@@ -45,6 +47,8 @@ export default function UploadDokumenPage() {
   const [judul, setJudul] = useState('')
   const [kategoriId, setKategoriId] = useState('')
   const [tanggalDokumen, setTanggalDokumen] = useState(() => new Date().toISOString().slice(0, 10))
+  const [tahunDokumenInput, setTahunDokumenInput] = useState(() => new Date().getFullYear().toString())
+  const [docVoucherInput, setDocVoucherInput] = useState('')
   const [jumlahHalaman, setJumlahHalaman] = useState<number | ''>(1)
 
   // Nomor Payment / PPL (1 field utama untuk SIG)
@@ -77,16 +81,17 @@ export default function UploadDokumenPage() {
   const streamRef = useRef<MediaStream | null>(null)
 
   // Hitung Token Kode Arsip Otomatis (R.03)
-  const tahunDokumen = tanggalDokumen ? tanggalDokumen.slice(0, 4) : new Date().getFullYear().toString()
+  const tahunDokumen = tahunDokumenInput.trim() || (tanggalDokumen ? tanggalDokumen.slice(0, 4) : new Date().getFullYear().toString())
   const kodePerusahaan = unitInfo.kode_perusahaan || '2000'
   const displayPayment = nomorPpl.trim() ? nomorPpl.trim() : '__________'
+  const displayDocVoucher = docVoucherInput.trim() ? docVoucherInput.trim() : '__________'
 
   const compositeKodeArsip = isNonPayment
     ? nomorDokumenNonPayment.trim()
-    : `${tahunDokumen}_${kodePerusahaan}_${nomorPpl.trim()}_${nextDocVoucher}`
+    : `${tahunDokumen}_${kodePerusahaan}_${nomorPpl.trim()}_${docVoucherInput.trim() || nextDocVoucher}`
 
   const kodeValidation = validateKodeArsipSIG(
-    isNonPayment ? nomorDokumenNonPayment.trim() : `${tahunDokumen}_${kodePerusahaan}_${nomorPpl.trim() || '0000000000'}_${nextDocVoucher}`
+    isNonPayment ? nomorDokumenNonPayment.trim() : `${tahunDokumen}_${kodePerusahaan}_${nomorPpl.trim() || '0000000000'}_${docVoucherInput.trim() || nextDocVoucher}`
   )
 
   // Deteksi dukungan Web Speech API
@@ -132,6 +137,28 @@ export default function UploadDokumenPage() {
           setKategoriList(katsRes.data as KategoriDokumen[])
           setKategoriId(katsRes.data[0].id)
         }
+
+        // Pulihkan draf formulir dari localStorage jika ada (mencegah data hilang saat refresh)
+        try {
+          const savedDraft = localStorage.getItem(FORM_STORAGE_KEY)
+          if (savedDraft) {
+            const parsed = JSON.parse(savedDraft)
+            if (parsed.judul) setJudul(parsed.judul)
+            if (parsed.kategoriId) setKategoriId(parsed.kategoriId)
+            if (parsed.tanggalDokumen) setTanggalDokumen(parsed.tanggalDokumen)
+            if (parsed.tahunDokumenInput) setTahunDokumenInput(parsed.tahunDokumenInput)
+            if (parsed.docVoucherInput) setDocVoucherInput(parsed.docVoucherInput)
+            if (parsed.jumlahHalaman !== undefined && parsed.jumlahHalaman !== '') setJumlahHalaman(parsed.jumlahHalaman)
+            if (parsed.nomorPpl) setNomorPpl(parsed.nomorPpl)
+            if (parsed.isNonPayment !== undefined) setIsNonPayment(parsed.isNonPayment)
+            if (parsed.nomorDokumenNonPayment) setNomorDokumenNonPayment(parsed.nomorDokumenNonPayment)
+            if (parsed.penandatangan) setPenandatangan(parsed.penandatangan)
+            if (parsed.deskripsi) setDeskripsi(parsed.deskripsi)
+            if (parsed.selectedLokasi) setSelectedLokasi(parsed.selectedLokasi)
+          }
+        } catch (e) {
+          console.warn('Gagal memulihkan draf form upload:', e)
+        }
       } catch (err) {
         console.error('Gagal inisialisasi form upload:', err)
         setErrorMsg('Gagal memuat parameter entri dokumen dari server.')
@@ -142,6 +169,46 @@ export default function UploadDokumenPage() {
 
     init()
   }, [router])
+
+  // Simpan otomatis isi formulir ke localStorage saat pengguna mengetik/mengubah field (Auto-save on edit)
+  useEffect(() => {
+    if (loadingInitial) return
+
+    const draftData = {
+      judul,
+      kategoriId,
+      tanggalDokumen,
+      tahunDokumenInput,
+      docVoucherInput,
+      jumlahHalaman,
+      nomorPpl,
+      isNonPayment,
+      nomorDokumenNonPayment,
+      penandatangan,
+      deskripsi,
+      selectedLokasi,
+    }
+
+    try {
+      localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(draftData))
+    } catch (e) {
+      console.warn('Gagal menyimpan draf formulir:', e)
+    }
+  }, [
+    loadingInitial,
+    judul,
+    kategoriId,
+    tanggalDokumen,
+    tahunDokumenInput,
+    docVoucherInput,
+    jumlahHalaman,
+    nomorPpl,
+    isNonPayment,
+    nomorDokumenNonPayment,
+    penandatangan,
+    deskripsi,
+    selectedLokasi,
+  ])
 
   // Voice Typing Handler (Web Speech API)
   const toggleVoiceTyping = () => {
@@ -367,6 +434,7 @@ export default function UploadDokumenPage() {
       formData.append('judul', judul.trim())
       formData.append('kategori_id', kategoriId)
       formData.append('tanggal_dokumen', tanggalDokumen)
+      formData.append('tahun_dokumen', tahunDokumen)
       formData.append('jumlah_halaman', String(jumlahHalaman))
       formData.append('is_non_payment', isNonPayment ? 'true' : 'false')
 
@@ -374,6 +442,9 @@ export default function UploadDokumenPage() {
         formData.append('nomor_dokumen_non_payment', nomorDokumenNonPayment.trim())
       } else {
         formData.append('nomor_ppl', nomorPpl.trim())
+        if (docVoucherInput.trim()) {
+          formData.append('doc_voucher', docVoucherInput.trim())
+        }
       }
 
       formData.append('deskripsi', finalDeskripsi)
@@ -395,6 +466,13 @@ export default function UploadDokumenPage() {
 
       if (!res.ok) {
         throw new Error(data.error || 'Terjadi kesalahan saat mendaftarkan dokumen.')
+      }
+
+      // Hapus draf dari localStorage setelah dokumen berhasil didaftarkan
+      try {
+        localStorage.removeItem(FORM_STORAGE_KEY)
+      } catch (e) {
+        // Abaikan
       }
 
       setSuccessMsg(`Dokumen "${data.dokumen?.kode_arsip}" berhasil diajukan dengan status MENUNGGU PERSETUJUAN Atasan. Mengalihkan...`)
@@ -545,7 +623,7 @@ export default function UploadDokumenPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#BAE6FD] pb-3">
             <div className="flex items-center gap-2">
               <span className="flex items-center justify-center w-6 h-6 rounded-md bg-[#0284C7] text-white">
-                <Sparkles className="w-3.5 h-3.5" />
+                <QrCode className="w-3.5 h-3.5" />
               </span>
               <span className="font-mono text-xs font-bold text-[#0369A1] tracking-wider uppercase">
                 SUSUNAN KODE ARSIP OTOMATIS (STANDAR SIG)
@@ -556,7 +634,7 @@ export default function UploadDokumenPage() {
             </div>
             <div className="flex items-center gap-1.5 text-xs text-[#0369A1] font-mono bg-white/80 border border-[#BAE6FD] px-3 py-1 rounded-lg">
               <Building2 className="w-3.5 h-3.5 text-[#0284C7]" />
-              <span>Unit: <strong className="text-[#0369A1]">{unitInfo.nama}</strong> ({kodePerusahaan})</span>
+              <span>Unit: <strong className="text-[#0369A1]">{unitInfo.nama}</strong></span>
             </div>
           </div>
 
@@ -583,7 +661,9 @@ export default function UploadDokumenPage() {
                       {displayPayment}
                     </span>
                     <span className="text-[#94A3B8]">_</span>
-                    <span className="text-[#0369A1]">{nextDocVoucher}</span>
+                    <span className={docVoucherInput.trim() ? 'text-[#0369A1] underline decoration-[#38BDF8] decoration-2' : 'text-[#E11D48] font-bold'}>
+                      {displayDocVoucher}
+                    </span>
                   </>
                 )}
               </div>
@@ -603,7 +683,7 @@ export default function UploadDokumenPage() {
               <div className="border border-[#BAE6FD] bg-white rounded-lg p-2.5 shadow-2xs">
                 <span className="text-[#64748B] block text-[10px]">1. Tahun Dokumen</span>
                 <span className="font-bold text-[#0284C7] text-xs">{tahunDokumen}</span>
-                <span className="text-[9px] text-[#94A3B8] block mt-0.5">(dari Tanggal Dokumen)</span>
+                <span className="text-[9px] text-[#94A3B8] block mt-0.5">(Input Manual)</span>
               </div>
               <div className="border border-[#BAE6FD] bg-white rounded-lg p-2.5 shadow-2xs">
                 <span className="text-[#64748B] block text-[10px]">2. Kode Perusahaan</span>
@@ -619,8 +699,10 @@ export default function UploadDokumenPage() {
               </div>
               <div className="border border-[#BAE6FD] bg-white rounded-lg p-2.5 shadow-2xs">
                 <span className="text-[#64748B] block text-[10px]">4. Doc Voucher</span>
-                <span className="font-bold text-[#0369A1] text-xs">{nextDocVoucher}</span>
-                <span className="text-[9px] text-[#94A3B8] block mt-0.5">(Otomatis Sistem)</span>
+                <span className="font-bold text-[#0369A1] text-xs truncate block">
+                  {docVoucherInput.trim() || '(Wajib diisi)'}
+                </span>
+                <span className="text-[9px] text-[#94A3B8] block mt-0.5">(Input Manual)</span>
               </div>
             </div>
           )}
@@ -632,13 +714,44 @@ export default function UploadDokumenPage() {
           className="bg-white border border-[#BAE6FD] rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs font-mono text-xs"
         >
           <div className="border-b border-[#E0F2FE] pb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-[#E0F2FE] text-[#0284C7]">
-                <FileUp className="w-4 h-4" />
-              </span>
-              <h1 className="text-base sm:text-lg font-bold text-[#0F172A] tracking-tight">
-                FORMULIR PENDAFTARAN DOKUMEN ARSIP AKTIF
-              </h1>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-1">
+              <div className="flex items-center gap-2">
+                <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-[#E0F2FE] text-[#0284C7]">
+                  <FileUp className="w-4 h-4" />
+                </span>
+                <h1 className="text-base sm:text-lg font-bold text-[#0F172A] tracking-tight">
+                  FORMULIR PENDAFTARAN DOKUMEN ARSIP AKTIF
+                </h1>
+              </div>
+
+              {/* Tombol Scan QR & Voice di sebelah judul formulir */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={startCamera}
+                  title="Scan Barcode / QR dari Kamera untuk nomor payment"
+                  className="inline-flex items-center gap-1.5 border border-[#BAE6FD] bg-white hover:bg-[#F0F9FF] px-3.5 h-9 rounded-lg text-xs font-semibold text-[#0369A1] transition-colors shadow-2xs cursor-pointer"
+                >
+                  <Scan className="w-4 h-4 text-[#0284C7]" />
+                  <span>Scan QR</span>
+                </button>
+
+                {voiceSupported && (
+                  <button
+                    type="button"
+                    onClick={toggleVoiceTyping}
+                    title="Ketik Nomor Payment dengan Suara (Voice Typing)"
+                    className={`inline-flex items-center gap-1.5 border h-9 px-3.5 rounded-lg text-xs font-semibold transition-colors shadow-2xs cursor-pointer ${
+                      isListening
+                        ? 'border-red-400 bg-red-50 text-red-700 animate-pulse'
+                        : 'border-[#BAE6FD] bg-white hover:bg-[#F0F9FF] text-[#0369A1]'
+                    }`}
+                  >
+                    {isListening ? <MicOff className="w-4 h-4 text-red-600" /> : <Mic className="w-4 h-4 text-[#0284C7]" />}
+                    <span>{isListening ? 'Mendengarkan...' : 'Voice'}</span>
+                  </button>
+                )}
+              </div>
             </div>
             <p className="text-[11px] text-[#64748B] font-sans leading-relaxed">
               Dokumen akan otomatis diverifikasi polanya, diterbitkan Doc Voucher oleh sistem, dan diajukan ke antrean persetujuan Atasan Arsip Aktif unit <strong className="text-[#0369A1]">{unitInfo.nama}</strong>.
@@ -665,20 +778,18 @@ export default function UploadDokumenPage() {
               </label>
             </div>
 
-            {/* FIELD UTAMA: NOMOR PAYMENT / PPL (1 Field untuk SIG) */}
+            {/* FIELD UTAMA: NOMOR PAYMENT / PPL & DOC VOUCHER (INPUT MANUAL PIC AKTIF) */}
             {!isNonPayment ? (
-              <div className="space-y-2 border-l-3 border-[#0284C7] pl-3.5 py-1 bg-[#F8FBFE] rounded-r-xl">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                  <label className="block font-bold text-[#0F172A]">
-                    NOMOR PAYMENT / PPL (10 DIGIT) <span className="text-red-500">*</span>
-                  </label>
-                  <span className="text-[10px] text-[#64748B] font-sans">
-                    Bisa diketik manual, discan kamera, atau voice typing
-                  </span>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 1. NOMOR PAYMENT */}
+                <div className="space-y-2 border-l-3 border-[#0284C7] pl-3.5 py-1 bg-[#F8FBFE] rounded-r-xl">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                    <label className="block font-bold text-[#0F172A]">
+                      NOMOR PAYMENT / PPL (10 DIGIT) <span className="text-red-500">*</span>
+                    </label>
+                  </div>
 
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
+                  <div className="relative">
                     <input
                       type="text"
                       value={nomorPpl}
@@ -698,38 +809,43 @@ export default function UploadDokumenPage() {
                       </button>
                     )}
                   </div>
-
-                  {/* Tombol Scan Barcode / QR */}
-                  <button
-                    type="button"
-                    onClick={startCamera}
-                    title="Scan Barcode / QR dari Kamera"
-                    className="flex items-center gap-1.5 border border-[#BAE6FD] bg-white hover:bg-[#F0F9FF] px-3.5 h-10 rounded-lg text-xs font-semibold text-[#0369A1] transition-colors shadow-2xs"
-                  >
-                    <Scan className="w-4 h-4 text-[#0284C7]" />
-                    <span className="hidden sm:inline">Scan QR</span>
-                  </button>
-
-                  {/* Tombol Voice Typing */}
-                  {voiceSupported && (
-                    <button
-                      type="button"
-                      onClick={toggleVoiceTyping}
-                      title="Ketik dengan Suara (Voice Typing)"
-                      className={`flex items-center gap-1.5 border h-10 px-3.5 rounded-lg text-xs font-semibold transition-colors shadow-2xs ${
-                        isListening
-                          ? 'border-red-400 bg-red-50 text-red-700 animate-pulse'
-                          : 'border-[#BAE6FD] bg-white hover:bg-[#F0F9FF] text-[#0369A1]'
-                      }`}
-                    >
-                      {isListening ? <MicOff className="w-4 h-4 text-red-600" /> : <Mic className="w-4 h-4 text-[#0284C7]" />}
-                      <span className="hidden sm:inline">{isListening ? 'Mendengarkan...' : 'Voice'}</span>
-                    </button>
-                  )}
+                  <p className="text-[10px] text-[#64748B] font-sans">
+                    Nomor payment/PPL 10 digit (diketik, scan, atau suara).
+                  </p>
                 </div>
-                <p className="text-[10px] text-[#64748B] font-sans">
-                  Sesuai Blueprint 3.2 poin 2: input satu field nomor payment saja; tahun, kode perusahaan, dan doc voucher disusun otomatis oleh sistem.
-                </p>
+
+                {/* 2. NOMOR DOC VOUCHER */}
+                <div className="space-y-2 border-l-3 border-[#0369A1] pl-3.5 py-1 bg-[#F8FBFE] rounded-r-xl">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                    <label className="block font-bold text-[#0F172A]">
+                      NOMOR DOC VOUCHER (10 DIGIT) <span className="text-red-500">*</span>
+                    </label>
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={docVoucherInput}
+                      onChange={(e) => setDocVoucherInput(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
+                      placeholder={nextDocVoucher ? `Contoh: ${nextDocVoucher}` : "Contoh: 1900009386"}
+                      maxLength={10}
+                      required={!isNonPayment}
+                      className="w-full h-10 border border-[#BAE6FD] bg-white rounded-lg px-3 text-xs font-mono font-bold tracking-wider text-[#0369A1] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
+                    />
+                    {docVoucherInput && (
+                      <button
+                        type="button"
+                        onClick={() => setDocVoucherInput('')}
+                        className="absolute right-2.5 top-2.5 text-[#94A3B8] hover:text-[#334155]"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-[#64748B] font-sans">
+                    Ketik manual nomor doc voucher 10 digit (segmen ke-4 kode arsip SIG).
+                  </p>
+                </div>
               </div>
             ) : (
               <div className="space-y-2 border-l-3 border-[#0284C7] pl-3.5 py-1 bg-[#F8FBFE] rounded-r-xl">
@@ -750,8 +866,8 @@ export default function UploadDokumenPage() {
               </div>
             )}
 
-            {/* FIELD WAJIB M3: JUMLAH HALAMAN (LEMBAR FISIK) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* FIELD WAJIB M3: JUMLAH HALAMAN (LEMBAR FISIK), TANGGAL DOKUMEN & TAHUN DOKUMEN */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2 border-l-3 border-[#38BDF8] pl-3.5 py-1 bg-[#F8FBFE] rounded-r-xl">
                 <label className="block font-bold text-[#0F172A]">
                   JUMLAH HALAMAN FISIK (LEMBAR) <span className="text-red-500">*</span>
@@ -783,13 +899,40 @@ export default function UploadDokumenPage() {
                   <input
                     type="date"
                     value={tanggalDokumen}
-                    onChange={(e) => setTanggalDokumen(e.target.value)}
+                    onChange={(e) => {
+                      setTanggalDokumen(e.target.value)
+                      if (e.target.value) {
+                        setTahunDokumenInput(e.target.value.slice(0, 4))
+                      }
+                    }}
                     required
                     className="w-full h-10 border border-[#BAE6FD] bg-white rounded-lg px-3 text-xs font-mono font-bold text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
                   />
                 </div>
                 <p className="text-[10px] text-[#64748B] font-sans">
-                  Tahun ({tahunDokumen}) diambil otomatis sebagai segmen pertama kode arsip SIG.
+                  Tanggal penerbitan berkas dokumen resmi.
+                </p>
+              </div>
+
+              {/* TAHUN DOKUMEN (INPUT MANUAL) */}
+              <div className="space-y-2 border-l-3 border-[#0284C7] pl-3.5 py-1 bg-[#F8FBFE] rounded-r-xl">
+                <label className="block font-bold text-[#0F172A]">
+                  TAHUN DOKUMEN <span className="text-red-500">*</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    maxLength={4}
+                    pattern="[0-9]{4}"
+                    value={tahunDokumenInput}
+                    onChange={(e) => setTahunDokumenInput(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
+                    required
+                    placeholder="Contoh: 2026"
+                    className="w-full h-10 border border-[#BAE6FD] bg-white rounded-lg px-3 text-xs font-mono font-bold text-[#0284C7] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
+                  />
+                </div>
+                <p className="text-[10px] text-[#64748B] font-sans">
+                  Ketik manual 4 digit tahun (dipakai di segmen pertama kode arsip SIG).
                 </p>
               </div>
             </div>

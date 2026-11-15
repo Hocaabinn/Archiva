@@ -390,7 +390,6 @@ export default function DetailDokumenPage({ params }: PageProps) {
     { icon: User, label: 'Pengunggah (PIC Unit)', value: doc.pemilik_nama },
     { icon: User, label: 'Pemegang Saat Ini', value: doc.pemegang_nama },
     { icon: MapPin, label: 'Lokasi Fisik', value: doc.lokasi_saat_ini },
-    { icon: Pencil, label: 'Penandatangan', value: doc.penandatangan || '-' },
     { icon: Calendar, label: 'Tanggal Dokumen', value: formatTanggal(doc.tanggal_dokumen, 'long') },
     { icon: FileText, label: 'Lembar Fisik', value: `${doc.jumlah_halaman || 1} lembar` },
     { icon: ShieldCheck, label: 'Unit Organisasi', value: doc.unit_nama || 'Keuangan' },
@@ -927,15 +926,6 @@ export default function DetailDokumenPage({ params }: PageProps) {
                         className={`${fieldInput} font-mono`}
                       />
                     </div>
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">Penandatangan</label>
-                    <input
-                      type="text"
-                      value={editPenandatangan}
-                      onChange={(e) => setEditPenandatangan(e.target.value)}
-                      className={fieldInput}
-                    />
                   </div>
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">Lokasi Fisik Berkas</label>
