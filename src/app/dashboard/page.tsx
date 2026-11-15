@@ -21,6 +21,14 @@ import {
   Check,
   AlertTriangle,
   Loader2,
+  Package,
+  Layers,
+  Building,
+  BarChart3,
+  Calendar,
+  Warehouse,
+  AlarmClock,
+  CheckCircle2,
 } from 'lucide-react'
 
 type DocStatus = DokumenStatus
@@ -38,6 +46,35 @@ interface DocumentItem {
   ukuran_file: string
   created_at: string | null
   tanggal_kadaluarsa: string | null
+  boks_id: string | null
+  jumlah_halaman: number
+}
+
+interface BoksItem {
+  id: string
+  nomor_boks: string
+  status: string
+  jumlah_lembar_terisi: number
+  kapasitas_maks_lembar: number
+  rak_id: string
+}
+
+interface LokasiItem {
+  id: string
+  nama: string
+  tingkat: 'Gedung' | 'Ruangan' | 'Rak'
+  parent_id: string | null
+}
+
+interface RakOccupancy {
+  rakId: string
+  rakNama: string
+  ruanganNama: string
+  gedungNama: string
+  totalBoks: number
+  totalLembar: number
+  kapasitasMaksLembar: number
+  persenTerpakai: number
 }
 
 const statusPill: Record<DocStatus, { label: string; className: string }> = {
@@ -61,6 +98,7 @@ function StatCard({
   trendUp,
   note,
   href,
+  unitLabel,
 }: {
   title: string
   subtitle?: string
@@ -69,18 +107,21 @@ function StatCard({
   trendUp: boolean
   note: string
   href: string
+  unitLabel?: string
 }) {
   return (
     <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden flex flex-col">
       <div className="p-5 flex-1">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
-            <span className="block text-sm text-[#4B5163]">{title}</span>
+            <span className="block text-sm text-[#4B5163] font-medium">{title}</span>
             {subtitle && <span className="block text-[11px] text-[#9AA0B2]">{subtitle}</span>}
           </div>
-          <button type="button" className="text-[#8A90A2] hover:text-[#1F2333]" aria-label="Opsi">
-            <MoreHorizontal className="w-4 h-4" />
-          </button>
+          {unitLabel && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-[#F4F5FA] px-2 py-0.5 text-[10px] font-semibold uppercase text-[#6B7185]">
+              {unitLabel}
+            </span>
+          )}
         </div>
         <p className="mt-3 text-[26px] font-bold text-[#1F2333] tracking-tight">{value}</p>
         <div className="mt-2 flex items-center gap-2 text-xs">
@@ -95,207 +136,9 @@ function StatCard({
         href={href}
         className="px-5 py-3 bg-[#F7F8FC] border-t border-[#ECEEF5] flex items-center justify-between text-sm text-[#4B5163] hover:text-[#1E86C8] transition-colors"
       >
-        <span>Lihat Laporan</span>
+        <span>Lihat Rincian</span>
         <ArrowRight className="w-4 h-4" />
       </Link>
-    </div>
-  )
-}
-
-const BULAN_PENDEK = ['JAN', 'FEB', 'MAR', 'APR', 'MEI', 'JUN', 'JUL', 'AGU', 'SEP', 'OKT', 'NOV', 'DES']
-const RENTANG_BULAN = [3, 6, 12] as const
-type RentangBulan = (typeof RENTANG_BULAN)[number]
-
-/** Kelompokkan dokumen per bulan: masuk (created_at) & berpindah ke inaktif (tanggal_kadaluarsa). */
-function hitungArsipBulanan(documents: DocumentItem[], jumlahBulan: number) {
-  const now = new Date()
-  const buckets = Array.from({ length: jumlahBulan }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (jumlahBulan - 1 - i), 1)
-    return {
-      key: `${d.getFullYear()}-${d.getMonth()}`,
-      bulan: BULAN_PENDEK[d.getMonth()],
-      label: d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }),
-      masuk: 0,
-      inaktif: 0,
-    }
-  })
-  const index = new Map(buckets.map((b, i) => [b.key, i]))
-  const keyOf = (iso: string) => {
-    const d = new Date(iso)
-    return `${d.getFullYear()}-${d.getMonth()}`
-  }
-  for (const doc of documents) {
-    if (doc.created_at) {
-      const i = index.get(keyOf(doc.created_at))
-      if (i !== undefined) buckets[i].masuk += 1
-    }
-    if (doc.status === 'inaktif' && doc.tanggal_kadaluarsa) {
-      const i = index.get(keyOf(doc.tanggal_kadaluarsa))
-      if (i !== undefined) buckets[i].inaktif += 1
-    }
-  }
-  return buckets
-}
-
-function skalaAtas(nilai: number) {
-  if (nilai <= 4) return 4
-  const pangkat = Math.pow(10, Math.floor(Math.log10(nilai)))
-  const langkah = [1, 2, 2.5, 5, 10].map((m) => m * pangkat).find((m) => m * 4 >= nilai) ?? pangkat * 10
-  return langkah * 4
-}
-
-function ArchiveBarChart({ documents, live }: { documents: DocumentItem[]; live: boolean }) {
-  const [rentang, setRentang] = useState<RentangBulan>(6)
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [hovered, setHovered] = useState<number | null>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!menuOpen) return
-    const close = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
-    }
-    document.addEventListener('mousedown', close)
-    return () => document.removeEventListener('mousedown', close)
-  }, [menuOpen])
-
-  const data = useMemo(() => hitungArsipBulanan(documents, rentang), [documents, rentang])
-  const max = skalaAtas(Math.max(0, ...data.map((m) => Math.max(m.masuk, m.inaktif))))
-  const ticks = [4, 3, 2, 1, 0].map((n) => (max / 4) * n)
-  const totalMasuk = data.reduce((s, m) => s + m.masuk, 0)
-
-  // Tren: bulan berjalan dibanding bulan sebelumnya
-  const kini = data[data.length - 1]?.masuk ?? 0
-  const lalu = data[data.length - 2]?.masuk ?? 0
-  const tren = lalu === 0 ? (kini > 0 ? 100 : 0) : Math.round(((kini - lalu) / lalu) * 100)
-  const trenNaik = tren >= 0
-
-  return (
-    <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-5 h-full flex flex-col">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold text-[#1F2333]">Arsip Masuk</h2>
-          {live && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E6F4EA] px-2 py-0.5 text-[10px] font-semibold text-[#137333]" title="Data diperbarui otomatis">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#34A853] opacity-75" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#34A853]" />
-              </span>
-              Live
-            </span>
-          )}
-        </div>
-        <div className="relative" ref={menuRef}>
-          <button
-            type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-haspopup="listbox"
-            aria-expanded={menuOpen}
-            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              menuOpen ? 'bg-[#EAF5FD] text-[#1E86C8]' : 'bg-[#F4F5FA] text-[#4B5163] hover:bg-[#EEF7FD] hover:text-[#1E86C8]'
-            }`}
-          >
-            {rentang} Bulan
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
-          </button>
-          {menuOpen && (
-            <div role="listbox" className="absolute right-0 z-20 mt-1.5 w-36 rounded-lg border border-[#ECEEF5] bg-white p-1 shadow-lg">
-              {RENTANG_BULAN.map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  role="option"
-                  aria-selected={rentang === n}
-                  onClick={() => {
-                    setRentang(n)
-                    setMenuOpen(false)
-                    setHovered(null)
-                  }}
-                  className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-xs ${
-                    rentang === n ? 'bg-[#EAF5FD] font-semibold text-[#1E86C8]' : 'text-[#4B5163] hover:bg-[#F7F8FC]'
-                  }`}
-                >
-                  {n} Bulan Terakhir
-                  {rentang === n && <Check className="h-3.5 w-3.5" />}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm">
-          <span className="font-bold text-[#1F2333]">{totalMasuk.toLocaleString('id-ID')} berkas</span>
-          <span
-            className={`ml-2 inline-flex items-center text-xs ${trenNaik ? 'text-[#2F9E5B]' : 'text-[#D64545]'}`}
-            title="Bulan ini dibanding bulan lalu"
-          >
-            {trenNaik ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-            {trenNaik ? '+' : ''}
-            {tren}%
-          </span>
-        </p>
-        <div className="flex items-center gap-4 text-xs text-[#6B7185]">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#3BA4E8]" /> Masuk
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#BFE2F8]" /> Non-Aktif
-          </span>
-        </div>
-      </div>
-
-      <div className="mt-4 flex-1 flex gap-3 min-h-[220px]">
-        {/* Sumbu Y */}
-        <div className="flex flex-col justify-between text-[11px] text-[#6B7185] pb-6 w-7 text-right">
-          {ticks.map((t) => (
-            <span key={t}>{Number.isInteger(t) ? t : t.toFixed(1)}</span>
-          ))}
-        </div>
-
-        {/* Area grafik */}
-        <div className="relative flex-1" onMouseLeave={() => setHovered(null)}>
-          <div className="absolute inset-0 bottom-6 flex flex-col justify-between pointer-events-none">
-            {ticks.map((t) => (
-              <div key={t} className="border-t border-dashed border-[#E6E8F0]" />
-            ))}
-          </div>
-
-          <div className="absolute inset-0 flex items-stretch justify-around">
-            {data.map((m, i) => (
-              <div
-                key={m.key}
-                className="relative flex flex-col items-center flex-1"
-                onMouseEnter={() => setHovered(i)}
-                onClick={() => setHovered(i)}
-              >
-                <div className="relative flex-1 w-full flex items-end justify-center gap-1 sm:gap-1.5">
-                  {hovered === i && (
-                    <div
-                      className="absolute z-10 -translate-x-1/2 left-1/2 rounded-md border border-[#ECEEF5] bg-white px-2.5 py-1.5 shadow-md whitespace-nowrap"
-                      style={{ bottom: `calc(${(Math.max(m.masuk, m.inaktif) / max) * 100}% + 8px)` }}
-                    >
-                      <p className="text-[10px] capitalize text-[#8A90A2]">{m.label}</p>
-                      <p className="text-xs font-bold text-[#1F2333]">{m.masuk} masuk</p>
-                      <p className="text-[11px] text-[#6B7185]">{m.inaktif} non-aktif</p>
-                    </div>
-                  )}
-                  <div
-                    className={`${rentang === 12 ? 'w-1.5 sm:w-2.5' : 'w-3 sm:w-4'} rounded-t-[4px] bg-[#3BA4E8] transition-all duration-500`}
-                    style={{ height: `${(m.masuk / max) * 100}%`, opacity: hovered === null || hovered === i ? 1 : 0.6 }}
-                  />
-                  <div
-                    className={`${rentang === 12 ? 'w-1.5 sm:w-2.5' : 'w-3 sm:w-4'} rounded-t-[4px] bg-[#BFE2F8] transition-all duration-500`}
-                    style={{ height: `${(m.inaktif / max) * 100}%`, opacity: hovered === null || hovered === i ? 1 : 0.6 }}
-                  />
-                </div>
-                <span className="h-6 flex items-end text-[10px] sm:text-[11px] text-[#6B7185]">{m.bulan}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
@@ -318,64 +161,37 @@ function CategoryDonut({ documents }: { documents: DocumentItem[] }) {
   const circumference = 2 * Math.PI * r
   const segments = data.map((d, i) => {
     const before = data.slice(0, i).reduce((s, x) => s + x.pct / 100, 0)
-    return { ...d, dash: (d.pct / 100) * circumference, offset: before * circumference, start: before }
+    const dash = (d.pct / 100) * circumference
+    const offset = -before * circumference
+    return { ...d, dash, offset }
   })
 
   return (
-    <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-5 h-full flex flex-col">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-[#1F2333]">Kategori Arsip</h2>
-        <span className="text-xs text-[#8A90A2]">{documents.length} Dokumen</span>
+    <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-5 flex flex-col items-center">
+      <h3 className="text-sm font-semibold text-[#1F2333] self-start">Distribusi Kategori Dokumen</h3>
+      <div className="relative mt-4 flex items-center justify-center">
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="rotate-[-90deg]">
+          <circle cx={cx} cy={cx} r={r} fill="transparent" stroke="#F4F5FA" strokeWidth={stroke} />
+          {segments.map((s) => (
+            <circle
+              key={s.label}
+              cx={cx}
+              cy={cx}
+              r={r}
+              fill="transparent"
+              stroke={s.color}
+              strokeWidth={stroke}
+              strokeDasharray={`${s.dash} ${circumference - s.dash}`}
+              strokeDashoffset={s.offset}
+            />
+          ))}
+        </svg>
+        <div className="absolute text-center">
+          <span className="text-2xl font-bold text-[#1F2333]">{documents.length}</span>
+          <span className="block text-[11px] text-[#8A90A2]">Berkas</span>
+        </div>
       </div>
-
-      <div className="flex-1 flex items-center justify-center py-4">
-        {data.length === 0 ? (
-          <p className="text-xs text-[#8A90A2]">Belum ada arsip untuk ditampilkan</p>
-        ) : (
-          <svg viewBox={`-40 -10 ${size + 80} ${size + 20}`} className="w-full max-w-[280px]">
-            <g transform={`rotate(-90 ${cx} ${cx})`}>
-              {segments.map((s) => (
-                <circle
-                  key={s.label}
-                  cx={cx}
-                  cy={cx}
-                  r={r}
-                  fill="none"
-                  stroke={s.color}
-                  strokeWidth={stroke}
-                  strokeDasharray={`${s.dash} ${circumference - s.dash}`}
-                  strokeDashoffset={-s.offset}
-                />
-              ))}
-            </g>
-            {segments.map((s) => {
-              const mid = (s.start + s.pct / 200) * 2 * Math.PI - Math.PI / 2
-              const x1 = cx + Math.cos(mid) * (r + stroke / 2)
-              const y1 = cx + Math.sin(mid) * (r + stroke / 2)
-              const x2 = cx + Math.cos(mid) * (r + stroke / 2 + 14)
-              const y2 = cx + Math.sin(mid) * (r + stroke / 2 + 14)
-              const right = Math.cos(mid) >= 0
-              const x3 = x2 + (right ? 10 : -10)
-              return (
-                <g key={`label-${s.label}`}>
-                  <polyline points={`${x1},${y1} ${x2},${y2} ${x3},${y2}`} fill="none" stroke="#9AA0B2" strokeWidth={0.8} />
-                  <text
-                    x={x3 + (right ? 3 : -3)}
-                    y={y2 + 4}
-                    textAnchor={right ? 'start' : 'end'}
-                    className="fill-[#4B5163]"
-                    fontSize={11}
-                  >
-                    {s.pct}%
-                  </text>
-                </g>
-              )
-            })}
-          </svg>
-        )}
-      </div>
-
-      <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-xs text-[#4B5163]">
+      <div className="mt-4 flex flex-wrap justify-center gap-3 text-xs text-[#4B5163]">
         {data.map((d) => (
           <span key={d.label} className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
@@ -401,101 +217,139 @@ function getInitials(name: string) {
 // HALAMAN DASHBOARD
 // ============================================================
 function DashboardBody() {
-  const { name } = useAppUser()
+  const { name, role: userRole } = useAppUser()
   const firstName = name.split(' ')[0] || name
 
   const [supabase] = useState(() => createClient())
   const [documents, setDocuments] = useState<DocumentItem[]>([])
+  const [boksList, setBoksList] = useState<BoksItem[]>([])
+  const [lokasiList, setLokasiList] = useState<LokasiItem[]>([])
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  const [statusFilter, setStatusFilter] = useState<'semua' | DocStatus>('semua')
+  // Toggle satuan metrik: berkas vs boks
+  const [unitMode, setUnitMode] = useState<'berkas' | 'boks'>('berkas')
+
+  // Filter status dokumen menyesuaikan role pengguna (M8)
+  // PIC/Atasan Aktif default 'aktif', PIC/Atasan Inaktif default 'inaktif'
+  const defaultStatusFilter = useMemo<'semua' | DocStatus>(() => {
+    if (userRole === 'pic_inaktif' || userRole === 'atasan_inaktif') return 'inaktif'
+    if (userRole === 'pic_aktif' || userRole === 'atasan_aktif') return 'aktif'
+    return 'semua'
+  }, [userRole])
+
+  const [statusFilter, setStatusFilter] = useState<'semua' | DocStatus>(defaultStatusFilter)
   const [filterOpen, setFilterOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [isLive, setIsLive] = useState(false)
 
+  // Rentang Tren Tahunan
+  const [trendTahun, setTrendTahun] = useState<number>(new Date().getFullYear())
+
   const loadData = useCallback(async () => {
-      try {
-        const { data: { user }, error: authErr } = await supabase.auth.getUser()
-        if (authErr || !user) {
-          setErrorMsg('Anda belum masuk. Silakan masuk terlebih dahulu untuk melihat dasbor.')
-          setLoading(false)
-          return
+    try {
+      const {
+        data: { user },
+        error: authErr,
+      } = await supabase.auth.getUser()
+      if (authErr || !user) {
+        setErrorMsg('Anda belum masuk. Silakan masuk terlebih dahulu untuk melihat dasbor.')
+        setLoading(false)
+        return
+      }
+
+      // Ambil dokumen
+      const { data: docData, error: docError } = await supabase
+        .from('dokumen')
+        .select(`
+          id,
+          kode_arsip,
+          nomor_dokumen,
+          judul,
+          status,
+          ukuran_file,
+          created_at,
+          tanggal_kadaluarsa,
+          boks_id,
+          jumlah_halaman,
+          kategori_dokumen ( nama ),
+          pemegang:profiles!dokumen_pemegang_saat_ini_fkey ( nama_lengkap, email ),
+          pemilik:profiles!dokumen_pemilik_id_fkey ( nama_lengkap, email )
+        `)
+        .order('created_at', { ascending: false })
+
+      if (docError) throw docError
+
+      // Ambil boks
+      const { data: boksData, error: boksError } = await supabase
+        .from('boks')
+        .select('id, nomor_boks, status, jumlah_lembar_terisi, kapasitas_maks_lembar, rak_id')
+
+      if (boksError) console.error('Error boks:', boksError)
+
+      // Ambil lokasi
+      const { data: lokData, error: lokError } = await supabase
+        .from('lokasi')
+        .select('id, nama, tingkat, parent_id')
+
+      if (lokError) console.error('Error lokasi:', lokError)
+
+      setBoksList(boksData || [])
+      setLokasiList(lokData || [])
+
+      const mapped: DocumentItem[] = (docData || []).map((d: any) => {
+        const diff = d.tanggal_kadaluarsa
+          ? Math.max(0, Math.ceil((new Date(d.tanggal_kadaluarsa).getTime() - Date.now()) / 86_400_000))
+          : null
+        const bytes = d.ukuran_file
+        let sizeStr = '-'
+        if (bytes) {
+          sizeStr = bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(0)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`
         }
 
-        const { data, error } = await supabase
-          .from('dokumen')
-          .select(`
-            id,
-            kode_arsip,
-            nomor_dokumen,
-            judul,
-            status,
-            ukuran_file,
-            created_at,
-            tanggal_kadaluarsa,
-            kategori_dokumen ( nama ),
-            pemegang:profiles!dokumen_pemegang_saat_ini_fkey ( nama_lengkap, email ),
-            pemilik:profiles!dokumen_pemilik_id_fkey ( nama_lengkap, email )
-          `)
-          .order('created_at', { ascending: false })
+        let waktuStr = 'Baru saja'
+        if (d.created_at) {
+          const msDiff = Date.now() - new Date(d.created_at).getTime()
+          const mins = Math.floor(msDiff / 60000)
+          const hours = Math.floor(mins / 60)
+          const days = Math.floor(hours / 24)
+          if (mins < 60) waktuStr = `${Math.max(1, mins)} mnt lalu`
+          else if (hours < 24) waktuStr = `${hours} jam lalu`
+          else if (days === 1) waktuStr = 'Kemarin'
+          else waktuStr = `${days} hari lalu`
+        }
 
-        if (error) throw error
+        const pemegangNama =
+          d.pemegang?.nama_lengkap || d.pemegang?.email || d.pemilik?.nama_lengkap || d.pemilik?.email || 'PIC Unit'
 
-        const mapped: DocumentItem[] = (data || []).map((d: any) => {
-          const diff = d.tanggal_kadaluarsa
-            ? Math.max(0, Math.ceil((new Date(d.tanggal_kadaluarsa).getTime() - Date.now()) / 86_400_000))
-            : null
-          const bytes = d.ukuran_file
-          let sizeStr = '-'
-          if (bytes) {
-            sizeStr = bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(0)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-          }
+        return {
+          id: d.id,
+          kode_arsip: d.kode_arsip,
+          judul: d.judul,
+          nomor_surat: d.nomor_dokumen || '-',
+          kategori: d.kategori_dokumen?.nama || 'Keuangan',
+          status: d.status as DocStatus,
+          pemegang: pemegangNama,
+          waktu: waktuStr,
+          sisa_hari: diff,
+          ukuran_file: sizeStr,
+          created_at: d.created_at || null,
+          tanggal_kadaluarsa: d.tanggal_kadaluarsa || null,
+          boks_id: d.boks_id || null,
+          jumlah_halaman: d.jumlah_halaman || 1,
+        }
+      })
 
-          let waktuStr = 'Baru saja'
-          if (d.created_at) {
-            const msDiff = Date.now() - new Date(d.created_at).getTime()
-            const mins = Math.floor(msDiff / 60000)
-            const hours = Math.floor(mins / 60)
-            const days = Math.floor(hours / 24)
-            if (mins < 60) waktuStr = `${Math.max(1, mins)} mnt lalu`
-            else if (hours < 24) waktuStr = `${hours} jam lalu`
-            else if (days === 1) waktuStr = 'Kemarin'
-            else waktuStr = `${days} hari lalu`
-          }
-
-          const pemegangNama =
-            d.pemegang?.nama_lengkap || d.pemegang?.email || d.pemilik?.nama_lengkap || d.pemilik?.email || 'PIC Unit'
-
-          return {
-            id: d.id,
-            kode_arsip: d.kode_arsip,
-            judul: d.judul,
-            nomor_surat: d.nomor_dokumen || '-',
-            kategori: d.kategori_dokumen?.nama || 'Keuangan',
-            status: d.status as DocStatus,
-            pemegang: pemegangNama,
-            waktu: waktuStr,
-            sisa_hari: diff,
-            ukuran_file: sizeStr,
-            created_at: d.created_at || null,
-            tanggal_kadaluarsa: d.tanggal_kadaluarsa || null,
-          }
-        })
-
-        setDocuments(mapped)
-        setErrorMsg(null)
-      } catch (err) {
-        console.error('Gagal memuat dashboard:', err)
-        setErrorMsg(err instanceof Error ? err.message : 'Gagal memuat data dari Supabase live.')
-      } finally {
-        setLoading(false)
-      }
+      setDocuments(mapped)
+      setErrorMsg(null)
+    } catch (err) {
+      console.error('Gagal memuat dashboard:', err)
+      setErrorMsg(err instanceof Error ? err.message : 'Gagal memuat data dari Supabase live.')
+    } finally {
+      setLoading(false)
+    }
   }, [supabase])
 
-  // Realtime: muat ulang saat tabel dokumen berubah (Supabase Realtime),
-  // ditambah polling 30 detik & saat tab kembali aktif sebagai cadangan
-  // bila Realtime belum diaktifkan untuk tabel dokumen di proyek Supabase.
   useEffect(() => {
     loadData()
 
@@ -508,11 +362,13 @@ function DashboardBody() {
     const channel = supabase
       .channel('dashboard-dokumen')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'dokumen' }, reloadSoon)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'boks' }, reloadSoon)
       .subscribe((status) => setIsLive(status === 'SUBSCRIBED'))
 
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') loadData()
     }, 30_000)
+
     const onVisible = () => {
       if (document.visibilityState === 'visible') loadData()
     }
@@ -526,10 +382,105 @@ function DashboardBody() {
     }
   }, [supabase, loadData])
 
-  const totalAktif = documents.filter((d) => d.status === 'aktif').length
-  const totalMenunggu = documents.filter((d) => d.status === 'menunggu_persetujuan').length
-  const totalAkanKadaluarsa = documents.filter((d) => d.status === 'aktif' && d.sisa_hari !== null && d.sisa_hari < 90).length
-  const totalInaktif = documents.filter((d) => d.status === 'inaktif').length
+  // Hitung jumlah boks unik yang diasosiasikan dengan dokumen tertentu
+  const countBoxesForDocs = useCallback(
+    (docList: DocumentItem[]) => {
+      const boksIds = new Set(docList.map((d) => d.boks_id).filter(Boolean))
+      return boksIds.size
+    },
+    []
+  )
+
+  // Metrik Berkas & Boks
+  const docsAktif = useMemo(() => documents.filter((d) => d.status === 'aktif'), [documents])
+  const docsMenunggu = useMemo(() => documents.filter((d) => d.status === 'menunggu_persetujuan'), [documents])
+  const docsAkanKadaluarsa = useMemo(
+    () => documents.filter((d) => d.status === 'aktif' && d.sisa_hari !== null && d.sisa_hari < 90),
+    [documents]
+  )
+  const docsInaktif = useMemo(() => documents.filter((d) => d.status === 'inaktif'), [documents])
+
+  const totalAktif = docsAktif.length
+  const totalAktifBoks = countBoxesForDocs(docsAktif)
+
+  const totalMenunggu = docsMenunggu.length
+  const totalMenungguBoks = countBoxesForDocs(docsMenunggu)
+
+  const totalAkanKadaluarsa = docsAkanKadaluarsa.length
+  const totalAkanKadaluarsaBoks = countBoxesForDocs(docsAkanKadaluarsa)
+
+  const totalInaktif = docsInaktif.length
+  const totalInaktifBoks = countBoxesForDocs(docsInaktif)
+
+  // Hitung Okupansi / Kapasitas per Ruangan & Rak
+  const rakOccupancyList: RakOccupancy[] = useMemo(() => {
+    if (lokasiList.length === 0) return []
+
+    const lokasiMap = new Map<string, LokasiItem>(lokasiList.map((l) => [l.id, l]))
+    const raks = lokasiList.filter((l) => l.tingkat === 'Rak')
+
+    return raks.map((rak) => {
+      const ruangan = rak.parent_id ? lokasiMap.get(rak.parent_id) : undefined
+      const gedung = ruangan?.parent_id ? lokasiMap.get(ruangan.parent_id) : undefined
+
+      const boksDiRak = boksList.filter((b) => b.rak_id === rak.id)
+      const totalLembar = boksDiRak.reduce((sum, b) => sum + (b.jumlah_lembar_terisi || 0), 0)
+      const kapasitasMaks = boksDiRak.reduce((sum, b) => sum + (b.kapasitas_maks_lembar || 500), 0)
+      const persen = kapasitasMaks > 0 ? Math.min(100, Math.round((totalLembar / kapasitasMaks) * 100)) : 0
+
+      return {
+        rakId: rak.id,
+        rakNama: rak.nama,
+        ruanganNama: ruangan?.nama || 'Ruangan Arsip',
+        gedungNama: gedung?.nama || 'Gedung Utama',
+        totalBoks: boksDiRak.length,
+        totalLembar,
+        kapasitasMaksLembar: kapasitasMaks,
+        persenTerpakai: persen,
+      }
+    })
+  }, [lokasiList, boksList])
+
+  // Tren Arsip Tahunan (M8: Per tahun berkas dan boks yang masuk)
+  const trenTahunanData = useMemo(() => {
+    const yearsMap = new Map<number, { berkasMasuk: number; boksMasuk: Set<string>; inaktifBerkas: number }>()
+    const currentYr = new Date().getFullYear()
+    for (let yr = currentYr - 3; yr <= currentYr; yr++) {
+      yearsMap.set(yr, { berkasMasuk: 0, boksMasuk: new Set(), inaktifBerkas: 0 })
+    }
+
+    documents.forEach((d) => {
+      if (d.created_at) {
+        const y = new Date(d.created_at).getFullYear()
+        if (yearsMap.has(y)) {
+          const entry = yearsMap.get(y)!
+          entry.berkasMasuk += 1
+          if (d.boks_id) entry.boksMasuk.add(d.boks_id)
+        }
+      }
+      if (d.status === 'inaktif' && d.tanggal_kadaluarsa) {
+        const y = new Date(d.tanggal_kadaluarsa).getFullYear()
+        if (yearsMap.has(y)) {
+          yearsMap.get(y)!.inaktifBerkas += 1
+        }
+      }
+    })
+
+    return Array.from(yearsMap.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([tahun, val]) => ({
+        tahun: tahun.toString(),
+        berkas: val.berkasMasuk,
+        boks: val.boksMasuk.size,
+        inaktif: val.inaktifBerkas,
+      }))
+  }, [documents])
+
+  const maxTren = useMemo(() => {
+    const vals = trenTahunanData.map((t) => (unitMode === 'berkas' ? t.berkas : t.boks))
+    const highest = Math.max(...vals, 1)
+    return Math.ceil(highest * 1.25)
+  }, [trenTahunanData, unitMode])
 
   const activities = useMemo(
     () => documents.filter((d) => statusFilter === 'semua' || d.status === statusFilter),
@@ -549,7 +500,7 @@ function DashboardBody() {
     return (
       <div className="max-w-7xl mx-auto py-16 flex flex-col items-center justify-center gap-3 text-[#6B7185]">
         <Loader2 className="w-8 h-8 animate-spin text-[#3BA4E8]" />
-        <p className="text-sm font-medium">Memuat ringkasan arsip dokumen...</p>
+        <p className="text-sm font-medium">Memuat ringkasan dasbor kearsipan...</p>
       </div>
     )
   }
@@ -569,15 +520,72 @@ function DashboardBody() {
         </div>
       )}
 
-      {/* Header sapaan */}
+      {/* Alert Kedaluwarsa Gabungan Berkas & Boks (M8) */}
+      {totalAkanKadaluarsa > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#FEEFC3] bg-[#FEF7E0] p-4 text-[#B06000] shadow-xs">
+          <div className="flex items-start gap-3">
+            <AlarmClock className="h-5 w-5 shrink-0 mt-0.5 text-[#E37400]" />
+            <div>
+              <p className="font-bold text-sm text-[#8C4600]">
+                Peringatan Siklus Retensi: {totalAkanKadaluarsa} Berkas ({totalAkanKadaluarsaBoks} Boks) Mendekati / Lewat Masa Aktif
+              </p>
+              <p className="text-xs text-[#B06000] mt-0.5">
+                Dokumen telah melewati atau mendekati ambang batas retensi (H-90, H-30, H-7). Lakukan transfer manual ke Gudang Inaktif atau tunggu pemindahan berkas otomatis via cron harian.
+              </p>
+            </div>
+          </div>
+          {(userRole === 'pic_aktif' || userRole === 'superadmin') && (
+            <Link
+              href="/transfer-arsip"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#E37400] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#C96400] transition-colors whitespace-nowrap self-start sm:self-auto"
+            >
+              <span>Transfer Arsip</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* Header sapaan + Toggle Satuan (Berkas / Boks) */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="text-[28px] font-bold text-[#1F2333] tracking-tight">Halo, {firstName}!</h1>
-          <p className="mt-1 text-sm text-[#4B5163]">Berikut ringkasan arsip dokumen Anda</p>
+          <p className="mt-1 text-sm text-[#4B5163]">
+            Ringkasan dasbor kearsipan instansi • Mode peran:{' '}
+            <span className="font-semibold text-[#1E86C8] capitalize">{userRole.replace('_', ' ')}</span>
+          </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Filter */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Toggle Satuan Boks vs Berkas (M8) */}
+          <div className="flex items-center rounded-lg border border-[#D5D9E2] bg-white p-1 shadow-xs">
+            <button
+              type="button"
+              onClick={() => setUnitMode('berkas')}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                unitMode === 'berkas'
+                  ? 'bg-[#3BA4E8] text-white shadow-xs'
+                  : 'text-[#6B7185] hover:text-[#1F2333]'
+              }`}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              <span>Berkas / Lembar</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setUnitMode('boks')}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                unitMode === 'boks'
+                  ? 'bg-[#3BA4E8] text-white shadow-xs'
+                  : 'text-[#6B7185] hover:text-[#1F2333]'
+              }`}
+            >
+              <Package className="h-3.5 w-3.5" />
+              <span>Satuan Boks</span>
+            </button>
+          </div>
+
+          {/* Filter Status */}
           <div className="relative">
             <button
               type="button"
@@ -588,7 +596,7 @@ function DashboardBody() {
               className="flex items-center gap-2 rounded-lg border border-[#1F2333] bg-white px-4 py-2 text-sm font-medium text-[#1F2333] hover:bg-[#F7F8FC] transition-colors"
             >
               <SlidersHorizontal className="w-4 h-4" />
-              Filter
+              Status: <span className="capitalize">{statusFilter}</span>
             </button>
             {filterOpen && (
               <div className="absolute right-0 mt-2 w-56 rounded-lg border border-[#ECEEF5] bg-white p-1.5 shadow-lg z-30">
@@ -600,17 +608,18 @@ function DashboardBody() {
                       setStatusFilter(opt.id)
                       setFilterOpen(false)
                     }}
-                    className="w-full flex items-center justify-between rounded-md px-3 py-2 text-sm text-[#4B5163] hover:bg-[#EEF7FD]"
+                    className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
+                      statusFilter === opt.id ? 'bg-[#EEF7FD] text-[#1E86C8] font-semibold' : 'text-[#4B5163] hover:bg-[#F7F8FC]'
+                    }`}
                   >
                     {opt.label}
-                    {statusFilter === opt.id && <Check className="w-4 h-4 text-[#3BA4E8]" />}
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Ekspor */}
+          {/* Export / Aksi */}
           <div className="relative">
             <button
               type="button"
@@ -618,14 +627,13 @@ function DashboardBody() {
                 setExportOpen((v) => !v)
                 setFilterOpen(false)
               }}
-              className="flex items-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-medium text-white shadow-sm shadow-[#3BA4E8]/30 hover:bg-[#2A92D6] transition-colors"
+              className="flex items-center gap-2 rounded-lg border border-[#1F2333] bg-white px-4 py-2 text-sm font-medium text-[#1F2333] hover:bg-[#F7F8FC] transition-colors"
             >
-              <FileText className="w-4 h-4" />
-              Ekspor
+              <span>Ekspor</span>
               <ChevronDown className="w-4 h-4" />
             </button>
             {exportOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-lg border border-[#ECEEF5] bg-white p-1.5 shadow-lg z-30">
+              <div className="absolute right-0 mt-2 w-52 rounded-lg border border-[#ECEEF5] bg-white p-1.5 shadow-lg z-30">
                 <button
                   type="button"
                   onClick={() => {
@@ -648,53 +656,214 @@ function DashboardBody() {
         </div>
       </div>
 
-      {/* Kartu statistik + grafik batang */}
+      {/* Kartu statistik 4 kuadran */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
         <div className="xl:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <StatCard title="Arsip Aktif" value={`${totalAktif} berkas`} trend="+20,1%" trendUp note="+2 bulan ini" href="/dokumen" />
-          <StatCard title="Antrean Persetujuan" value={`${totalMenunggu} berkas`} trend="+10,6%" trendUp note="+1 hari ini" href="/persetujuan" />
-          <StatCard title="Akan Kadaluarsa" subtitle="< 90 hari" value={`${totalAkanKadaluarsa} berkas`} trend="-10%" trendUp={false} note="H-42 terdekat" href="/dokumen" />
-          <StatCard title="Gudang Inaktif" value={`${totalInaktif} berkas`} trend="+12%" trendUp note="dapat dipinjam" href="/dokumen" />
+          <StatCard
+            title="Arsip Aktif"
+            unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
+            value={unitMode === 'berkas' ? `${totalAktif} berkas` : `${totalAktifBoks} boks`}
+            trend="+20,1%"
+            trendUp
+            note="unit pengolah aktif"
+            href="/dokumen"
+          />
+          <StatCard
+            title="Antrean Persetujuan"
+            unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
+            value={unitMode === 'berkas' ? `${totalMenunggu} berkas` : `${totalMenungguBoks} boks`}
+            trend="+10,6%"
+            trendUp
+            note="perlu verifikasi"
+            href="/persetujuan"
+          />
+          <StatCard
+            title="Akan Kedaluwarsa"
+            subtitle="< 90 hari retensi"
+            unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
+            value={unitMode === 'berkas' ? `${totalAkanKadaluarsa} berkas` : `${totalAkanKadaluarsaBoks} boks`}
+            trend="-10%"
+            trendUp={false}
+            note="siap transfer inaktif"
+            href="/transfer-arsip"
+          />
+          <StatCard
+            title="Gudang Inaktif"
+            unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
+            value={unitMode === 'berkas' ? `${totalInaktif} berkas` : `${totalInaktifBoks} boks`}
+            trend="+12%"
+            trendUp
+            note="dapat dipinjam"
+            href="/peminjaman"
+          />
         </div>
-        <div className="xl:col-span-6">
-          <ArchiveBarChart documents={documents} live={isLive} />
+
+        {/* Grafik Tren Arsip Tahunan (M8) */}
+        <div className="xl:col-span-6 bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-[#1F2333]">
+                Tren Arsip Tahunan ({unitMode === 'berkas' ? 'Jumlah Berkas' : 'Alokasi Boks'})
+              </h2>
+              <p className="text-[11px] text-[#8A90A2]">
+                Pertumbuhan volume arsip masuk vs berpindah inaktif per tahun
+              </p>
+            </div>
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#1E86C8] bg-[#EEF7FD] px-2.5 py-1 rounded-md">
+              <BarChart3 className="h-3.5 w-3.5" />
+              Satuan: {unitMode === 'berkas' ? 'Berkas' : 'Boks'}
+            </span>
+          </div>
+
+          <div className="mt-6 flex-1 flex flex-col justify-end min-h-[190px]">
+            <div className="flex items-end justify-around gap-4 h-40 border-b border-[#ECEEF5] pb-2">
+              {trenTahunanData.map((item) => {
+                const val = unitMode === 'berkas' ? item.berkas : item.boks
+                const heightPct = Math.min(100, Math.max(10, Math.round((val / maxTren) * 100)))
+
+                return (
+                  <div key={item.tahun} className="flex flex-col items-center gap-2 flex-1 max-w-[80px]">
+                    <div className="w-full flex items-end justify-center gap-1.5 h-32">
+                      {/* Bar Arsip Masuk */}
+                      <div
+                        className="w-5 sm:w-6 rounded-t-md bg-[#3BA4E8] transition-all duration-300 relative group flex items-start justify-center"
+                        style={{ height: `${heightPct}%` }}
+                      >
+                        <span className="absolute -top-6 text-[10px] font-bold text-[#1F2333] opacity-0 group-hover:opacity-100 transition-opacity">
+                          {val}
+                        </span>
+                      </div>
+                      {/* Bar Inaktif */}
+                      <div
+                        className="w-3 sm:w-4 rounded-t-md bg-[#BFE2F8] transition-all duration-300 relative group flex items-start justify-center"
+                        style={{ height: `${Math.min(100, Math.max(6, Math.round((item.inaktif / maxTren) * 100)))}%` }}
+                      >
+                        <span className="absolute -top-6 text-[9px] font-medium text-[#6B7185] opacity-0 group-hover:opacity-100 transition-opacity">
+                          {item.inaktif}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold text-[#4B5163]">{item.tahun}</span>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="mt-3 flex items-center justify-center gap-5 text-xs text-[#6B7185]">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-[#3BA4E8]" /> Arsip Masuk ({unitMode === 'berkas' ? 'Berkas' : 'Boks'})
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-[#BFE2F8]" /> Beralih ke Inaktif
+              </span>
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Okupansi & Kapasitas per Ruangan & Rak (M8) */}
+      <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#ECEEF5] pb-3">
+          <div>
+            <h2 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
+              <Warehouse className="h-5 w-5 text-[#3BA4E8]" />
+              Okupansi &amp; Kapasitas Ruangan &amp; Rak Arsip
+            </h2>
+            <p className="text-xs text-[#6B7185] mt-0.5">
+              Pemantauan keterisian fisik lembar dan boks per rak penyimpanan sesuai kapasitas maksimal standar 500 lembar per boks.
+            </p>
+          </div>
+          <span className="text-xs text-[#8A90A2]">
+            Total Rak Aktif: <strong>{rakOccupancyList.length} rak</strong>
+          </span>
+        </div>
+
+        {rakOccupancyList.length === 0 ? (
+          <p className="text-xs text-[#8A90A2] py-4 text-center">Belum ada master rak terdaftar.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {rakOccupancyList.map((rak) => {
+              // Styling status kapasitas
+              let progressColor = 'bg-[#3BA4E8]'
+              let badgeColor = 'text-[#1E86C8] bg-[#EEF7FD]'
+              if (rak.persenTerpakai >= 90) {
+                progressColor = 'bg-[#D64545]'
+                badgeColor = 'text-[#D64545] bg-[#FFF5F5]'
+              } else if (rak.persenTerpakai >= 70) {
+                progressColor = 'bg-[#F29900]'
+                badgeColor = 'text-[#B06000] bg-[#FEF7E0]'
+              }
+
+              return (
+                <div
+                  key={rak.rakId}
+                  className="rounded-xl border border-[#ECEEF5] bg-[#F7F8FC] p-4 flex flex-col justify-between gap-3 hover:border-[#3BA4E8]/40 transition-colors"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#1F2333]">{rak.rakNama}</span>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${badgeColor}`}>
+                        {rak.persenTerpakai}% Penuh
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#6B7185]">
+                      {rak.gedungNama} &bull; {rak.ruanganNama}
+                    </p>
+                  </div>
+
+                  {/* Progress Bar Okupansi */}
+                  <div className="space-y-1.5">
+                    <div className="h-2 w-full rounded-full bg-[#E5E7EB] overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${progressColor} transition-all duration-500`}
+                        style={{ width: `${rak.persenTerpakai}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-[#6B7185]">
+                      <span>{rak.totalBoks} Boks Terisi</span>
+                      <span>
+                        {rak.totalLembar} / {rak.kapasitasMaksLembar || 500} lbr
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Aktivitas terbaru + donut kategori */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
         <div className="xl:col-span-8 bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-[#1F2333]">Aktivitas Terbaru</h2>
-            <button
-              type="button"
-              className="flex items-center gap-1.5 rounded-md bg-[#F4F5FA] px-3 py-1.5 text-xs text-[#4B5163]"
-            >
-              24 Jam Terakhir <ChevronDown className="w-3.5 h-3.5" />
-            </button>
+            <h2 className="text-lg font-semibold text-[#1F2333]">Daftar Dokumen Sesuai Peran</h2>
+            <span className="text-xs text-[#8A90A2]">
+              Filter: <strong className="text-[#1F2333] capitalize">{statusFilter}</strong>
+            </span>
           </div>
 
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="text-xs text-[#4B5163]">
-                  <th className="pb-3 font-normal">Dokumen</th>
-                  <th className="pb-3 font-normal">Status</th>
-                  <th className="pb-3 font-normal">Kode Arsip</th>
-                  <th className="pb-3 font-normal">Waktu</th>
-                  <th className="pb-3 font-normal text-right">Ukuran</th>
+                <tr className="text-xs text-[#4B5163] border-b border-[#ECEEF5]">
+                  <th className="pb-3 font-semibold">Dokumen</th>
+                  <th className="pb-3 font-semibold">Status</th>
+                  <th className="pb-3 font-semibold">Kode Arsip SIG</th>
+                  <th className="pb-3 font-semibold">Waktu</th>
+                  <th className="pb-3 font-semibold text-right">Ukuran</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-[#ECEEF5]">
                 {activities.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="py-10 text-center text-sm text-[#8A90A2]">
-                      Tidak ada aktivitas untuk filter ini.
+                      Tidak ada dokumen untuk filter status ini.
                     </td>
                   </tr>
                 ) : (
-                  activities.map((doc) => (
-                    <tr key={doc.id} className="align-middle">
+                  activities.slice(0, 8).map((doc) => (
+                    <tr key={doc.id} className="align-middle hover:bg-[#F7F8FC] transition-colors">
                       <td className="py-2.5 pr-4">
                         <Link href={`/dokumen/${doc.id}`} className="flex items-center gap-3 group">
                           <span className="w-9 h-9 shrink-0 rounded-full bg-[#EAF5FD] text-[#1E86C8] text-xs font-semibold flex items-center justify-center">
@@ -715,9 +884,11 @@ function DashboardBody() {
                           {statusPill[doc.status].label}
                         </span>
                       </td>
-                      <td className="py-2.5 pr-4 min-w-[120px] max-w-[180px] text-[#4B5163]"><KodeArsip kode={doc.kode_arsip} prefix="#" className="block" /></td>
-                      <td className="py-2.5 pr-4 whitespace-nowrap text-[#4B5163]">{doc.waktu}</td>
-                      <td className="py-2.5 whitespace-nowrap text-right text-[#4B5163]">{doc.ukuran_file}</td>
+                      <td className="py-2.5 pr-4 min-w-[120px] max-w-[180px] text-[#4B5163]">
+                        <KodeArsip kode={doc.kode_arsip} prefix="#" className="block font-mono text-xs" />
+                      </td>
+                      <td className="py-2.5 pr-4 whitespace-nowrap text-xs text-[#4B5163]">{doc.waktu}</td>
+                      <td className="py-2.5 whitespace-nowrap text-right text-xs text-[#4B5163]">{doc.ukuran_file}</td>
                     </tr>
                   ))
                 )}
@@ -745,7 +916,7 @@ function DashboardContent() {
   )
 }
 
-/** Dasbor statistik kearsipan padat informasi: antrean, retensi aktif, dan boks */
+/** Dasbor statistik kearsipan padat informasi: antrean, retensi aktif, boks, dan okupansi ruangan/rak */
 export default function DashboardPage() {
   return (
     <Suspense fallback={<div className="p-8 text-center text-sm text-[#6B7185]">Memuat dashboard...</div>}>

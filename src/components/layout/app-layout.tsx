@@ -218,7 +218,9 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
       roles: ['superadmin', 'pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif', 'staff'],
       children: [
         { label: 'Daftar Dokumen', href: '/dokumen', roles: ['superadmin', 'pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif', 'staff'] },
-        { label: 'Verifikasi Dokumen', href: '/persetujuan', roles: ['atasan_aktif', 'atasan_inaktif', 'superadmin'] },
+        { label: 'Transfer Arsip', href: '/transfer-arsip', roles: ['pic_aktif', 'superadmin'] },
+        { label: 'Verifikasi Dokumen', href: '/persetujuan/verifikasi-transfer', roles: ['pic_inaktif', 'superadmin'] },
+        { label: 'Persetujuan Entri', href: '/persetujuan', roles: ['atasan_aktif', 'atasan_inaktif', 'superadmin'] },
         { label: 'Penyimpanan Dokumen', href: '/serah-terima', roles: ['pic_aktif', 'pic_inaktif', 'superadmin'] },
       ],
     },

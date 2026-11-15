@@ -649,6 +649,8 @@ Tabel 16. Peristiwa Notifikasi
 | 8 | Dokumen mendekati kadaluarsa (H-90, H-30, H-7) | PIC Arsip Aktif dan PIC Arsip Inaktif | Dashboard, surel |
 | 9 | Dokumen pindah ke Inaktif | PIC Arsip Aktif dan PIC Arsip Inaktif | Dashboard, surel |
 | 10 | Dokumen dibatalkan | PIC Arsip Aktif | Dashboard, surel |
+| 11 | Transfer Arsip diajukan (Berita Acara diterbitkan) | PIC Arsip Inaktif | Dashboard, surel |
+| 12 | Transfer Arsip diverifikasi (diterima atau ditolak) | PIC Arsip Aktif dan Pemilik Dokumen | Dashboard, surel |
 
 ### 6.6 Pembatalan
 
@@ -728,19 +730,42 @@ Peminjaman:
 2. PIC Arsip Inaktif menyetujui → status peminjaman `dipinjam` dan peminjam tercatat; atau menolak beserta alasan.
 3. Peminjam mengembalikan dokumen → status peminjaman `dikembalikan`, tanggal kembali tercatat. Status dokumen tetap `inaktif`.
 
+### 8.4 Flow Transfer Arsip & Verifikasi Dokumen Fisik (M8)
+
+Alur penyerahan berkas aktif mendekati/lewat retensi dari PIC Arsip Aktif ke Gudang Inaktif:
+
+1. **Pengajuan Transfer (PIC Arsip Aktif)**:
+   - PIC Arsip Aktif membuka menu "Transfer Arsip" (menampilkan berkas aktif dengan peringatan H-90, H-30, H-7, atau Lewat Retensi).
+   - PIC Aktif mencentang berkas (single atau batch) lalu menekan tombol "Kirim ke Inaktif".
+   - Sistem menerbitkan **Berita Acara Penyerahan Arsip (PDF)** resmi berlogo SIG dan nomor registrasi unik.
+   - Tercatat di `serah_terima` dengan status `Menunggu konfirmasi` dan penanda `TRANSFER_INAKTIF`.
+   - Notifikasi dikirimkan ke PIC Arsip Inaktif.
+
+2. **Verifikasi Fisik (PIC Arsip Inaktif)**:
+   - PIC Arsip Inaktif membuka menu "Verifikasi Dokumen", menerima berkas fisik dan mencocokkan kode arsip melalui pemindaian kamera QR / barcode scanner.
+   - **Tindakan Terima**: Petugas mengisi konfirmasi tanda tangan (nama + timestamp tercatat resmi).
+     - Dokumen beralih status menjadi `inaktif`.
+     - Berkas digital dipindahkan dari bucket `arsip-aktif` ke `arsip-inaktif` (copy terverifikasi lalu hapus dari bucket aktif).
+     - Pemegang beralih ke PIC Arsip Inaktif, lokasi menjadi Gudang Inaktif (Rak Inaktif 01).
+     - Alokasi nomor boks inaktif otomatis berkapasitas 500 lembar (dokumen > 500 lembar masuk boks tersendiri langsung berstatus Penuh).
+     - Log `pindah_inaktif` tercatat, dan notifikasi terkirim ke pemilik + PIC Aktif + PIC Inaktif.
+   - **Tindakan Tolak**: Petugas wajib mengisi alasan penolakan fisik. Status dokumen tetap `aktif` dan dikembalikan kepada PIC Arsip Aktif.
+   - **Idempotensi**: Dokumen yang sedang dalam proses transfer (`Menunggu konfirmasi`) dilewati secara otomatis oleh cron harian agar tidak terjadi pemrosesan ganda.
+
 ---
 
 ## 9. Desain Sistem
 
-Cukup 5 layar untuk KP. Desain mengikuti `DESIGN.md` dan skill
+Cukup 6 layar untuk KP. Desain mengikuti `DESIGN.md` dan skill
 `anti-slop-design`: kertas, tinta, cap status, tabel padat, tanpa gradien
 ungu-biru, tanpa hero marketing, tanpa ilustrasi AI.
 
 - Gambar 8. Halaman Login — email, kata sandi, 1 tombol Masuk ke Sistem. Tanpa kotak Akses Cepat Demo di versi produksi.
-- Gambar 9. Dashboard — ringkasan per role, daftar dokumen mau kadaluarsa, antrean persetujuan (Atasan Arsip Aktif).
+- Gambar 9. Dashboard — ringkasan per role, metrik gabungan satuan berkas/lembar dan boks (toggle aktif), okupansi & kapasitas per Ruangan/Rak, alert kedaluwarsa berkas+boks, grafik tren arsip tahunan, serta filter status sesuai peran (Aktif untuk PIC/Atasan Aktif, Inaktif untuk PIC/Atasan Inaktif).
 - Gambar 10. Entri Dokumen — judul, nomor payment, kategori, tanggal dokumen, upload file, lalu status menunggu.
 - Gambar 11. Detail Dokumen dan Barcode — metadata, status cap, barcode / QR, pemegang, lokasi, tanggal kadaluarsa, timeline riwayat, tombol download.
 - Gambar 12. Serah Terima Scan — area kamera / kolom kode manual, data dokumen hasil scan, pilih penerima dan lokasi dari Master Lokasi, konfirmasi terima.
+- Gambar 13. Transfer Arsip & Verifikasi Inaktif — tabel arsip mendekati kedaluwarsa dengan seleksi batch, penerbitan Berita Acara PDF, dan antrean verifikasi fisik dengan pemindai QR.
 
 \*Screenshot di atas diganti dengan screenshot sistemmu sendiri saat
 implementasi. Jangan memakai screenshot e-Surat teman.\*

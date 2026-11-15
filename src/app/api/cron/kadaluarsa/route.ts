@@ -172,10 +172,25 @@ async function runKadaluarsaCron(request: NextRequest) {
       return NextResponse.json({ error: expError.message }, { status: 500 })
     }
 
+    // Ambil daftar dokumen_id yang sedang dalam proses Transfer Arsip (Menunggu konfirmasi)
+    // agar proses cron bersifat IDEMPOTENT dan tidak memproses ulang dokumen yang sedang ditransfer manual.
+    const { data: pendingTransfers } = await admin
+      .from('serah_terima')
+      .select('dokumen_id')
+      .ilike('keterangan', '%TRANSFER_INAKTIF%')
+      .eq('status_serah', 'Menunggu konfirmasi')
+
+    const pendingDocIdSet = new Set((pendingTransfers || []).map((t) => t.dokumen_id))
+
     const movedDocs: string[] = []
 
     if (expiredDocs && expiredDocs.length > 0) {
       for (const doc of expiredDocs) {
+        // IDEMPOTENSI: Lewati dokumen yang sedang berada dalam antrean transfer arsip belum terverifikasi
+        if (pendingDocIdSet.has(doc.id)) {
+          continue
+        }
+
         try {
           const currentBucket = doc.bucket || 'arsip-aktif'
 
