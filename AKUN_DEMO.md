@@ -1,4 +1,6 @@
-# Akun Pengujian & Demonstrasi 6 Role R.03 (BLUEPRINT.md)
+# Panduan Akun Pengujian & Demonstrasi 6 Role Resmi R.03
+
+> Sesuai spesifikasi baku BLUEPRINT.md R.03 untuk pengujian operasional kearsipan.
 
 Dokumen ini adalah lembar panduan bagi penguji / dosen untuk mencoba autentikasi dengan 6 hak akses resmi R.03.
 
