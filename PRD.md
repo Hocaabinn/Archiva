@@ -5,6 +5,7 @@
 **Stack:** Next.js (App Router), Supabase (Auth, Postgres, Storage), Nodemailer (SMTP Surel)  
 **Dokumen pendamping:** `BLUEPRINT.md` R.03, `erd.dbml`, `supabase.sql`  
 **Status:** Produksi / Operasional Kedinasan PT Semen Indonesia Group (SIG).
+**Verifikasi:** Lolos Uji M0-M7.
 
 ---
 
