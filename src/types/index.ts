@@ -170,3 +170,5 @@ export interface Lampiran {
   diunggah_oleh?: string;
   created_at: string;
 }
+
+// Penyelarasan tipe data antarmuka kearsipan kedinasan R.03
