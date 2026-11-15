@@ -7,6 +7,7 @@ interface SendEmailParams {
   html?: string
 }
 
+/** Transporter singleton ter-cache untuk pengiriman surel */
 let cachedTransporter: Transporter | null = null
 
 async function getTransporter(): Promise<Transporter> {
