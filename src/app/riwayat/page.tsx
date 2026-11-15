@@ -68,6 +68,7 @@ const aksiLabels: Record<string, { label: string; className: string }> = {
   pembatalan: { label: 'Pembatalan', className: 'bg-[#FEF2F2] text-[#991B1B] border-[#FECACA]' },
 }
 
+/** Halaman buku log riwayat aktivitas audit kearsipan: filter dokumen dan user */
 export default function RiwayatPage() {
   const [supabase] = useState(() => createClient())
 
