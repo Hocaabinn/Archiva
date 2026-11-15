@@ -41,9 +41,14 @@ Sistem Informasi Tata Kelola Dokumen & Arsip dirancang khusus untuk menjawab tan
 - **Verifikasi & Persetujuan Dokumen 2 Tingkat:**
   - Verifikasi kelengkapan berkas fisik & digital oleh **PIC Arsip**.
   - Persetujuan akhir (*Approval*) dokumen sensitif, retensi, dan pemusnahan oleh **Atasan**.
-- **Pelacakan Fisik (Barcode & Serah Terima):**
+- **Pelacakan Fisik (Barcode, QR & Serah Terima):**
   - Pembuatan barcode & kode QR otomatis untuk label sampul berkas fisik.
-  - Modul serah terima dokumen fisik dengan buku ekspedisi digital.
+  - Modul serah terima dokumen fisik dengan pemindaian barcode/QR gaya kasir.
+  - Modul Transfer Dokumen ke Gudang Inaktif dilengkapi Berita Acara Penyerahan Arsip (PDF) resmi.
+- **Dasbor Pemantauan Kapasitas & Retensi (M8):**
+  - Metrik ganda: Satuan Berkas/Lembar dan Satuan Boks Fisik.
+  - Okupansi kapasitas fisik per Ruangan & Rak berbasis data master boks.
+  - Grafik tren volume arsip tahunan serta peringatan berkas mendekati kedaluwarsa.
 - **Log Audit & Jejak Rekam (Audit Trail):**
   - Seluruh mutasi berkas (unggah, periksa, setujui, tolak, unduh, serah terima, reaktivasi) tercatat abadi pada tabel `log_aktivitas`.
 
