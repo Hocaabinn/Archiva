@@ -359,6 +359,9 @@ export default function UploadDokumenPage() {
     setSuccessMsg(null)
 
     try {
+      // Jika pengguna tidak mengisi deskripsi secara manual, buatkan otomatis dari berkas dan form saat didaftarkan
+      const finalDeskripsi = deskripsi.trim() || generateAutoDeskripsi(selectedFile, judul, kategoriId, nomorPpl) || 'Dokumen arsip resmi instansi PT Semen Indonesia Group (SIG).'
+
       const formData = new FormData()
       formData.append('file', selectedFile)
       formData.append('judul', judul.trim())
@@ -373,8 +376,7 @@ export default function UploadDokumenPage() {
         formData.append('nomor_ppl', nomorPpl.trim())
       }
 
-      if (penandatangan.trim()) formData.append('penandatangan', penandatangan.trim())
-      if (deskripsi.trim()) formData.append('deskripsi', deskripsi.trim())
+      formData.append('deskripsi', finalDeskripsi)
       if (selectedLokasi?.rakId) {
         formData.append('rak_id', selectedLokasi.rakId)
         formData.append('lokasi_saat_ini', selectedLokasi.lokasiString)
@@ -841,35 +843,18 @@ export default function UploadDokumenPage() {
 
             {/* DESKRIPSI / CATATAN */}
             <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between">
-                <label className="block font-bold text-[#0F172A]">
-                  DESKRIPSI / CATATAN TAMBAHAN
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const autoText = generateAutoDeskripsi(selectedFile, judul, kategoriId, nomorPpl)
-                    if (autoText) {
-                      setDeskripsi(autoText)
-                    } else {
-                      setDeskripsi('Dokumen arsip resmi instansi PT Semen Indonesia Group (SIG).')
-                    }
-                  }}
-                  className="inline-flex items-center gap-1 text-[11px] font-mono text-[#0284C7] hover:text-[#0369A1] hover:underline"
-                >
-                  <Sparkles className="w-3 h-3 text-[#38BDF8]" />
-                  <span>Generate Otomatis</span>
-                </button>
-              </div>
+              <label className="block font-bold text-[#0F172A]">
+                DESKRIPSI / CATATAN TAMBAHAN (OPSIONAL)
+              </label>
               <textarea
                 value={deskripsi}
                 onChange={(e) => setDeskripsi(e.target.value)}
                 rows={2}
-                placeholder="Catatan ringkas mengenai isi dokumen arsip (terisi otomatis saat memilih berkas)..."
+                placeholder="Dibuat otomatis oleh sistem dari data berkas saat Anda klik Daftarkan Dokumen (atau Anda dapat mengetik catatan khusus sendiri di sini)..."
                 className="w-full border border-[#BAE6FD] bg-white rounded-lg p-3 text-xs font-mono text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
               />
               <p className="text-[10px] text-[#64748B] font-sans">
-                Terisi otomatis berdasarkan nama berkas yang diunggah, kategori, dan nomor payment. Anda tetap bisa mengedit atau menambah catatan khusus kapan saja.
+                Bila dikosongkan, sistem akan otomatis mencatat nama berkas yang diunggah, kategori, nomor payment/kontrak, dan perihal dokumen ke dalam arsip.
               </p>
             </div>
 
