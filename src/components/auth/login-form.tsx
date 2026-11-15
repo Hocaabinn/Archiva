@@ -21,6 +21,7 @@ function getScrambledHash(pass: string): string {
   return res
 }
 
+/** Formulir login tunggal resmi kedinasan tanpa tab OTP dan tanpa panel marketing */
 export default function LoginForm() {
   const router = useRouter()
   const [email, setEmail] = useState('')
