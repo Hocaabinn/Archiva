@@ -28,9 +28,12 @@ export async function GET(request: NextRequest) {
     }
 
     const admin = createAdminClient()
-    const { data: fileData, error: dlErr } = await admin.storage
-      .from('arsip-aktif')
-      .download(filePath)
+    let downloadRes = await admin.storage.from('arsip-aktif').download(filePath)
+    if (downloadRes.error || !downloadRes.data) {
+      downloadRes = await admin.storage.from('arsip-inaktif').download(filePath)
+    }
+
+    const { data: fileData, error: dlErr } = downloadRes
 
     if (dlErr || !fileData) {
       return NextResponse.json({ error: 'Berkas Berita Acara tidak ditemukan.' }, { status: 404 })
