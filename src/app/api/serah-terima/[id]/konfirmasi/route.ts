@@ -20,6 +20,9 @@ interface RouteParams {
  * 3. Menerbitkan PDF Bukti Serah Terima resmi yang tersimpan di storage dan dapat diunduh.
  * 4. Dicatat di log_aktivitas.
  */
+/**
+ * Konfirmasi serah terima oleh penerima: mutasi pemegang dan lokasi fisik resmi
+ */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { id: serahTerimaId } = await params
