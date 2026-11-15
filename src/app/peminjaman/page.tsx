@@ -882,6 +882,7 @@ function PeminjamanContent() {
   )
 }
 
+/** Sirkulasi peminjaman berkas inaktif: status dokumen tetap inaktif */
 export default function PeminjamanPage() {
   return (
     <Suspense
