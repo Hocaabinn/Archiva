@@ -89,6 +89,7 @@ interface SerahTerimaItem {
   }
 }
 
+/** Modul serah terima dokumen fisik: pemindaian QR kasir dan pencetakan BAST PDF */
 export default function SerahTerimaPage() {
   const [supabase] = useState(() => createClient())
 
