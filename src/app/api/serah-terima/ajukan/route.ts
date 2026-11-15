@@ -15,6 +15,9 @@ export const dynamic = 'force-dynamic'
  * 3. Status serah terima diawali 'Menunggu konfirmasi'.
  * 4. Dicatat di log_aktivitas.
  */
+/**
+ * Pengajuan serah terima fisik berkas aktif dengan alokasi lokasi master baru
+ */
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
