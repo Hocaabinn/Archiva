@@ -3,6 +3,9 @@
  * Format: TAHUN_KODEPERUSAHAAN_NOPAYMENT_DOCVOUCHER (contoh: 2025_2000_1500013765_1900009386)
  */
 
+/**
+ * Validasi pola kode arsip SIG resmi (Format: TAHUN_KODEPERUSAHAAN_NOPAYMENT_DOCVOUCHER)
+ */
 export function validateKodeArsipSIG(code: string): { isValid: boolean; message?: string } {
   const trimmed = (code || '').trim()
   if (!trimmed) {
