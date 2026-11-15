@@ -46,9 +46,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .eq('id', user.id)
       .single()
 
-    if (!profile || (profile.role !== 'pic_inaktif' && profile.role !== 'superadmin')) {
+    if (!profile || (profile.role !== 'pic_inaktif' && profile.role !== 'superadmin' && profile.role !== 'atasan_inaktif')) {
       return NextResponse.json(
-        { error: 'Akses Ditolak: Hanya PIC Arsip Inaktif yang berwenang memverifikasi penerimaan berkas inaktif.' },
+        { error: 'Akses Ditolak: Hanya PIC Arsip Inaktif, Atasan Inaktif, atau Superadmin yang berwenang memverifikasi penerimaan berkas inaktif.' },
         { status: 403 }
       )
     }
