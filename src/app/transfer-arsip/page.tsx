@@ -97,7 +97,7 @@ function TransferArsipContent() {
           kategori_dokumen:kategori_id(nama)
         `)
         .eq('status', 'aktif')
-        .order('tanggal_kadaluarsa', { ascending: true })
+        .order('tanggal_kadaluarsa', { ascending: true, nullsFirst: false })
 
       if (docError) throw docError
 
