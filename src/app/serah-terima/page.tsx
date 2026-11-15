@@ -7,6 +7,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { StampBadge } from '@/components/ui/stamp-badge'
 import { createClient } from '@/lib/supabase/client'
 import { KodeArsip } from '@/components/documents/kode-arsip'
+import { LokasiCascadeSelect, LokasiCascadeValue } from '@/components/documents/lokasi-cascade-select'
 import {
   Scan,
   Camera,
@@ -106,7 +107,7 @@ export default function SerahTerimaPage() {
   // Form Pengajuan Serah Terima
   const [profiles, setProfiles] = useState<ProfileOption[]>([])
   const [selectedPenerimaId, setSelectedPenerimaId] = useState('')
-  const [targetLokasi, setTargetLokasi] = useState('')
+  const [selectedTargetLokasi, setSelectedTargetLokasi] = useState<LokasiCascadeValue | null>(null)
   const [keterangan, setKeterangan] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -211,7 +212,7 @@ export default function SerahTerimaPage() {
 
       setScannedDoc(result.dokumen)
       // Default lokasi awal
-      setTargetLokasi('')
+      setSelectedTargetLokasi(null)
       setKeterangan('')
       if (profiles.length > 0 && !selectedPenerimaId) {
         setSelectedPenerimaId(profiles[0].id)
@@ -339,8 +340,8 @@ export default function SerahTerimaPage() {
       showToast('error', 'Pilih penerima dokumen terlebih dahulu.')
       return
     }
-    if (!targetLokasi.trim()) {
-      showToast('error', 'Isi lokasi tujuan fisik dokumen.')
+    if (!selectedTargetLokasi || !selectedTargetLokasi.rakId) {
+      showToast('error', 'Lokasi tujuan fisik dokumen wajib dipilih dari Master Lokasi bertingkat (Gedung > Ruangan > Rak).')
       return
     }
 
@@ -352,7 +353,8 @@ export default function SerahTerimaPage() {
         body: JSON.stringify({
           dokumen_id: scannedDoc.id,
           ke_user_id: selectedPenerimaId,
-          ke_lokasi: targetLokasi.trim(),
+          ke_lokasi: selectedTargetLokasi.lokasiString,
+          ke_rak_id: selectedTargetLokasi.rakId,
           keterangan: keterangan.trim(),
         }),
       })
@@ -370,7 +372,7 @@ export default function SerahTerimaPage() {
       // Reset form
       setScannedDoc(null)
       setScanCode('')
-      setTargetLokasi('')
+      setSelectedTargetLokasi(null)
       setKeterangan('')
       loadLists()
       if (scanInputRef.current) scanInputRef.current.focus()
@@ -741,31 +743,11 @@ export default function SerahTerimaPage() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium uppercase tracking-wider text-[#1E3A5F] mb-1.5" htmlFor="inputLokasi">
-                        Lokasi Tujuan Penyimpanan Baru <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        id="inputLokasi"
-                        type="text"
+                      <LokasiCascadeSelect
+                        onChange={(val) => setSelectedTargetLokasi(val)}
                         required
-                        value={targetLokasi}
-                        onChange={(e) => setTargetLokasi(e.target.value)}
-                        placeholder="Contoh: Ruang Akuntansi Lt. 2 - Meja Verifikasi"
-                        className="w-full h-11 px-3 text-xs bg-[#F8FAFC] border border-[#CBD7E3] rounded-lg focus:outline-none focus:border-[#1E3A5F] text-[#111827]"
+                        label="LOKASI TUJUAN PENYIMPANAN BARU (MASTER LOKASI BERTINGKAT)"
                       />
-                      {/* Shortcut Pilihan Lokasi Umum */}
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {['Ruang Akuntansi Lt. 2', 'Ruang Arsip Aktif - Rak A', 'Meja PIC Perpajakan', 'Direksi Lt. 3'].map((preset) => (
-                          <button
-                            key={preset}
-                            type="button"
-                            onClick={() => setTargetLokasi(preset)}
-                            className="rounded border border-[#CBD7E3] bg-white px-2 py-0.5 text-[10px] text-[#4B5E76] hover:bg-[#EEF7FD] hover:text-[#1E3A5F]"
-                          >
-                            + {preset}
-                          </button>
-                        ))}
-                      </div>
                     </div>
 
                     <div>

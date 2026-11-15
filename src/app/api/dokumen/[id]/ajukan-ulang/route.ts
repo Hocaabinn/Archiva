@@ -140,7 +140,46 @@ export async function POST(
     if (body.penandatangan !== undefined) updatePayload.penandatangan = body.penandatangan || null
     if (body.kategori_id !== undefined) updatePayload.kategori_id = body.kategori_id || null
     if (body.deskripsi !== undefined) updatePayload.deskripsi = body.deskripsi || null
-    if (body.lokasi_saat_ini !== undefined) updatePayload.lokasi_saat_ini = body.lokasi_saat_ini || 'Ruang Arsip Aktif'
+    if (body.rak_id) {
+      const { data: rakLokasi } = await admin
+        .from('lokasi')
+        .select('id, nama, parent_id')
+        .eq('id', body.rak_id)
+        .eq('tingkat', 'Rak')
+        .maybeSingle()
+
+      if (!rakLokasi) {
+        return NextResponse.json(
+          { error: 'Lokasi fisik tidak valid: Rak tidak ditemukan dalam Master Lokasi.' },
+          { status: 400 }
+        )
+      }
+
+      let lokasiStr = rakLokasi.nama
+      if (rakLokasi.parent_id) {
+        const { data: rLokasi } = await admin.from('lokasi').select('id, nama, parent_id').eq('id', rakLokasi.parent_id).maybeSingle()
+        if (rLokasi) {
+          if (rLokasi.parent_id) {
+            const { data: gLokasi } = await admin.from('lokasi').select('id, nama').eq('id', rLokasi.parent_id).maybeSingle()
+            lokasiStr = gLokasi ? `${gLokasi.nama} > ${rLokasi.nama} > ${rakLokasi.nama}` : `${rLokasi.nama} > ${rakLokasi.nama}`
+          } else {
+            lokasiStr = `${rLokasi.nama} > ${rakLokasi.nama}`
+          }
+        }
+      }
+      updatePayload.lokasi_saat_ini = lokasiStr
+    } else if (body.lokasi_saat_ini !== undefined && typeof body.lokasi_saat_ini === 'string' && body.lokasi_saat_ini.trim()) {
+      const parts = body.lokasi_saat_ini.trim().split('>').map((p: string) => p.trim())
+      const lastPart = parts[parts.length - 1]
+      const { data: matched } = await admin.from('lokasi').select('id').eq('nama', lastPart).limit(1).maybeSingle()
+      if (!matched) {
+        return NextResponse.json(
+          { error: 'Lokasi fisik tidak valid: Wajib dipilih dari Master Lokasi bertingkat, bukan teks bebas.' },
+          { status: 400 }
+        )
+      }
+      updatePayload.lokasi_saat_ini = body.lokasi_saat_ini.trim()
+    }
     if (body.jumlah_halaman) {
       const jml = parseInt(String(body.jumlah_halaman), 10)
       if (!isNaN(jml) && jml > 0) updatePayload.jumlah_halaman = jml

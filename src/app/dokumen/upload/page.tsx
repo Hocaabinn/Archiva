@@ -26,6 +26,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { KategoriDokumen, UserRole } from '@/types'
 import { validateKodeArsipSIG } from '@/lib/server-dokumen'
+import { LokasiCascadeSelect, LokasiCascadeValue } from '@/components/documents/lokasi-cascade-select'
 
 interface UnitInfo {
   id: string
@@ -55,7 +56,7 @@ export default function UploadDokumenPage() {
   // Field Form Opsional
   const [penandatangan, setPenandatangan] = useState('')
   const [deskripsi, setDeskripsi] = useState('')
-  const [lokasiFisik, setLokasiFisik] = useState('Ruang Arsip Aktif')
+  const [selectedLokasi, setSelectedLokasi] = useState<LokasiCascadeValue | null>(null)
 
   // Berkas
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -317,6 +318,10 @@ export default function UploadDokumenPage() {
       setErrorMsg('Nomor kontrak / sertifikat wajib diisi untuk dokumen non-payment.')
       return
     }
+    if (!selectedLokasi || !selectedLokasi.rakId) {
+      setErrorMsg('Lokasi fisik wajib dipilih lengkap dari Master Lokasi bertingkat (Gedung > Ruangan > Rak).')
+      return
+    }
 
     setIsSubmitting(true)
     setErrorMsg(null)
@@ -339,7 +344,10 @@ export default function UploadDokumenPage() {
 
       if (penandatangan.trim()) formData.append('penandatangan', penandatangan.trim())
       if (deskripsi.trim()) formData.append('deskripsi', deskripsi.trim())
-      if (lokasiFisik.trim()) formData.append('lokasi_saat_ini', lokasiFisik.trim())
+      if (selectedLokasi?.rakId) {
+        formData.append('rak_id', selectedLokasi.rakId)
+        formData.append('lokasi_saat_ini', selectedLokasi.lokasiString)
+      }
 
       lampiranFiles.forEach((lamp) => {
         formData.append('lampiran', lamp)
@@ -778,8 +786,8 @@ export default function UploadDokumenPage() {
               </div>
             </div>
 
-            {/* PENANDATANGAN & LOKASI AWAL */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+            {/* PENANDATANGAN & LOKASI AWAL DARI MASTER */}
+            <div className="space-y-4 pt-1">
               <div className="space-y-1.5">
                 <label className="block font-bold text-[#1A1A1A]">
                   PENANDATANGAN DOKUMEN
@@ -793,16 +801,12 @@ export default function UploadDokumenPage() {
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="block font-bold text-[#1A1A1A]">
-                  LOKASI FISIK AWAL
-                </label>
-                <input
-                  type="text"
-                  value={lokasiFisik}
-                  onChange={(e) => setLokasiFisik(e.target.value)}
-                  placeholder="Ruang Arsip Aktif"
-                  className="w-full border border-[#C5BFB0] px-3 py-2 text-xs font-mono text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A]"
+              {/* LOKASI BERTINGKAT DARI MASTER LOKASI (BLUEPRINT 3.5 & M5) */}
+              <div className="space-y-1.5 border-l-2 border-[#15803D] pl-3 py-1 bg-[#F9F7F2]/60">
+                <LokasiCascadeSelect
+                  onChange={(val) => setSelectedLokasi(val)}
+                  required
+                  label="LOKASI PENYIMPANAN FISIK AWAL (MASTER LOKASI BERTINGKAT)"
                 />
               </div>
             </div>

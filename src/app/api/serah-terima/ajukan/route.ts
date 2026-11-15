@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}))
-    const { dokumen_id, ke_user_id, ke_lokasi, keterangan } = body
+    const { dokumen_id, ke_user_id, ke_lokasi, ke_rak_id, keterangan } = body
 
     if (!dokumen_id) {
       return NextResponse.json({ error: 'ID dokumen wajib ditentukan.' }, { status: 400 })
@@ -51,10 +51,6 @@ export async function POST(request: NextRequest) {
 
     if (!ke_user_id) {
       return NextResponse.json({ error: 'Penerima dokumen wajib dipilih.' }, { status: 400 })
-    }
-
-    if (!ke_lokasi || !ke_lokasi.trim()) {
-      return NextResponse.json({ error: 'Lokasi tujuan fisik dokumen wajib diisi.' }, { status: 400 })
     }
 
     if (ke_user_id === user.id) {
@@ -65,6 +61,78 @@ export async function POST(request: NextRequest) {
     }
 
     const admin = createAdminClient()
+
+    // ATURAN KERAS BLUEPRINT 3.5 & R.03 M5:
+    // Lokasi tujuan serah terima wajib dipilih dari Master Lokasi bertingkat (Gedung > Ruangan > Rak) - bukan free text.
+    // Tolak pengajuan bila lokasi tujuan belum terdaftar di Master Lokasi.
+    let targetLokasi = ''
+    if (ke_rak_id) {
+      const { data: rakLokasi } = await admin
+        .from('lokasi')
+        .select('id, nama, tingkat, parent_id')
+        .eq('id', ke_rak_id)
+        .eq('tingkat', 'Rak')
+        .maybeSingle()
+
+      if (!rakLokasi) {
+        return NextResponse.json(
+          { error: 'Lokasi tujuan tidak valid: Rak tidak terdaftar dalam Master Lokasi.' },
+          { status: 400 }
+        )
+      }
+
+      let lokasiTujuanStr = rakLokasi.nama
+      if (rakLokasi.parent_id) {
+        const { data: ruanganLokasi } = await admin
+          .from('lokasi')
+          .select('id, nama, parent_id')
+          .eq('id', rakLokasi.parent_id)
+          .maybeSingle()
+
+        if (ruanganLokasi) {
+          if (ruanganLokasi.parent_id) {
+            const { data: gedungLokasi } = await admin
+              .from('lokasi')
+              .select('id, nama')
+              .eq('id', ruanganLokasi.parent_id)
+              .maybeSingle()
+            lokasiTujuanStr = gedungLokasi
+              ? `${gedungLokasi.nama} > ${ruanganLokasi.nama} > ${rakLokasi.nama}`
+              : `${ruanganLokasi.nama} > ${rakLokasi.nama}`
+          } else {
+            lokasiTujuanStr = `${ruanganLokasi.nama} > ${rakLokasi.nama}`
+          }
+        }
+      }
+      targetLokasi = lokasiTujuanStr
+    } else if (ke_lokasi && typeof ke_lokasi === 'string' && ke_lokasi.trim()) {
+      const rawKeLokasi = ke_lokasi.trim()
+      // Periksa apakah string cocok dengan salah satu nama atau hierarki di tabel lokasi
+      const parts = rawKeLokasi.split('>').map((p: string) => p.trim())
+      const rakNameCandidate = parts[parts.length - 1]
+
+      const { data: matchedRak } = await admin
+        .from('lokasi')
+        .select('id, nama, tingkat, parent_id')
+        .eq('nama', rakNameCandidate)
+        .limit(1)
+        .maybeSingle()
+
+      if (!matchedRak) {
+        return NextResponse.json(
+          {
+            error: 'Lokasi tujuan tidak valid: Lokasi fisik wajib dipilih dari Master Lokasi bertingkat (Gedung > Ruangan > Rak), bukan teks bebas.',
+          },
+          { status: 400 }
+        )
+      }
+      targetLokasi = rawKeLokasi
+    } else {
+      return NextResponse.json(
+        { error: 'Lokasi tujuan tidak valid: Wajib dipilih dari Master Lokasi bertingkat (Gedung > Ruangan > Rak).' },
+        { status: 400 }
+      )
+    }
 
     // 1. Ambil data dokumen
     const { data: doc, error: docError } = await admin
@@ -141,7 +209,6 @@ export async function POST(request: NextRequest) {
     // 6. Buat record serah_terima (status_serah: 'Menunggu konfirmasi')
     // PENTING: pemegang_saat_ini dan lokasi_saat_ini pada tabel dokumen TIDAK BERUBAH!
     const dariLokasi = doc.lokasi_saat_ini || 'Lokasi Penyerah'
-    const targetLokasi = ke_lokasi.trim()
 
     const { data: newSerahTerima, error: insertErr } = await admin
       .from('serah_terima')

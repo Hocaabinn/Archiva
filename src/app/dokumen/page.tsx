@@ -55,6 +55,7 @@ interface DocRow {
   lokasi_saat_ini: string
   pemegang_saat_ini?: string
   pemegang_nama?: string
+  boks_nomor?: string
   tanggal_dokumen: string // yyyy-mm-dd
   tanggal_kadaluarsa: string | null // yyyy-mm-dd
   file_size: number | null
@@ -140,8 +141,9 @@ const roleHeaderConfig: Record<
 const DOC_SELECT = `
   id, kode_arsip, nomor_dokumen, nomor_ppl, judul, deskripsi, status, kategori_id,
   file_path, bucket, ukuran_file, lokasi_saat_ini, tanggal_dokumen,
-  tanggal_kadaluarsa, pemilik_id, pemegang_saat_ini,
+  tanggal_kadaluarsa, pemilik_id, pemegang_saat_ini, boks_id,
   kategori_dokumen ( id, nama, kode ),
+  boks:boks_id ( id, nomor_boks, status ),
   pemegang:profiles!dokumen_pemegang_saat_ini_fkey ( id, nama_lengkap, email ),
   pemilik:profiles!dokumen_pemilik_id_fkey ( id, nama_lengkap, email )
 `
@@ -185,6 +187,7 @@ function mapRow(d: any): DocRow {
     lokasi_saat_ini: d.lokasi_saat_ini || '-',
     pemegang_saat_ini: d.pemegang_saat_ini || d.pemilik_id,
     pemegang_nama: (d.pemegang as any)?.nama_lengkap || (d.pemegang as any)?.email || (d.pemilik as any)?.nama_lengkap || (d.pemilik as any)?.email || 'PIC Unit',
+    boks_nomor: (d.boks as any)?.nomor_boks || undefined,
     tanggal_dokumen: d.tanggal_dokumen || '',
     tanggal_kadaluarsa: d.tanggal_kadaluarsa || null,
     file_size: d.ukuran_file ?? d.file_size ?? null,
@@ -1107,10 +1110,17 @@ function DaftarDokumenContent() {
                       </td>
                       <td className="whitespace-nowrap px-4 py-3.5 text-xs text-[#4B5163]">
                         <span className="font-medium text-[#111827] block">{doc.pemegang_nama || 'PIC Unit'}</span>
-                        <span className="text-[#64748B] flex items-center gap-1 mt-0.5">
-                          <MapPin className="h-3 w-3 shrink-0" />
-                          {doc.lokasi_saat_ini}
-                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[#64748B] flex items-center gap-1">
+                            <MapPin className="h-3 w-3 shrink-0" />
+                            <span className="truncate max-w-[170px]">{doc.lokasi_saat_ini}</span>
+                          </span>
+                          {doc.boks_nomor && (
+                            <span className="inline-flex items-center px-1.5 py-0.2 font-mono text-[10px] font-bold bg-[#E8F0FE] text-[#1A73E8] border border-[#BFDBFE] rounded">
+                              Boks {doc.boks_nomor}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="whitespace-nowrap px-4 py-3.5">
                         <RetensiCell doc={doc} />
@@ -1284,13 +1294,12 @@ function DaftarDokumenContent() {
                 onChange={(e) => setForm({ ...form, tanggal_dokumen: e.target.value })}
               />
             </Field>
-            <Field label="Lokasi Fisik" hint={!isPrivileged ? 'Hanya PIC/Atasan/Admin yang dapat mengubah' : undefined}>
+            <Field label="Lokasi Fisik Terdaftar" hint="Lokasi fisik dokumen terikat pada Master Lokasi dan hanya berpindah melalui proses Serah Terima resmi.">
               <input
-                className={inputClass}
+                className={`${inputClass} bg-[#F4F5FA] text-[#4B5163] cursor-not-allowed`}
                 value={form.lokasi_saat_ini}
-                disabled={!isPrivileged}
-                onChange={(e) => setForm({ ...form, lokasi_saat_ini: e.target.value })}
-                placeholder="Ruang Arsip - Rak A1"
+                disabled
+                placeholder="Lokasi Master"
               />
             </Field>
           </div>

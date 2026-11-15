@@ -8,6 +8,7 @@ import {
   catatLogAktivitas,
   kirimNotifikasiKePeran,
 } from '@/lib/server-dokumen'
+import { alokasiBoks } from '@/lib/server-boks'
 
 export const dynamic = 'force-dynamic'
 
@@ -79,7 +80,8 @@ export async function POST(request: NextRequest) {
     const nomorDokumenNonPayment = (formData.get('nomor_dokumen_non_payment') as string || '').trim()
     const penandatangan = (formData.get('penandatangan') as string || '').trim()
     const deskripsi = (formData.get('deskripsi') as string || '').trim()
-    const lokasiFisik = (formData.get('lokasi_saat_ini') as string || '').trim() || 'Ruang Arsip Aktif'
+    const rakIdInput = (formData.get('rak_id') as string || '').trim()
+    const lokasiFisikRaw = (formData.get('lokasi_saat_ini') as string || '').trim()
 
     const lampiranFiles = formData.getAll('lampiran') as File[]
 
@@ -92,6 +94,59 @@ export async function POST(request: NextRequest) {
     }
     if (!file || typeof file === 'string') {
       return NextResponse.json({ error: 'Berkas utama dokumen wajib diunggah.' }, { status: 400 })
+    }
+
+    // ATURAN KERAS BLUEPRINT 3.5 & R.03 M5:
+    // Lokasi di form entri wajib dipilih dari Master Lokasi bertingkat (Gedung > Ruangan > Rak) - bukan free text.
+    // Tolak simpan bila lokasi belum terdaftar di Master (HTTP 400).
+    if (!rakIdInput) {
+      return NextResponse.json(
+        { error: 'Lokasi fisik tidak valid: Wajib dipilih dari Master Lokasi bertingkat (Gedung > Ruangan > Rak), bukan teks bebas.' },
+        { status: 400 }
+      )
+    }
+
+    const adminClient = createAdminClient()
+
+    // Validasi rak_id terdaftar di tabel lokasi dengan tingkat 'Rak'
+    const { data: rakLokasi, error: rakErr } = await adminClient
+      .from('lokasi')
+      .select('id, nama, tingkat, parent_id')
+      .eq('id', rakIdInput)
+      .eq('tingkat', 'Rak')
+      .maybeSingle()
+
+    if (rakErr || !rakLokasi) {
+      return NextResponse.json(
+        { error: 'Lokasi fisik tidak valid: Rak tidak ditemukan dalam Master Lokasi.' },
+        { status: 400 }
+      )
+    }
+
+    // Susun hierarki nama lokasi resmi: Gedung > Ruangan > Rak
+    let lokasiFisikFinal = rakLokasi.nama
+    if (rakLokasi.parent_id) {
+      const { data: ruanganLokasi } = await adminClient
+        .from('lokasi')
+        .select('id, nama, parent_id')
+        .eq('id', rakLokasi.parent_id)
+        .maybeSingle()
+
+      if (ruanganLokasi) {
+        if (ruanganLokasi.parent_id) {
+          const { data: gedungLokasi } = await adminClient
+            .from('lokasi')
+            .select('id, nama')
+            .eq('id', ruanganLokasi.parent_id)
+            .maybeSingle()
+
+          lokasiFisikFinal = gedungLokasi
+            ? `${gedungLokasi.nama} > ${ruanganLokasi.nama} > ${rakLokasi.nama}`
+            : `${ruanganLokasi.nama} > ${rakLokasi.nama}`
+        } else {
+          lokasiFisikFinal = `${ruanganLokasi.nama} > ${rakLokasi.nama}`
+        }
+      }
     }
 
     // Validasi Tanggal Dokumen
@@ -168,8 +223,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const adminClient = createAdminClient()
-
     // 6. Cek keunikan kode_arsip
     const { data: existingDoc } = await adminClient
       .from('dokumen')
@@ -228,6 +281,18 @@ export async function POST(request: NextRequest) {
       console.warn('Peringatan: Gagal membuat/mengunggah gambar QR ke bucket barcode:', qrErr)
     }
 
+    // 8.5 Alokasi Boks Otomatis (Blueprint 3.5 & pseudo-code-kapasitas-boks.md)
+    let allocatedBoks: { id: string; nomor_boks: string; status: string }
+    try {
+      allocatedBoks = await alokasiBoks(jumlahHalaman, rakLokasi.id)
+    } catch (boksErr: any) {
+      console.error('Error alokasi boks:', boksErr)
+      return NextResponse.json(
+        { error: `Gagal mengalokasikan boks arsip: ${boksErr?.message || 'Kesalahan kapasitas boks'}` },
+        { status: 500 }
+      )
+    }
+
     // 9. Simpan Dokumen via Authenticated Client (memvalidasi policy RLS dokumen_insert)
     const { data: newDoc, error: insertDocError } = await supabase
       .from('dokumen')
@@ -239,6 +304,7 @@ export async function POST(request: NextRequest) {
         penandatangan: penandatangan || null,
         kategori_id: kategoriId,
         unit_id: unitId,
+        boks_id: allocatedBoks.id,
         jumlah_halaman: jumlahHalaman,
         status: 'menunggu_persetujuan',
         bucket: 'arsip-aktif',
@@ -248,11 +314,11 @@ export async function POST(request: NextRequest) {
         barcode_path: barcodeStoragePath,
         pemilik_id: user.id,
         pemegang_saat_ini: user.id,
-        lokasi_saat_ini: lokasiFisik,
+        lokasi_saat_ini: lokasiFisikFinal,
         tanggal_dokumen: tanggalDokumen,
         deskripsi: deskripsi || null,
       })
-      .select('id, kode_arsip, judul, status, unit_id, jumlah_halaman')
+      .select('id, kode_arsip, judul, status, unit_id, boks_id, jumlah_halaman, lokasi_saat_ini')
       .single()
 
     if (insertDocError || !newDoc) {
@@ -318,8 +384,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Dokumen ${newDoc.kode_arsip} berhasil diajukan dengan status Menunggu Persetujuan.`,
+      message: `Dokumen ${newDoc.kode_arsip} berhasil diajukan dengan status Menunggu Persetujuan dan dialokasikan ke Boks ${allocatedBoks.nomor_boks}.`,
       dokumen: newDoc,
+      boks: allocatedBoks,
     })
   } catch (err: unknown) {
     console.error('Error upload route:', err)
