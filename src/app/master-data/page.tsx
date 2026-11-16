@@ -1247,12 +1247,12 @@ export default function MasterDataPage() {
                                                     <div className="flex items-center">
                                                       {/* Kurva Kurung Kurawal SVG Antara Ruangan & Raks */}
                                                       <div
-                                                        className="relative w-8 shrink-0 self-stretch flex items-center justify-center"
+                                                        className="relative w-10 shrink-0 self-stretch flex items-center justify-center"
                                                         style={{ minHeight: `${heightRaks}px` }}
                                                       >
                                                         <svg
                                                           className="w-full h-full overflow-visible pointer-events-none"
-                                                          viewBox={`0 0 32 ${heightRaks}`}
+                                                          viewBox={`0 0 40 ${heightRaks}`}
                                                           preserveAspectRatio="none"
                                                         >
                                                           {raks.map((_, rkIdx) => {
@@ -1265,14 +1265,14 @@ export default function MasterDataPage() {
                                                             return (
                                                               <g key={rkIdx}>
                                                                 <path
-                                                                  d={`M 0 ${yRkMid} H 6 C 16 ${yRkMid}, 16 ${yRkChild}, 26 ${yRkChild} H 32`}
+                                                                  d={`M 0 ${yRkMid} H 8 C 20 ${yRkMid}, 20 ${yRkChild}, 32 ${yRkChild} H 40`}
                                                                   stroke="#94A3B8"
                                                                   strokeWidth="1.25"
                                                                   strokeLinecap="round"
                                                                   fill="none"
                                                                 />
                                                                 <circle
-                                                                  cx="30"
+                                                                  cx="38"
                                                                   cy={yRkChild}
                                                                   r="2"
                                                                   fill="#0369A1"
