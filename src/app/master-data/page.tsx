@@ -730,7 +730,7 @@ export default function MasterDataPage() {
         </div>
 
         {/* Tab Content */}
-        <div className="bg-white rounded-b-xl border border-t-0 border-[#ECEEF5] p-6 shadow-xs min-h-[420px]">
+        <div className="bg-white rounded-b-xl border border-t-0 border-[#ECEEF5] p-3 sm:p-6 shadow-xs min-h-[420px]">
           {loading ? (
             <div className="py-24 flex flex-col items-center justify-center gap-3 text-[#6B7185]">
               <Loader2 className="h-8 w-8 animate-spin text-[#1E3A5F]" />
@@ -845,22 +845,24 @@ export default function MasterDataPage() {
 
                   {/* Tabel Hierarki Master Lokasi (Pola Referensi Gambar dengan Dropdown Collapsible) */}
                   <div className="overflow-x-auto rounded-xl border border-[#BAE6FD]">
-                    {/* Header Toolbar Hierarki */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 bg-[#F0F9FF] border-b border-[#BAE6FD]">
-                      <div className="flex items-center gap-3">
-                        <span className="text-[11px] font-bold text-[#0369A1] uppercase tracking-wider">
-                          Hierarki Master Lokasi
-                        </span>
-                        <span className="text-[11px] text-[#64748B]">
-                          ({rawLokasi.length} entri)
-                        </span>
+                    {/* Header Toolbar Hierarki Responsif HP & iPad */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3 sm:px-5 py-3 bg-[#F0F9FF] border-b border-[#BAE6FD]">
+                      <div className="flex items-center justify-between sm:justify-start gap-2.5 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold text-[#0369A1] uppercase tracking-wider">
+                            Hierarki Master Lokasi
+                          </span>
+                          <span className="text-[11px] text-[#64748B]">
+                            ({rawLokasi.length} entri)
+                          </span>
+                        </div>
 
                         {/* View Mode Toggle: Diagram Bercabang vs Tabel */}
-                        <div className="inline-flex items-center rounded-lg border border-[#BAE6FD] bg-white p-0.5 shadow-2xs ml-1">
+                        <div className="inline-flex items-center rounded-lg border border-[#BAE6FD] bg-white p-0.5 shadow-2xs">
                           <button
                             type="button"
                             onClick={() => setLokasiViewMode('diagram')}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                            className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-md text-xs font-semibold transition-all ${
                               lokasiViewMode === 'diagram'
                                 ? 'bg-[#0284C7] text-white shadow-xs'
                                 : 'text-[#64748B] hover:text-[#1F2333] hover:bg-[#F0F9FF]'
@@ -868,12 +870,12 @@ export default function MasterDataPage() {
                             title="Tampilkan visual diagram bercabang kurva kurung kurawal"
                           >
                             <GitFork className="h-3.5 w-3.5" />
-                            <span>Diagram Bercabang</span>
+                            <span>Diagram</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => setLokasiViewMode('tabel')}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                            className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-md text-xs font-semibold transition-all ${
                               lokasiViewMode === 'tabel'
                                 ? 'bg-[#0284C7] text-white shadow-xs'
                                 : 'text-[#64748B] hover:text-[#1F2333] hover:bg-[#F0F9FF]'
@@ -881,22 +883,22 @@ export default function MasterDataPage() {
                             title="Tampilkan tabel hierarki"
                           >
                             <List className="h-3.5 w-3.5" />
-                            <span>Tabel Hierarki</span>
+                            <span>Tabel</span>
                           </button>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap">
                         {/* KONTROL DIAGRAM VIEW (FILTER & ZOOM SCALING) */}
                         {lokasiViewMode === 'diagram' && (
-                          <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                             {/* Filter Fokus Gedung Cepat */}
-                            <div className="flex items-center gap-1.5 bg-white border border-[#BAE6FD] rounded-lg px-2.5 py-1 text-xs">
-                              <Filter className="h-3 w-3 text-[#0284C7]" />
+                            <div className="flex items-center gap-1 bg-white border border-[#BAE6FD] rounded-lg px-2 py-1 text-xs">
+                              <Filter className="h-3 w-3 text-[#0284C7] shrink-0" />
                               <select
                                 value={selectedGedungFilter}
                                 onChange={(e) => setSelectedGedungFilter(e.target.value)}
-                                className="bg-transparent text-xs font-semibold text-[#1F2333] focus:outline-none cursor-pointer"
+                                className="bg-transparent text-xs font-semibold text-[#1F2333] focus:outline-none cursor-pointer max-w-[130px] sm:max-w-none truncate"
                               >
                                 <option value="all">Semua Lokasi ({nestedLokasiTree.length})</option>
                                 {nestedLokasiTree.map((g) => (
@@ -920,7 +922,7 @@ export default function MasterDataPage() {
                               <button
                                 type="button"
                                 onClick={resetZoomDiagram}
-                                className="px-2 py-0.5 text-[11px] font-mono font-semibold text-[#0369A1] hover:bg-[#E0F2FE] rounded transition-colors"
+                                className="px-1.5 sm:px-2 py-0.5 text-[11px] font-mono font-semibold text-[#0369A1] hover:bg-[#E0F2FE] rounded transition-colors"
                                 title="Reset Skala Tampilan (85%)"
                               >
                                 {diagramScale}%
@@ -938,11 +940,11 @@ export default function MasterDataPage() {
                         )}
 
                         {lokasiViewMode === 'tabel' && (
-                          <>
+                          <div className="flex items-center gap-1.5">
                             <button
                               type="button"
                               onClick={expandAllNodes}
-                              className="px-2.5 py-1 text-[11px] font-semibold text-[#0369A1] bg-white border border-[#BAE6FD] rounded-lg hover:bg-[#E0F2FE] transition-colors shadow-2xs"
+                              className="px-2 py-1 text-[11px] font-semibold text-[#0369A1] bg-white border border-[#BAE6FD] rounded-lg hover:bg-[#E0F2FE] transition-colors shadow-2xs"
                               title="Tampilkan seluruh tingkatan Ruangan & Rak"
                             >
                               Buka Semua
@@ -950,17 +952,18 @@ export default function MasterDataPage() {
                             <button
                               type="button"
                               onClick={collapseAllNodes}
-                              className="px-2.5 py-1 text-[11px] font-semibold text-[#64748B] bg-white border border-[#D5D9E2] rounded-lg hover:bg-[#F4F5FA] transition-colors shadow-2xs"
+                              className="px-2 py-1 text-[11px] font-semibold text-[#64748B] bg-white border border-[#D5D9E2] rounded-lg hover:bg-[#F4F5FA] transition-colors shadow-2xs"
                               title="Sembunyikan tingkatan anak agar tabel ringkas"
                             >
                               Tutup Semua
                             </button>
-                          </>
+                          </div>
                         )}
+
                         <button
                           type="button"
                           onClick={handleOpenAddLokasi}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-[#0284C7] px-3 py-1 text-xs font-semibold text-white shadow-xs hover:bg-[#0369A1] transition-colors ml-1"
+                          className="inline-flex items-center gap-1 rounded-lg bg-[#0284C7] px-2.5 sm:px-3 py-1 text-xs font-semibold text-white shadow-xs hover:bg-[#0369A1] transition-colors shrink-0"
                         >
                           <Plus className="h-3.5 w-3.5 text-white" />
                           <span>Tambah Lokasi</span>
@@ -974,9 +977,9 @@ export default function MasterDataPage() {
                       /* MODE 1: DIAGRAM POHON BERCABANG KOMPAK, RESPONSIF & ZOOMABLE      */
                       /* Ukuran ringkas, kurva kurung kurawal presisi, collapsible per node */
                       /* ================================================================ */
-                      <div className="relative overflow-auto max-h-[660px] p-5 bg-[#F8FAFC] bg-[radial-gradient(#CBD5E1_1px,transparent_1px)] [background-size:16px_16px] rounded-b-xl border border-t-0 border-[#BAE6FD]">
+                      <div className="relative overflow-auto max-h-[700px] p-2.5 sm:p-5 bg-[#F8FAFC] bg-[radial-gradient(#CBD5E1_1px,transparent_1px)] [background-size:16px_16px] rounded-b-xl border border-t-0 border-[#BAE6FD]">
                         {/* Baris Tips & Status Zoom */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#64748B] mb-4 px-1">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#64748B] mb-3 px-1">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-[#0369A1]">
                               {displayedNestedLokasiTree.length} Lokasi
@@ -993,7 +996,7 @@ export default function MasterDataPage() {
                               </button>
                             )}
                           </div>
-                          <span className="text-[10px] bg-white border border-[#BAE6FD] px-2.5 py-0.5 rounded-full text-[#0369A1] shadow-2xs font-medium">
+                          <span className="text-[10px] bg-white border border-[#BAE6FD] px-2.5 py-0.5 rounded-full text-[#0369A1] shadow-2xs font-medium hidden sm:inline-block">
                             💡 Klik badge angka di ruangan/gedung untuk melipat atau membuka cabang
                           </span>
                         </div>
@@ -1006,9 +1009,9 @@ export default function MasterDataPage() {
                           /* Inner Canvas dengan Scale Transform untuk Muat Banyak Data */
                           <div
                             style={{
-                              transform: `scale(${diagramScale / 100})`,
+                              transform: diagramScale === 100 ? undefined : `scale(${diagramScale / 100})`,
                               transformOrigin: 'top left',
-                              width: `${Math.max(100, 100 * (100 / diagramScale))}%`,
+                              minWidth: '100%',
                             }}
                             className="space-y-4 transition-transform duration-100 ease-out"
                           >
@@ -1039,24 +1042,24 @@ export default function MasterDataPage() {
                               return (
                                 <div
                                   key={gedung.id}
-                                  className="bg-white rounded-xl border border-[#BAE6FD] p-4 shadow-2xs hover:shadow-sm transition-all"
+                                  className="bg-white rounded-xl border border-[#BAE6FD] p-3 sm:p-4 shadow-2xs hover:shadow-sm transition-all"
                                 >
-                                  {/* Header Mini Gedung */}
-                                  <div className="flex items-center justify-between border-b border-[#F0F9FF] pb-2.5 mb-3">
-                                    <div className="flex items-center gap-2">
+                                  {/* Header Mini Gedung Responsif Mobile & iPad */}
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#F0F9FF] pb-2.5 mb-2 sm:mb-3">
+                                    <div className="flex items-center gap-2 flex-wrap min-w-0">
                                       {isGudang ? (
-                                        <Warehouse className="h-4 w-4 text-[#D97706]" />
+                                        <Warehouse className="h-4 w-4 text-[#D97706] shrink-0" />
                                       ) : (
-                                        <Building2 className="h-4 w-4 text-[#0284C7]" />
+                                        <Building2 className="h-4 w-4 text-[#0284C7] shrink-0" />
                                       )}
-                                      <span className="text-xs font-bold text-[#1F2333]">
+                                      <span className="text-xs font-bold text-[#1F2333] break-words">
                                         {gedung.nama}
                                       </span>
-                                      <span className="text-[10px] font-mono text-[#64748B]">
+                                      <span className="text-[10px] font-mono text-[#64748B] shrink-0">
                                         ({gedung.kode || '-'})
                                       </span>
                                       <span
-                                        className={`text-[9px] px-2 py-0.2 rounded-full font-semibold ${
+                                        className={`text-[9px] px-2 py-0.2 rounded-full font-semibold shrink-0 ${
                                           gedung.status === 'Aktif'
                                             ? 'bg-[#E6F4EA] text-[#137333]'
                                             : 'bg-[#F1F5F9] text-[#64748B]'
@@ -1066,7 +1069,7 @@ export default function MasterDataPage() {
                                       </span>
                                     </div>
 
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                                       <button
                                         type="button"
                                         onClick={() => handleOpenEditLokasi(gedung as any)}
@@ -1078,232 +1081,243 @@ export default function MasterDataPage() {
                                     </div>
                                   </div>
 
-                                  {/* Area Diagram Horizontal Kompak */}
-                                  <div className="min-w-[580px] py-1 flex items-center gap-0">
-                                    {/* 1. Node Induk (Gedung/Gudang): Pill Ramping Persis Gambar Referensi */}
-                                    <div className="shrink-0 flex items-center">
-                                      <div
-                                        className={`relative rounded-full px-3.5 py-1.5 shadow-2xs flex items-center gap-2 border transition-transform hover:scale-[1.02] ${
-                                          isGudang
-                                            ? 'bg-[#D97706] border-[#B45309] text-white'
-                                            : 'bg-[#84CC16] border-[#65A30D] text-white'
-                                        }`}
-                                      >
-                                        {isGudang ? (
-                                          <Warehouse className="h-3.5 w-3.5 text-white shrink-0" />
-                                        ) : (
-                                          <Building2 className="h-3.5 w-3.5 text-white shrink-0" />
-                                        )}
-                                        <span className="text-[11px] font-bold uppercase tracking-wider">
-                                          {gedung.nama}
-                                        </span>
-
-                                        {/* Toggle Collapse Cabang Gedung */}
-                                        {totalRuangans > 0 && (
-                                          <button
-                                            type="button"
-                                            onClick={() => toggleDiagramNode(gedung.id)}
-                                            className="text-[9px] bg-black/25 hover:bg-black/40 px-1.5 py-0.2 rounded-full font-mono transition-colors"
-                                            title={
-                                              isGedungCollapsed
-                                                ? 'Klik untuk membuka cabang ruangan'
-                                                : 'Klik untuk melipat cabang ruangan'
-                                            }
-                                          >
-                                            {isGedungCollapsed
-                                              ? `+${totalRuangans} ruangan`
-                                              : `${totalRuangans} ruangan`}
-                                          </button>
-                                        )}
-
-                                        {/* Titik Port Keluar Cabang di Kanan */}
-                                        {totalRuangans > 0 && !isGedungCollapsed && (
-                                          <div
-                                            className={`absolute -right-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white border-2 shadow-2xs z-10 ${
-                                              isGudang ? 'border-[#D97706]' : 'border-[#84CC16]'
-                                            }`}
-                                          />
-                                        )}
-                                      </div>
+                                  {/* Petunjuk Geser Horizontal di Mobile jika Memiliki Ruangan */}
+                                  {totalRuangans > 0 && !isGedungCollapsed && (
+                                    <div className="sm:hidden flex items-center justify-end mb-1">
+                                      <span className="text-[9.5px] text-[#0284C7] bg-[#F0F9FF] border border-[#BAE6FD] px-2 py-0.5 rounded-full inline-flex items-center gap-1 font-medium">
+                                        👉 Geser untuk lihat rak &rarr;
+                                      </span>
                                     </div>
+                                  )}
 
-                                    {/* Jika Gedung Tidak Memiliki Ruangan atau Sedang Dilipat */}
-                                    {totalRuangans === 0 ? (
-                                      <div className="ml-6 text-[11px] text-[#94A3B8] italic flex items-center gap-1">
-                                        <span>(Belum ada ruangan di lokasi ini)</span>
-                                      </div>
-                                    ) : isGedungCollapsed ? (
-                                      <div className="ml-4 text-[10px] text-[#64748B] italic">
-                                        &larr; Cabang ruangan dilipat ({totalRuangans} ruangan)
-                                      </div>
-                                    ) : (
-                                      /* Jika Memiliki Ruangan: Render Kurva Cabang ke Kolom Ruangan */
-                                      <div className="flex items-center">
-                                        {/* Kolom Kurva Kurung Kurawal SVG Antara Gedung & Ruangans */}
+                                  {/* Area Diagram Horizontal Kompak - Swipeable & Scrollable di Mobile/iPad */}
+                                  <div className="overflow-x-auto pb-3 pt-1 -mx-2 px-2 scrollbar-thin touch-pan-x">
+                                    <div className="min-w-max py-1 flex items-center gap-0 pr-6">
+                                      {/* 1. Node Induk (Gedung/Gudang): Pill Ramping Persis Gambar Referensi */}
+                                      <div className="shrink-0 flex items-center">
                                         <div
-                                          className="relative w-10 shrink-0 self-stretch flex items-center justify-center"
-                                          style={{ minHeight: `${calculatedHeightRuangans}px` }}
+                                          className={`relative rounded-full px-3.5 py-1.5 shadow-2xs flex items-center gap-2 border transition-transform hover:scale-[1.02] ${
+                                            isGudang
+                                              ? 'bg-[#D97706] border-[#B45309] text-white'
+                                              : 'bg-[#84CC16] border-[#65A30D] text-white'
+                                          }`}
                                         >
-                                          <svg
-                                            className="w-full h-full overflow-visible pointer-events-none"
-                                            viewBox={`0 0 40 ${calculatedHeightRuangans}`}
-                                            preserveAspectRatio="none"
+                                          {isGudang ? (
+                                            <Warehouse className="h-3.5 w-3.5 text-white shrink-0" />
+                                          ) : (
+                                            <Building2 className="h-3.5 w-3.5 text-white shrink-0" />
+                                          )}
+                                          <span className="text-[11px] font-bold uppercase tracking-wider">
+                                            {gedung.nama}
+                                          </span>
+
+                                          {/* Toggle Collapse Cabang Gedung */}
+                                          {totalRuangans > 0 && (
+                                            <button
+                                              type="button"
+                                              onClick={() => toggleDiagramNode(gedung.id)}
+                                              className="text-[9px] bg-black/25 hover:bg-black/40 px-1.5 py-0.2 rounded-full font-mono transition-colors"
+                                              title={
+                                                isGedungCollapsed
+                                                  ? 'Klik untuk membuka cabang ruangan'
+                                                  : 'Klik untuk melipat cabang ruangan'
+                                              }
+                                            >
+                                              {isGedungCollapsed
+                                                ? `+${totalRuangans} ruangan`
+                                                : `${totalRuangans} ruangan`}
+                                            </button>
+                                          )}
+
+                                          {/* Titik Port Keluar Cabang di Kanan */}
+                                          {totalRuangans > 0 && !isGedungCollapsed && (
+                                            <div
+                                              className={`absolute -right-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white border-2 shadow-2xs z-10 ${
+                                                isGudang ? 'border-[#D97706]' : 'border-[#84CC16]'
+                                              }`}
+                                            />
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Jika Gedung Tidak Memiliki Ruangan atau Sedang Dilipat */}
+                                      {totalRuangans === 0 ? (
+                                        <div className="ml-6 text-[11px] text-[#94A3B8] italic flex items-center gap-1">
+                                          <span>(Belum ada ruangan di lokasi ini)</span>
+                                        </div>
+                                      ) : isGedungCollapsed ? (
+                                        <div className="ml-4 text-[10px] text-[#64748B] italic">
+                                          &larr; Cabang ruangan dilipat ({totalRuangans} ruangan)
+                                        </div>
+                                      ) : (
+                                        /* Jika Memiliki Ruangan: Render Kurva Cabang ke Kolom Ruangan */
+                                        <div className="flex items-center">
+                                          {/* Kolom Kurva Kurung Kurawal SVG Antara Gedung & Ruangans */}
+                                          <div
+                                            className="relative w-10 shrink-0 self-stretch flex items-center justify-center"
+                                            style={{ minHeight: `${calculatedHeightRuangans}px` }}
                                           >
-                                            {ruangans.map((_, idx) => {
-                                              const yMid = calculatedHeightRuangans / 2
-                                              const yChild =
-                                                totalRuangans === 1
-                                                  ? yMid
-                                                  : (idx + 0.5) *
-                                                    (calculatedHeightRuangans / totalRuangans)
+                                            <svg
+                                              className="w-full h-full overflow-visible pointer-events-none"
+                                              viewBox={`0 0 40 ${calculatedHeightRuangans}`}
+                                              preserveAspectRatio="none"
+                                            >
+                                              {ruangans.map((_, idx) => {
+                                                const yMid = calculatedHeightRuangans / 2
+                                                const yChild =
+                                                  totalRuangans === 1
+                                                    ? yMid
+                                                    : (idx + 0.5) *
+                                                      (calculatedHeightRuangans / totalRuangans)
+                                                return (
+                                                  <g key={idx}>
+                                                    {/* Kurva kurung kurawal halus */}
+                                                    <path
+                                                      d={`M 0 ${yMid} H 8 C 20 ${yMid}, 20 ${yChild}, 32 ${yChild} H 40`}
+                                                      stroke="#94A3B8"
+                                                      strokeWidth="1.5"
+                                                      strokeLinecap="round"
+                                                      fill="none"
+                                                    />
+                                                    {/* Dot simpul kecil di titik masuk ruangan */}
+                                                    <circle cx="38" cy={yChild} r="2.5" fill="#0284C7" />
+                                                  </g>
+                                                )
+                                              })}
+                                              {/* Dot simpul keluar di titik induk */}
+                                              <circle
+                                                cx="2"
+                                                cy={calculatedHeightRuangans / 2}
+                                                r="3"
+                                                fill={isGudang ? '#D97706' : '#84CC16'}
+                                              />
+                                            </svg>
+                                          </div>
+
+                                          {/* Kolom Ruangans */}
+                                          <div className="flex flex-col gap-2.5 py-1 shrink-0">
+                                            {ruangans.map((ruangan) => {
+                                              const raks = ruangan.raks || []
+                                              const totalRaks = raks.length
+                                              const isRuanganCollapsed = collapsedDiagramNodes.has(
+                                                ruangan.id
+                                              )
+                                              const heightRaks = Math.max(totalRaks * 30, 36)
+
                                               return (
-                                                <g key={idx}>
-                                                  {/* Kurva kurung kurawal halus */}
-                                                  <path
-                                                    d={`M 0 ${yMid} H 8 C 20 ${yMid}, 20 ${yChild}, 32 ${yChild} H 40`}
-                                                    stroke="#94A3B8"
-                                                    strokeWidth="1.5"
-                                                    strokeLinecap="round"
-                                                    fill="none"
-                                                  />
-                                                  {/* Dot simpul kecil di titik masuk ruangan */}
-                                                  <circle cx="38" cy={yChild} r="2.5" fill="#0284C7" />
-                                                </g>
+                                                <div
+                                                  key={ruangan.id}
+                                                  className="flex items-center gap-0"
+                                                >
+                                                  {/* Node Ruangan: Pill Ramping Kapsul Biru */}
+                                                  <div className="shrink-0 flex items-center">
+                                                    <div className="relative rounded-full px-3 py-1 bg-[#0284C7] border border-[#0369A1] text-white shadow-2xs flex items-center gap-1.5 hover:scale-[1.02] transition-transform">
+                                                      <MapPin className="h-3 w-3 text-white/90 shrink-0" />
+                                                      <span className="text-[11px] font-semibold">
+                                                        {ruangan.nama}
+                                                      </span>
+                                                      <span className="text-[8.5px] bg-black/20 px-1 py-0.2 rounded font-mono">
+                                                        {ruangan.kode}
+                                                      </span>
+
+                                                      {/* Toggle Collapse Cabang Rak */}
+                                                      {totalRaks > 0 && (
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => toggleDiagramNode(ruangan.id)}
+                                                          className="text-[8.5px] bg-black/25 hover:bg-black/40 px-1.5 py-0.2 rounded-full font-mono transition-colors"
+                                                          title={
+                                                            isRuanganCollapsed
+                                                              ? 'Klik untuk membuka rak'
+                                                              : 'Klik untuk melipat rak'
+                                                          }
+                                                        >
+                                                          {isRuanganCollapsed
+                                                            ? `+${totalRaks} rak`
+                                                            : `${totalRaks} rak`}
+                                                        </button>
+                                                      )}
+
+                                                      {/* Titik Port Keluar Cabang ke Rak di Kanan */}
+                                                      {totalRaks > 0 && !isRuanganCollapsed && (
+                                                        <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white border-2 border-[#0284C7] shadow-2xs z-10" />
+                                                      )}
+                                                    </div>
+                                                  </div>
+
+                                                  {/* Jika Ruangan Memiliki Rak & Tidak Dilipat */}
+                                                  {totalRaks > 0 && !isRuanganCollapsed && (
+                                                    <div className="flex items-center">
+                                                      {/* Kurva Kurung Kurawal SVG Antara Ruangan & Raks */}
+                                                      <div
+                                                        className="relative w-8 shrink-0 self-stretch flex items-center justify-center"
+                                                        style={{ minHeight: `${heightRaks}px` }}
+                                                      >
+                                                        <svg
+                                                          className="w-full h-full overflow-visible pointer-events-none"
+                                                          viewBox={`0 0 32 ${heightRaks}`}
+                                                          preserveAspectRatio="none"
+                                                        >
+                                                          {raks.map((_, rkIdx) => {
+                                                            const yRkMid = heightRaks / 2
+                                                            const yRkChild =
+                                                              totalRaks === 1
+                                                                ? yRkMid
+                                                                : (rkIdx + 0.5) *
+                                                                  (heightRaks / totalRaks)
+                                                            return (
+                                                              <g key={rkIdx}>
+                                                                <path
+                                                                  d={`M 0 ${yRkMid} H 6 C 16 ${yRkMid}, 16 ${yRkChild}, 26 ${yRkChild} H 32`}
+                                                                  stroke="#94A3B8"
+                                                                  strokeWidth="1.25"
+                                                                  strokeLinecap="round"
+                                                                  fill="none"
+                                                                />
+                                                                <circle
+                                                                  cx="30"
+                                                                  cy={yRkChild}
+                                                                  r="2"
+                                                                  fill="#0369A1"
+                                                                />
+                                                              </g>
+                                                            )
+                                                          })}
+                                                          <circle
+                                                            cx="1.5"
+                                                            cy={heightRaks / 2}
+                                                            r="2.5"
+                                                            fill="#0284C7"
+                                                          />
+                                                        </svg>
+                                                      </div>
+
+                                                      {/* Kolom Raks: Pill Sangat Ramping */}
+                                                      <div className="flex flex-col gap-1.5 py-0.5">
+                                                        {raks.map((rak) => (
+                                                          <div
+                                                            key={rak.id}
+                                                            className="rounded-full px-2.5 py-0.5 bg-[#F0F9FF] border border-[#BAE6FD] text-[#0369A1] shadow-2xs flex items-center gap-1 hover:bg-[#E0F2FE] transition-colors"
+                                                          >
+                                                            <Archive className="h-2.5 w-2.5 text-[#0284C7] shrink-0" />
+                                                            <span className="text-[10px] font-medium">
+                                                              {rak.nama}
+                                                            </span>
+                                                            <span className="text-[8.5px] font-mono text-[#64748B] bg-white border border-[#BAE6FD] px-1 py-0.1 rounded">
+                                                              {rak.kode}
+                                                            </span>
+                                                          </div>
+                                                        ))}
+                                                      </div>
+                                                    </div>
+                                                  )}
+                                                </div>
                                               )
                                             })}
-                                            {/* Dot simpul keluar di titik induk */}
-                                            <circle
-                                              cx="2"
-                                              cy={calculatedHeightRuangans / 2}
-                                              r="3"
-                                              fill={isGudang ? '#D97706' : '#84CC16'}
-                                            />
-                                          </svg>
+                                          </div>
                                         </div>
-
-                                        {/* Kolom Ruangans */}
-                                        <div className="flex flex-col gap-2.5 py-1 shrink-0">
-                                          {ruangans.map((ruangan) => {
-                                            const raks = ruangan.raks || []
-                                            const totalRaks = raks.length
-                                            const isRuanganCollapsed = collapsedDiagramNodes.has(
-                                              ruangan.id
-                                            )
-                                            const heightRaks = Math.max(totalRaks * 30, 36)
-
-                                            return (
-                                              <div
-                                                key={ruangan.id}
-                                                className="flex items-center gap-0"
-                                              >
-                                                {/* Node Ruangan: Pill Ramping Kapsul Biru */}
-                                                <div className="shrink-0 flex items-center">
-                                                  <div className="relative rounded-full px-3 py-1 bg-[#0284C7] border border-[#0369A1] text-white shadow-2xs flex items-center gap-1.5 hover:scale-[1.02] transition-transform">
-                                                    <MapPin className="h-3 w-3 text-white/90 shrink-0" />
-                                                    <span className="text-[11px] font-semibold">
-                                                      {ruangan.nama}
-                                                    </span>
-                                                    <span className="text-[8.5px] bg-black/20 px-1 py-0.2 rounded font-mono">
-                                                      {ruangan.kode}
-                                                    </span>
-
-                                                    {/* Toggle Collapse Cabang Rak */}
-                                                    {totalRaks > 0 && (
-                                                      <button
-                                                        type="button"
-                                                        onClick={() => toggleDiagramNode(ruangan.id)}
-                                                        className="text-[8.5px] bg-black/25 hover:bg-black/40 px-1.5 py-0.2 rounded-full font-mono transition-colors"
-                                                        title={
-                                                          isRuanganCollapsed
-                                                            ? 'Klik untuk membuka rak'
-                                                            : 'Klik untuk melipat rak'
-                                                        }
-                                                      >
-                                                        {isRuanganCollapsed
-                                                          ? `+${totalRaks} rak`
-                                                          : `${totalRaks} rak`}
-                                                      </button>
-                                                    )}
-
-                                                    {/* Titik Port Keluar Cabang ke Rak di Kanan */}
-                                                    {totalRaks > 0 && !isRuanganCollapsed && (
-                                                      <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white border-2 border-[#0284C7] shadow-2xs z-10" />
-                                                    )}
-                                                  </div>
-                                                </div>
-
-                                                {/* Jika Ruangan Memiliki Rak & Tidak Dilipat */}
-                                                {totalRaks > 0 && !isRuanganCollapsed && (
-                                                  <div className="flex items-center">
-                                                    {/* Kurva Kurung Kurawal SVG Antara Ruangan & Raks */}
-                                                    <div
-                                                      className="relative w-8 shrink-0 self-stretch flex items-center justify-center"
-                                                      style={{ minHeight: `${heightRaks}px` }}
-                                                    >
-                                                      <svg
-                                                        className="w-full h-full overflow-visible pointer-events-none"
-                                                        viewBox={`0 0 32 ${heightRaks}`}
-                                                        preserveAspectRatio="none"
-                                                      >
-                                                        {raks.map((_, rkIdx) => {
-                                                          const yRkMid = heightRaks / 2
-                                                          const yRkChild =
-                                                            totalRaks === 1
-                                                              ? yRkMid
-                                                              : (rkIdx + 0.5) *
-                                                                (heightRaks / totalRaks)
-                                                          return (
-                                                            <g key={rkIdx}>
-                                                              <path
-                                                                d={`M 0 ${yRkMid} H 6 C 16 ${yRkMid}, 16 ${yRkChild}, 26 ${yRkChild} H 32`}
-                                                                stroke="#94A3B8"
-                                                                strokeWidth="1.25"
-                                                                strokeLinecap="round"
-                                                                fill="none"
-                                                              />
-                                                              <circle
-                                                                cx="30"
-                                                                cy={yRkChild}
-                                                                r="2"
-                                                                fill="#0369A1"
-                                                              />
-                                                            </g>
-                                                          )
-                                                        })}
-                                                        <circle
-                                                          cx="1.5"
-                                                          cy={heightRaks / 2}
-                                                          r="2.5"
-                                                          fill="#0284C7"
-                                                        />
-                                                      </svg>
-                                                    </div>
-
-                                                    {/* Kolom Raks: Pill Sangat Ramping */}
-                                                    <div className="flex flex-col gap-1.5 py-0.5">
-                                                      {raks.map((rak) => (
-                                                        <div
-                                                          key={rak.id}
-                                                          className="rounded-full px-2.5 py-0.5 bg-[#F0F9FF] border border-[#BAE6FD] text-[#0369A1] shadow-2xs flex items-center gap-1 hover:bg-[#E0F2FE] transition-colors"
-                                                        >
-                                                          <Archive className="h-2.5 w-2.5 text-[#0284C7] shrink-0" />
-                                                          <span className="text-[10px] font-medium">
-                                                            {rak.nama}
-                                                          </span>
-                                                          <span className="text-[8.5px] font-mono text-[#64748B] bg-white border border-[#BAE6FD] px-1 py-0.1 rounded">
-                                                            {rak.kode}
-                                                          </span>
-                                                        </div>
-                                                      ))}
-                                                    </div>
-                                                  </div>
-                                                )}
-                                              </div>
-                                            )
-                                          })}
-                                        </div>
-                                      </div>
-                                    )}
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               )
