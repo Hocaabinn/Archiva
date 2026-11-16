@@ -1151,12 +1151,12 @@ export default function MasterDataPage() {
                                         <div className="flex items-center">
                                           {/* Kolom Kurva Kurung Kurawal SVG Antara Gedung & Ruangans */}
                                           <div
-                                            className="relative w-10 shrink-0 self-stretch flex items-center justify-center"
+                                            className="relative w-14 shrink-0 self-stretch flex items-center justify-center"
                                             style={{ minHeight: `${calculatedHeightRuangans}px` }}
                                           >
                                             <svg
                                               className="w-full h-full overflow-visible pointer-events-none"
-                                              viewBox={`0 0 40 ${calculatedHeightRuangans}`}
+                                              viewBox={`0 0 56 ${calculatedHeightRuangans}`}
                                               preserveAspectRatio="none"
                                             >
                                               {ruangans.map((_, idx) => {
@@ -1170,14 +1170,14 @@ export default function MasterDataPage() {
                                                   <g key={idx}>
                                                     {/* Kurva kurung kurawal halus */}
                                                     <path
-                                                      d={`M 0 ${yMid} H 8 C 20 ${yMid}, 20 ${yChild}, 32 ${yChild} H 40`}
+                                                      d={`M 0 ${yMid} H 10 C 28 ${yMid}, 28 ${yChild}, 46 ${yChild} H 56`}
                                                       stroke="#94A3B8"
                                                       strokeWidth="1.5"
                                                       strokeLinecap="round"
                                                       fill="none"
                                                     />
                                                     {/* Dot simpul kecil di titik masuk ruangan */}
-                                                    <circle cx="38" cy={yChild} r="2.5" fill="#0284C7" />
+                                                    <circle cx="54" cy={yChild} r="2.5" fill="#0284C7" />
                                                   </g>
                                                 )
                                               })}
