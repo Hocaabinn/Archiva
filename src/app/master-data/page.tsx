@@ -32,6 +32,11 @@ import {
   X,
   FileText,
   ShieldAlert,
+  Sparkles,
+  ArrowUpRight,
+  Activity,
+  Check,
+  AlertCircle,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -98,6 +103,34 @@ interface BoksItem {
   }
 }
 
+export interface OccupancyInfo {
+  totalKapasitas: number
+  totalTerisi: number
+  persentase: number
+  sisaLembar: number
+  countBoks: number
+  status: 'kosong' | 'tersedia' | 'hampir_penuh' | 'penuh'
+  badgeLabel: string
+  badgeColor: string
+  badgeBg: string
+  badgeBorder: string
+  dotColor: string
+}
+
+export interface RecommendationItem {
+  rakId: string
+  rakKode: string
+  rakNama: string
+  ruanganNama: string
+  ruanganId: string
+  gedungId: string
+  gedungNama: string
+  sisaLembar: number
+  persentase: number
+  countBoks: number
+  status: 'kosong' | 'tersedia' | 'hampir_penuh' | 'penuh'
+}
+
 type TabType = 'lokasi' | 'organisasi' | 'kategori' | 'boks'
 
 export default function MasterDataPage() {
@@ -109,6 +142,11 @@ export default function MasterDataPage() {
   const [activeTab, setActiveTab] = useState<TabType>('lokasi')
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+
+  // Real-time Occupancy & Recommendation State
+  const [lastRealtimeUpdate, setLastRealtimeUpdate] = useState<Date | null>(null)
+  const [realtimeActive, setRealtimeActive] = useState<boolean>(true)
+  const [highlightedRakId, setHighlightedRakId] = useState<string | null>(null)
 
   // Data State
   const [organisasiList, setOrganisasiList] = useState<UnitOrg[]>([])
@@ -283,6 +321,7 @@ export default function MasterDataPage() {
       if (resBoks.ok) {
         setBoksList(jsonBoks.data || [])
       }
+      setLastRealtimeUpdate(new Date())
     } catch (err: any) {
       showToast('error', err.message || 'Gagal memuat master data.')
     } finally {
@@ -295,6 +334,334 @@ export default function MasterDataPage() {
       loadData()
     }
   }, [userRole, loadData])
+
+  // Real-time Supabase Listener untuk Boks & Dokumen & Lokasi
+  useEffect(() => {
+    if (userRole !== 'superadmin') return
+
+    const channel = supabase
+      .channel('master-realtime-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'boks' }, () => {
+        loadData()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lokasi' }, () => {
+        loadData()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'dokumen' }, () => {
+        loadData()
+      })
+      .subscribe((status) => {
+        setRealtimeActive(status === 'SUBSCRIBED')
+      })
+
+    // Polling background setiap 15 detik jika websocket idle
+    const pollTimer = setInterval(() => {
+      loadData()
+    }, 15000)
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(pollTimer)
+    }
+  }, [userRole, supabase, loadData])
+
+  // =========================================================================
+  // OCCUPANCY ENGINE: Perhitungan Kapasitas & Rekomendasi Lokasi Real-Time
+  // =========================================================================
+  const occupancyMap = useMemo(() => {
+    const map = new Map<string, OccupancyInfo>()
+    const raks = rawLokasi.filter((l) => l.tingkat === 'Rak')
+    const ruangans = rawLokasi.filter((l) => l.tingkat === 'Ruangan')
+    const gedungs = rawLokasi.filter((l) => l.tingkat === 'Gedung')
+
+    // 1. Hitung per Rak
+    raks.forEach((rak) => {
+      const boksInRak = boksList.filter((b) => b.rak_id === rak.id)
+      const countBoks = boksInRak.length
+      // Jika rak belum ada boks, default potensi kapasitas 500 lembar
+      const totalKapasitas =
+        countBoks > 0
+          ? boksInRak.reduce((acc, b) => acc + (b.kapasitas_maks_lembar || 500), 0)
+          : 500
+      const totalTerisi = boksInRak.reduce((acc, b) => acc + (b.jumlah_lembar_terisi || 0), 0)
+      const persentase = Math.min(100, Math.round((totalTerisi / Math.max(1, totalKapasitas)) * 100))
+      const sisaLembar = Math.max(0, totalKapasitas - totalTerisi)
+
+      const allBoksFull = countBoks > 0 && boksInRak.every((b) => b.status === 'Penuh')
+      let status: 'kosong' | 'tersedia' | 'hampir_penuh' | 'penuh' = 'tersedia'
+      let badgeLabel = ''
+      let badgeColor = ''
+      let badgeBg = ''
+      let badgeBorder = ''
+      let dotColor = ''
+
+      if (persentase >= 100 || allBoksFull || (countBoks > 0 && sisaLembar === 0)) {
+        status = 'penuh'
+        badgeLabel = 'Penuh'
+        badgeColor = 'text-[#DC2626]'
+        badgeBg = 'bg-[#FEF2F2]'
+        badgeBorder = 'border-[#FECACA]'
+        dotColor = 'bg-[#EF4444]'
+      } else if (persentase >= 80 || (countBoks > 0 && sisaLembar <= 50)) {
+        status = 'hampir_penuh'
+        badgeLabel = `Hampir Penuh (${persentase}%)`
+        badgeColor = 'text-[#D97706]'
+        badgeBg = 'bg-[#FFFBEB]'
+        badgeBorder = 'border-[#FDE68A]'
+        dotColor = 'bg-[#F59E0B]'
+      } else if (countBoks === 0 || persentase < 50) {
+        status = 'kosong'
+        badgeLabel = countBoks === 0 ? 'Kosong (Rekomendasi)' : `Kosong (Sisa ${sisaLembar} lbr)`
+        badgeColor = 'text-[#059669]'
+        badgeBg = 'bg-[#ECFDF5]'
+        badgeBorder = 'border-[#A7F3D0]'
+        dotColor = 'bg-[#10B981]'
+      } else {
+        status = 'tersedia'
+        badgeLabel = `Tersedia (${persentase}%)`
+        badgeColor = 'text-[#0284C7]'
+        badgeBg = 'bg-[#F0F9FF]'
+        badgeBorder = 'border-[#BAE6FD]'
+        dotColor = 'bg-[#0284C7]'
+      }
+
+      map.set(rak.id, {
+        totalKapasitas,
+        totalTerisi,
+        persentase,
+        sisaLembar,
+        countBoks,
+        status,
+        badgeLabel,
+        badgeColor,
+        badgeBg,
+        badgeBorder,
+        dotColor,
+      })
+    })
+
+    // 2. Agregasi per Ruangan
+    ruangans.forEach((ruangan) => {
+      const childRaks = raks.filter((k) => k.parent_id === ruangan.id)
+      let totalKapasitas = 0
+      let totalTerisi = 0
+      let totalBoks = 0
+
+      childRaks.forEach((rak) => {
+        const rakInfo = map.get(rak.id)
+        if (rakInfo) {
+          totalKapasitas += rakInfo.totalKapasitas
+          totalTerisi += rakInfo.totalTerisi
+          totalBoks += rakInfo.countBoks
+        }
+      })
+
+      const persentase =
+        totalKapasitas > 0 ? Math.min(100, Math.round((totalTerisi / totalKapasitas) * 100)) : 0
+      const sisaLembar = Math.max(0, totalKapasitas - totalTerisi)
+
+      let status: 'kosong' | 'tersedia' | 'hampir_penuh' | 'penuh' = 'tersedia'
+      let badgeLabel = ''
+      let badgeColor = ''
+      let badgeBg = ''
+      let badgeBorder = ''
+      let dotColor = ''
+
+      if (totalKapasitas > 0 && persentase >= 100) {
+        status = 'penuh'
+        badgeLabel = 'Penuh'
+        badgeColor = 'text-[#DC2626]'
+        badgeBg = 'bg-[#FEF2F2]'
+        badgeBorder = 'border-[#FECACA]'
+        dotColor = 'bg-[#EF4444]'
+      } else if (persentase >= 80) {
+        status = 'hampir_penuh'
+        badgeLabel = `${persentase}% (Hampir Penuh)`
+        badgeColor = 'text-[#D97706]'
+        badgeBg = 'bg-[#FFFBEB]'
+        badgeBorder = 'border-[#FDE68A]'
+        dotColor = 'bg-[#F59E0B]'
+      } else if (persentase < 50) {
+        status = 'kosong'
+        badgeLabel = `${persentase}% (Banyak Kosong)`
+        badgeColor = 'text-[#059669]'
+        badgeBg = 'bg-[#ECFDF5]'
+        badgeBorder = 'border-[#A7F3D0]'
+        dotColor = 'bg-[#10B981]'
+      } else {
+        status = 'tersedia'
+        badgeLabel = `${persentase}% (Tersedia)`
+        badgeColor = 'text-[#0284C7]'
+        badgeBg = 'bg-[#F0F9FF]'
+        badgeBorder = 'border-[#BAE6FD]'
+        dotColor = 'bg-[#0284C7]'
+      }
+
+      map.set(ruangan.id, {
+        totalKapasitas,
+        totalTerisi,
+        persentase,
+        sisaLembar,
+        countBoks: totalBoks,
+        status,
+        badgeLabel,
+        badgeColor,
+        badgeBg,
+        badgeBorder,
+        dotColor,
+      })
+    })
+
+    // 3. Agregasi per Gedung
+    gedungs.forEach((gedung) => {
+      const childRuangans = ruangans.filter((r) => r.parent_id === gedung.id)
+      let totalKapasitas = 0
+      let totalTerisi = 0
+      let totalBoks = 0
+
+      childRuangans.forEach((ruangan) => {
+        const rInfo = map.get(ruangan.id)
+        if (rInfo) {
+          totalKapasitas += rInfo.totalKapasitas
+          totalTerisi += rInfo.totalTerisi
+          totalBoks += rInfo.countBoks
+        }
+      })
+
+      const persentase =
+        totalKapasitas > 0 ? Math.min(100, Math.round((totalTerisi / totalKapasitas) * 100)) : 0
+      const sisaLembar = Math.max(0, totalKapasitas - totalTerisi)
+
+      let status: 'kosong' | 'tersedia' | 'hampir_penuh' | 'penuh' = 'tersedia'
+      let badgeLabel = ''
+      let badgeColor = ''
+      let badgeBg = ''
+      let badgeBorder = ''
+      let dotColor = ''
+
+      if (totalKapasitas > 0 && persentase >= 100) {
+        status = 'penuh'
+        badgeLabel = 'Penuh'
+        badgeColor = 'text-[#DC2626]'
+        badgeBg = 'bg-[#FEF2F2]'
+        badgeBorder = 'border-[#FECACA]'
+        dotColor = 'bg-[#EF4444]'
+      } else if (persentase >= 80) {
+        status = 'hampir_penuh'
+        badgeLabel = `${persentase}% (Hampir Penuh)`
+        badgeColor = 'text-[#D97706]'
+        badgeBg = 'bg-[#FFFBEB]'
+        badgeBorder = 'border-[#FDE68A]'
+        dotColor = 'bg-[#F59E0B]'
+      } else if (persentase < 50) {
+        status = 'kosong'
+        badgeLabel = `${persentase}% (Kapasitas Lapang)`
+        badgeColor = 'text-[#059669]'
+        badgeBg = 'bg-[#ECFDF5]'
+        badgeBorder = 'border-[#A7F3D0]'
+        dotColor = 'bg-[#10B981]'
+      } else {
+        status = 'tersedia'
+        badgeLabel = `${persentase}% (Tersedia)`
+        badgeColor = 'text-[#0284C7]'
+        badgeBg = 'bg-[#F0F9FF]'
+        badgeBorder = 'border-[#BAE6FD]'
+        dotColor = 'bg-[#0284C7]'
+      }
+
+      map.set(gedung.id, {
+        totalKapasitas,
+        totalTerisi,
+        persentase,
+        sisaLembar,
+        countBoks: totalBoks,
+        status,
+        badgeLabel,
+        badgeColor,
+        badgeBg,
+        badgeBorder,
+        dotColor,
+      })
+    })
+
+    return map
+  }, [rawLokasi, boksList])
+
+  // Daftar Rekomendasi Rak Kosong & Peringatan Hampir Penuh
+  const recommendations = useMemo(() => {
+    const raks = rawLokasi.filter((l) => l.tingkat === 'Rak')
+    const ruangans = rawLokasi.filter((l) => l.tingkat === 'Ruangan')
+    const gedungs = rawLokasi.filter((l) => l.tingkat === 'Gedung')
+
+    const list: RecommendationItem[] = []
+
+    raks.forEach((rak) => {
+      const occ = occupancyMap.get(rak.id)
+      if (!occ) return
+      const ruangan = ruangans.find((r) => r.id === rak.parent_id)
+      const gedung = gedungs.find((g) => g.id === ruangan?.parent_id)
+
+      list.push({
+        rakId: rak.id,
+        rakKode: rak.kode || '',
+        rakNama: rak.nama,
+        ruanganNama: ruangan?.nama || 'Ruangan',
+        ruanganId: ruangan?.id || '',
+        gedungId: gedung?.id || '',
+        gedungNama: gedung?.nama || 'Gedung',
+        sisaLembar: occ.sisaLembar,
+        persentase: occ.persentase,
+        countBoks: occ.countBoks,
+        status: occ.status,
+      })
+    })
+
+    // 1. Rak kosong / rekomendasi utama: sort sisa lembar terbanyak, persentase terendah
+    const emptyRecommendations = list
+      .filter((item) => item.status === 'kosong' || item.status === 'tersedia')
+      .sort((a, b) => b.sisaLembar - a.sisaLembar || a.persentase - b.persentase)
+      .slice(0, 4)
+
+    // 2. Rak hampir penuh atau penuh (peringatan)
+    const warningList = list
+      .filter((item) => item.status === 'hampir_penuh' || item.status === 'penuh')
+      .sort((a, b) => b.persentase - a.persentase)
+
+    // 3. Statistik global
+    const totalRaks = raks.length
+    const totalKosong = list.filter((item) => item.status === 'kosong').length
+    const totalTersedia = list.filter((item) => item.status === 'tersedia').length
+    const totalHampirPenuh = list.filter((item) => item.status === 'hampir_penuh').length
+    const totalPenuh = list.filter((item) => item.status === 'penuh').length
+
+    return {
+      emptyRecommendations,
+      warningList,
+      stats: {
+        totalRaks,
+        totalKosong,
+        totalTersedia,
+        totalHampirPenuh,
+        totalPenuh,
+      },
+    }
+  }, [rawLokasi, occupancyMap])
+
+  // Aksi Klik Card Rekomendasi: Langsung Filter & Sorot Rak di Diagram
+  const handleFocusRak = (item: RecommendationItem) => {
+    setSelectedGedungFilter(item.gedungId || 'all')
+    setHighlightedRakId(item.rakId)
+    // Pastikan tidak collapsed
+    setCollapsedDiagramNodes((prev) => {
+      const next = new Set(prev)
+      if (item.gedungId) next.delete(item.gedungId)
+      if (item.ruanganId) next.delete(item.ruanganId)
+      return next
+    })
+    setTimeout(() => {
+      setHighlightedRakId(null)
+    }, 4500)
+  }
 
   // Flat Tree Items untuk Tabel Hierarki Master Lokasi
   interface TreeRowItem {
@@ -844,6 +1211,190 @@ export default function MasterDataPage() {
                     </div>
                   )}
 
+                  {/* ========================================================================= */}
+                  {/* BANNER REKOMENDASI PENEMPATAN DOKUMEN (REAL-TIME STATUS & WARNINGS)      */}
+                  {/* ========================================================================= */}
+                  <div className="rounded-xl border border-[#BAE6FD] bg-gradient-to-b from-[#F0F9FF] to-white p-4 sm:p-5 shadow-xs space-y-4">
+                    {/* Header Banner Real-Time */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E0F2FE] pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2 bg-[#0284C7] text-white rounded-lg shadow-2xs shrink-0">
+                          <Sparkles className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-sm font-bold text-[#0369A1]">
+                              Rekomendasi Penempatan Dokumen (Real-Time)
+                            </h3>
+                            {/* Real-time pulse indicator */}
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] shadow-2xs">
+                              <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10B981] opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#059669]"></span>
+                              </span>
+                              <span>Real-time Sync</span>
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#64748B] mt-0.5">
+                            Deteksi kapasitas real-time untuk penempatan berkas baru &amp; peringatan dini lokasi yang hampir penuh.
+                            {lastRealtimeUpdate && (
+                              <span className="ml-1.5 text-[#0369A1] font-mono font-medium">
+                                (Sinkronisasi: {lastRealtimeUpdate.toLocaleTimeString('id-ID')})
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Ringkasan Status Pill Cepat */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] font-semibold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+                          <span>{recommendations.stats.totalKosong} Kosong (Rekomendasi)</span>
+                        </span>
+                        {recommendations.stats.totalHampirPenuh > 0 && (
+                          <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A] font-semibold animate-pulse">
+                            <AlertTriangle className="h-3 w-3 text-[#D97706]" />
+                            <span>{recommendations.stats.totalHampirPenuh} Hampir Penuh</span>
+                          </span>
+                        )}
+                        {recommendations.stats.totalPenuh > 0 && (
+                          <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA] font-semibold">
+                            <AlertCircle className="h-3 w-3 text-[#DC2626]" />
+                            <span>{recommendations.stats.totalPenuh} Penuh</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Grid 2 Kolom: Rekomendasi Rak Kosong vs Pengawasan Hampir Penuh */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {/* Kolom 1: Rekomendasi Rak Kosong (Paling Siap Diisi Dokumen Baru) */}
+                      <div className="rounded-xl border border-[#A7F3D0] bg-[#F0FDF4]/70 p-3.5 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-[#059669]">
+                            <CheckCircle2 className="h-4 w-4 text-[#059669]" />
+                            <span>Lokasi Rak Paling Kosong (Siap Diisi)</span>
+                          </div>
+                          <span className="text-[10px] text-[#059669] bg-white border border-[#A7F3D0] px-2 py-0.5 rounded-full font-semibold">
+                            Prioritas Alokasi
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          {recommendations.emptyRecommendations.length === 0 ? (
+                            <p className="text-xs text-[#64748B] italic py-2">
+                              Belum ada data rak yang terdaftar.
+                            </p>
+                          ) : (
+                            recommendations.emptyRecommendations.map((item) => (
+                              <div
+                                key={item.rakId}
+                                onClick={() => handleFocusRak(item)}
+                                className="group flex items-center justify-between gap-2 p-2.5 bg-white rounded-lg border border-[#A7F3D0] hover:border-[#059669] hover:shadow-xs cursor-pointer transition-all"
+                                title="Klik untuk menyorot lokasi ini pada diagram"
+                              >
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-xs font-bold text-[#1F2333] group-hover:text-[#059669] transition-colors">
+                                      {item.rakNama}
+                                    </span>
+                                    <span className="text-[9.5px] font-mono text-[#64748B] bg-[#F1F5F9] px-1.5 py-0.2 rounded font-semibold">
+                                      {item.rakKode}
+                                    </span>
+                                    <span className="text-[9.5px] px-2 py-0.2 rounded-full font-bold bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]">
+                                      {item.countBoks === 0 ? '100% Kosong (500 lbr)' : `Sisa ${item.sisaLembar} lbr`}
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-[#64748B] truncate mt-0.5">
+                                    {item.gedungNama} &rarr; {item.ruanganNama}
+                                  </p>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  className="shrink-0 text-[11px] font-semibold text-[#059669] group-hover:text-[#047857] flex items-center gap-0.5"
+                                >
+                                  <span>Fokus</span>
+                                  <ArrowUpRight className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Kolom 2: Pengawasan Lokasi Hampir Penuh (Peringatan Kapasitas) */}
+                      <div className="rounded-xl border border-[#FDE68A] bg-[#FFFBEB]/70 p-3.5 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-[#D97706]">
+                            <AlertTriangle className="h-4 w-4 text-[#D97706]" />
+                            <span>Pengawasan Kapasitas (Hampir Penuh &amp; Penuh)</span>
+                          </div>
+                          <span className="text-[10px] text-[#D97706] bg-white border border-[#FDE68A] px-2 py-0.5 rounded-full font-semibold">
+                            {recommendations.warningList.length} Lokasi Perhatian
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          {recommendations.warningList.length === 0 ? (
+                            <div className="flex items-center gap-2.5 p-3 bg-white rounded-lg border border-[#FDE68A]">
+                              <Check className="h-4 w-4 text-[#059669] shrink-0" />
+                              <div>
+                                <p className="text-xs font-semibold text-[#1F2333]">
+                                  Kapasitas Seluruh Lokasi Aman &amp; Optimal
+                                </p>
+                                <p className="text-[11px] text-[#64748B] mt-0.5">
+                                  Tidak ada rak yang mencapai ambang batas &ge;80% atau penuh saat ini.
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            recommendations.warningList.map((item) => (
+                              <div
+                                key={item.rakId}
+                                onClick={() => handleFocusRak(item)}
+                                className="group flex items-center justify-between gap-2 p-2.5 bg-white rounded-lg border border-[#FDE68A] hover:border-[#D97706] hover:shadow-xs cursor-pointer transition-all"
+                                title="Klik untuk menyorot lokasi ini pada diagram"
+                              >
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-xs font-bold text-[#1F2333] group-hover:text-[#D97706] transition-colors">
+                                      {item.rakNama}
+                                    </span>
+                                    <span className="text-[9.5px] font-mono text-[#64748B] bg-[#F1F5F9] px-1.5 py-0.2 rounded font-semibold">
+                                      {item.rakKode}
+                                    </span>
+                                    <span
+                                      className={`text-[9.5px] px-2 py-0.2 rounded-full font-bold ${
+                                        item.status === 'penuh'
+                                          ? 'bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA]'
+                                          : 'bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]'
+                                      }`}
+                                    >
+                                      {item.status === 'penuh' ? 'Penuh (100%)' : `Hampir Penuh (${item.persentase}%)`}
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-[#64748B] truncate mt-0.5">
+                                    {item.gedungNama} &rarr; {item.ruanganNama} (Sisa {item.sisaLembar} lbr)
+                                  </p>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  className="shrink-0 text-[11px] font-semibold text-[#D97706] group-hover:text-[#B45309] flex items-center gap-0.5"
+                                >
+                                  <span>Fokus</span>
+                                  <ArrowUpRight className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Tabel Hierarki Master Lokasi (Pola Referensi Gambar dengan Dropdown Collapsible) */}
                   <div className="overflow-x-auto rounded-xl border border-[#BAE6FD]">
                     {/* Header Toolbar Hierarki Responsif HP & iPad */}
@@ -1128,6 +1679,20 @@ export default function MasterDataPage() {
                                             </button>
                                           )}
 
+                                          {/* Indikator Okupansi Real-time Gedung */}
+                                          {(() => {
+                                            const gOcc = occupancyMap.get(gedung.id)
+                                            if (!gOcc) return null
+                                            return (
+                                              <span
+                                                className="text-[9px] bg-black/25 text-white px-2 py-0.2 rounded-full font-mono font-medium shrink-0"
+                                                title={`Total Okupansi Gedung: ${gOcc.totalTerisi}/${gOcc.totalKapasitas} lbr (${gOcc.persentase}%) • Sisa ${gOcc.sisaLembar} lbr`}
+                                              >
+                                                {gOcc.persentase}% terisi
+                                              </span>
+                                            )
+                                          })()}
+
                                           {/* Titik Port Keluar Cabang di Kanan */}
                                           {totalRuangans > 0 && !isGedungCollapsed && (
                                             <div
@@ -1219,6 +1784,20 @@ export default function MasterDataPage() {
                                                         {ruangan.kode}
                                                       </span>
 
+                                                      {/* Indikator Okupansi Ruangan */}
+                                                      {(() => {
+                                                        const rOcc = occupancyMap.get(ruangan.id)
+                                                        if (!rOcc) return null
+                                                        return (
+                                                          <span
+                                                            className="text-[8.5px] bg-black/25 text-white px-1.5 py-0.2 rounded-full font-mono font-medium shrink-0"
+                                                            title={`Okupansi Ruangan: ${rOcc.totalTerisi}/${rOcc.totalKapasitas} lbr (${rOcc.persentase}%) • Sisa ${rOcc.sisaLembar} lbr`}
+                                                          >
+                                                            {rOcc.persentase}% terisi
+                                                          </span>
+                                                        )
+                                                      })()}
+
                                                       {/* Toggle Collapse Cabang Rak */}
                                                       {totalRaks > 0 && (
                                                         <button
@@ -1291,22 +1870,80 @@ export default function MasterDataPage() {
                                                         </svg>
                                                       </div>
 
-                                                      {/* Kolom Raks: Pill Sangat Ramping */}
+                                                      {/* Kolom Raks: Pill Sangat Ramping dengan Indikator Real-time */}
                                                       <div className="flex flex-col gap-1.5 py-0.5">
-                                                        {raks.map((rak) => (
-                                                          <div
-                                                            key={rak.id}
-                                                            className="rounded-full px-3 py-1 bg-[#F0F9FF] border border-[#BAE6FD] text-[#0369A1] shadow-2xs flex items-center gap-1.5 hover:bg-[#E0F2FE] transition-colors"
-                                                          >
-                                                            <Archive className="h-3 w-3 text-[#0284C7] shrink-0" />
-                                                            <span className="text-[10.5px] font-medium">
-                                                              {rak.nama}
-                                                            </span>
-                                                            <span className="text-[9px] font-mono text-[#64748B] bg-white border border-[#BAE6FD] px-1.5 py-0.2 rounded font-semibold">
-                                                              {rak.kode}
-                                                            </span>
-                                                          </div>
-                                                        ))}
+                                                        {raks.map((rak) => {
+                                                          const occ = occupancyMap.get(rak.id)
+                                                          const isHighlighted = highlightedRakId === rak.id
+
+                                                          return (
+                                                            <div
+                                                              key={rak.id}
+                                                              className={`rounded-full px-3 py-1 border shadow-2xs flex items-center gap-1.5 transition-all ${
+                                                                isHighlighted
+                                                                  ? 'ring-2 ring-[#0284C7] ring-offset-1 scale-105 bg-[#E0F2FE]'
+                                                                  : 'hover:bg-[#E0F2FE]'
+                                                              } ${
+                                                                occ?.status === 'hampir_penuh'
+                                                                  ? 'bg-[#FFFBEB] border-[#FDE68A] text-[#92400E]'
+                                                                  : occ?.status === 'penuh'
+                                                                  ? 'bg-[#FEF2F2] border-[#FECACA] text-[#991B1B]'
+                                                                  : 'bg-[#F0F9FF] border-[#BAE6FD] text-[#0369A1]'
+                                                              }`}
+                                                            >
+                                                              {/* Dot Status Okupansi Real-time */}
+                                                              <span className="relative flex h-2 w-2 shrink-0">
+                                                                {occ?.status === 'hampir_penuh' && (
+                                                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#F59E0B] opacity-75"></span>
+                                                                )}
+                                                                <span
+                                                                  className={`relative inline-flex rounded-full h-2 w-2 ${
+                                                                    occ?.dotColor || 'bg-[#10B981]'
+                                                                  }`}
+                                                                />
+                                                              </span>
+
+                                                              <Archive className="h-3 w-3 text-[#0284C7] shrink-0" />
+                                                              <span className="text-[10.5px] font-medium whitespace-nowrap">
+                                                                {rak.nama}
+                                                              </span>
+                                                              <span className="text-[9px] font-mono text-[#64748B] bg-white border border-[#BAE6FD] px-1.5 py-0.2 rounded font-semibold shrink-0">
+                                                                {rak.kode}
+                                                             </span>
+
+                                                              {/* Pill Rekomendasi / Keterisian Real-time */}
+                                                              {occ && (
+                                                                <span
+                                                                  className={`text-[9px] px-1.5 py-0.2 rounded-full font-semibold shrink-0 flex items-center gap-1 ${
+                                                                    occ.badgeBg
+                                                                  } ${occ.badgeColor} border ${occ.badgeBorder}`}
+                                                                  title={`Kapasitas: ${occ.totalTerisi}/${occ.totalKapasitas} lbr, sisa ${occ.sisaLembar} lbr (${occ.countBoks} boks terdaftar)`}
+                                                                >
+                                                                  {occ.status === 'kosong' ? (
+                                                                    <>
+                                                                      <Sparkles className="h-2.5 w-2.5 shrink-0" />
+                                                                      <span>
+                                                                        {occ.countBoks === 0 ? 'Kosong' : `Sisa ${occ.sisaLembar} lbr`}
+                                                                      </span>
+                                                                    </>
+                                                                  ) : occ.status === 'hampir_penuh' ? (
+                                                                    <>
+                                                                      <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                                                                      <span>Hampir Penuh ({occ.persentase}%)</span>
+                                                                    </>
+                                                                  ) : occ.status === 'penuh' ? (
+                                                                    <>
+                                                                      <AlertCircle className="h-2.5 w-2.5 shrink-0" />
+                                                                      <span>Penuh</span>
+                                                                    </>
+                                                                  ) : (
+                                                                    <span>Tersedia ({occ.persentase}%)</span>
+                                                                  )}
+                                                                </span>
+                                                              )}
+                                                            </div>
+                                                          )
+                                                        })}
                                                       </div>
                                                     </div>
                                                   )}
@@ -1334,13 +1971,14 @@ export default function MasterDataPage() {
                             <th className="px-5 py-3">Nama / Hierarki</th>
                             <th className="px-4 py-3 font-mono">Kode</th>
                             <th className="px-4 py-3">Status</th>
+                            <th className="px-4 py-3">Kapasitas &amp; Okupansi</th>
                             <th className="px-5 py-3 text-right">Tindakan</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[#ECEEF5]">
                           {visibleTreeRows.length === 0 ? (
                             <tr>
-                              <td colSpan={4} className="py-8 text-center text-[#8A90A2]">
+                              <td colSpan={5} className="py-8 text-center text-[#8A90A2]">
                                 Belum ada data hierarki lokasi.
                               </td>
                             </tr>
@@ -1351,6 +1989,7 @@ export default function MasterDataPage() {
                                 row.nama.toLowerCase().includes('gudang') ||
                                 row.kode === 'LOC-G-INAKTIF'
                               const displayTingkat = isGudang ? 'Gudang' : row.tingkat
+                              const occ = occupancyMap.get(row.id)
 
                               return (
                                 <tr key={row.id} className="hover:bg-[#F8FAFC] transition-colors">
@@ -1504,6 +2143,76 @@ export default function MasterDataPage() {
                                       />
                                       {row.status}
                                     </span>
+                                  </td>
+
+                                  {/* Kapasitas & Okupansi Real-Time */}
+                                  <td className="px-4 py-3.5">
+                                    {occ ? (
+                                      <div className="flex flex-col gap-1 max-w-[210px]">
+                                        <div className="flex items-center justify-between text-[11px] gap-2">
+                                          <span className="font-semibold text-[#1F2333] font-mono">
+                                            {occ.totalTerisi} / {occ.totalKapasitas} lbr
+                                          </span>
+                                          <span
+                                            className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                                              occ.status === 'penuh'
+                                                ? 'bg-[#FEF2F2] text-[#DC2626]'
+                                                : occ.status === 'hampir_penuh'
+                                                ? 'bg-[#FFFBEB] text-[#D97706]'
+                                                : 'bg-[#ECFDF5] text-[#059669]'
+                                            }`}
+                                          >
+                                            {occ.persentase}%
+                                          </span>
+                                        </div>
+
+                                        {/* Bar Okupansi Mini */}
+                                        <div className="w-full h-1.5 bg-[#E2E8F0] rounded-full overflow-hidden">
+                                          <div
+                                            className={`h-full rounded-full transition-all duration-300 ${
+                                              occ.status === 'penuh'
+                                                ? 'bg-[#DC2626]'
+                                                : occ.status === 'hampir_penuh'
+                                                ? 'bg-[#D97706]'
+                                                : 'bg-[#10B981]'
+                                            }`}
+                                            style={{ width: `${occ.persentase}%` }}
+                                          />
+                                        </div>
+
+                                        {/* Badge Rekomendasi Alokasi */}
+                                        <div className="flex items-center gap-1 mt-0.5">
+                                          <span
+                                            className={`text-[9.5px] px-1.5 py-0.2 rounded font-semibold inline-flex items-center gap-1 ${occ.badgeBg} ${occ.badgeColor} border ${occ.badgeBorder}`}
+                                          >
+                                            {occ.status === 'kosong' ? (
+                                              <>
+                                                <Sparkles className="h-2.5 w-2.5 shrink-0" />
+                                                <span>
+                                                  {row.tingkat === 'Rak' && occ.countBoks === 0
+                                                    ? 'Kosong (Rekomendasi)'
+                                                    : `Sisa ${occ.sisaLembar} lbr`}
+                                                </span>
+                                              </>
+                                            ) : occ.status === 'hampir_penuh' ? (
+                                              <>
+                                                <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                                                <span>Hampir Penuh</span>
+                                              </>
+                                            ) : occ.status === 'penuh' ? (
+                                              <>
+                                                <AlertCircle className="h-2.5 w-2.5 shrink-0" />
+                                                <span>Penuh</span>
+                                              </>
+                                            ) : (
+                                              <span>Tersedia</span>
+                                            )}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <span className="text-xs text-[#94A3B8]">-</span>
+                                    )}
                                   </td>
 
                                   {/* Aksi: Ubah, Nonaktifkan / Aktifkan, Hapus */}
