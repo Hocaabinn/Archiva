@@ -9,6 +9,8 @@ import {
   MapPin,
   Archive,
   Warehouse,
+  GitFork,
+  List,
   Plus,
   Edit2,
   Trash2,
@@ -155,6 +157,9 @@ export default function MasterDataPage() {
     })
     setCollapsedNodes(parentIds)
   }
+
+  // Mode Tampilan Hierarki Lokasi: 'tabel' atau 'diagram' (diagram percabangan kurva kurung kurawal)
+  const [lokasiViewMode, setLokasiViewMode] = useState<'tabel' | 'diagram'>('diagram')
 
   // Modal State Tambah Organisasi
   const [isAddOrgOpen, setIsAddOrgOpen] = useState(false)
@@ -350,6 +355,29 @@ export default function MasterDataPage() {
       return true
     })
   }, [treeRows, collapsedNodes])
+
+  // Struktur Pohon Bertingkat (Nested Tree) untuk Diagram Percabangan
+  const nestedLokasiTree = useMemo(() => {
+    const gedungs = rawLokasi.filter((l) => l.tingkat === 'Gedung')
+    const ruangans = rawLokasi.filter((l) => l.tingkat === 'Ruangan')
+    const raks = rawLokasi.filter((l) => l.tingkat === 'Rak')
+
+    return gedungs.map((g) => {
+      const childRuangans = ruangans
+        .filter((r) => r.parent_id === g.id)
+        .map((r) => {
+          const childRaks = raks.filter((k) => k.parent_id === r.id)
+          return {
+            ...r,
+            raks: childRaks,
+          }
+        })
+      return {
+        ...g,
+        ruangans: childRuangans,
+      }
+    })
+  }, [rawLokasi])
 
   // Pilihan Induk (Parent) untuk Form Tambah/Ubah Lokasi
   // Hanya Gedung (level 1) dan Ruangan (level 2). Rak (level 3) tidak boleh jadi induk.
@@ -791,31 +819,66 @@ export default function MasterDataPage() {
                   <div className="overflow-x-auto rounded-xl border border-[#BAE6FD]">
                     {/* Header Toolbar Hierarki */}
                     <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 bg-[#F0F9FF] border-b border-[#BAE6FD]">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         <span className="text-[11px] font-bold text-[#0369A1] uppercase tracking-wider">
                           Hierarki Master Lokasi
                         </span>
                         <span className="text-[11px] text-[#64748B]">
-                          ({rawLokasi.length} entri &bull; {visibleTreeRows.length} ditampilkan)
+                          ({rawLokasi.length} entri)
                         </span>
+
+                        {/* View Mode Toggle: Diagram Bercabang vs Tabel */}
+                        <div className="inline-flex items-center rounded-lg border border-[#BAE6FD] bg-white p-0.5 shadow-2xs ml-1">
+                          <button
+                            type="button"
+                            onClick={() => setLokasiViewMode('diagram')}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                              lokasiViewMode === 'diagram'
+                                ? 'bg-[#0284C7] text-white shadow-xs'
+                                : 'text-[#64748B] hover:text-[#1F2333] hover:bg-[#F0F9FF]'
+                            }`}
+                            title="Tampilkan visual diagram bercabang kurva kurung kurawal"
+                          >
+                            <GitFork className="h-3.5 w-3.5" />
+                            <span>Diagram Bercabang</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setLokasiViewMode('tabel')}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                              lokasiViewMode === 'tabel'
+                                ? 'bg-[#0284C7] text-white shadow-xs'
+                                : 'text-[#64748B] hover:text-[#1F2333] hover:bg-[#F0F9FF]'
+                            }`}
+                            title="Tampilkan tabel hierarki"
+                          >
+                            <List className="h-3.5 w-3.5" />
+                            <span>Tabel Hierarki</span>
+                          </button>
+                        </div>
                       </div>
+
                       <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={expandAllNodes}
-                          className="px-2.5 py-1 text-[11px] font-semibold text-[#0369A1] bg-white border border-[#BAE6FD] rounded-lg hover:bg-[#E0F2FE] transition-colors shadow-2xs"
-                          title="Tampilkan seluruh tingkatan Ruangan & Rak"
-                        >
-                          Buka Semua
-                        </button>
-                        <button
-                          type="button"
-                          onClick={collapseAllNodes}
-                          className="px-2.5 py-1 text-[11px] font-semibold text-[#64748B] bg-white border border-[#D5D9E2] rounded-lg hover:bg-[#F4F5FA] transition-colors shadow-2xs"
-                          title="Sembunyikan tingkatan anak agar tabel ringkas"
-                        >
-                          Tutup Semua
-                        </button>
+                        {lokasiViewMode === 'tabel' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={expandAllNodes}
+                              className="px-2.5 py-1 text-[11px] font-semibold text-[#0369A1] bg-white border border-[#BAE6FD] rounded-lg hover:bg-[#E0F2FE] transition-colors shadow-2xs"
+                              title="Tampilkan seluruh tingkatan Ruangan & Rak"
+                            >
+                              Buka Semua
+                            </button>
+                            <button
+                              type="button"
+                              onClick={collapseAllNodes}
+                              className="px-2.5 py-1 text-[11px] font-semibold text-[#64748B] bg-white border border-[#D5D9E2] rounded-lg hover:bg-[#F4F5FA] transition-colors shadow-2xs"
+                              title="Sembunyikan tingkatan anak agar tabel ringkas"
+                            >
+                              Tutup Semua
+                            </button>
+                          </>
+                        )}
                         <button
                           type="button"
                           onClick={handleOpenAddLokasi}
@@ -827,238 +890,496 @@ export default function MasterDataPage() {
                       </div>
                     </div>
 
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-[#F8FAFC] text-[11px] font-semibold text-[#475569] uppercase border-b border-[#BAE6FD]">
-                        <tr>
-                          <th className="px-5 py-3">Nama / Hierarki</th>
-                          <th className="px-4 py-3 font-mono">Kode</th>
-                          <th className="px-4 py-3">Status</th>
-                          <th className="px-5 py-3 text-right">Tindakan</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#ECEEF5]">
-                        {visibleTreeRows.length === 0 ? (
-                          <tr>
-                            <td colSpan={4} className="py-8 text-center text-[#8A90A2]">
-                              Belum ada data hierarki lokasi.
-                            </td>
-                          </tr>
+                    {/* KONTEN MODE: DIAGRAM BERCABANG ATAU TABEL HIERARKI */}
+                    {lokasiViewMode === 'diagram' ? (
+                      /* ================================================================ */
+                      /* MODE 1: DIAGRAM POHON BERCABANG (KURVA KURUNG KURAWAL / MINDMAP)  */
+                      /* Persis seperti referensi visual yang diinginkan user              */
+                      /* ================================================================ */
+                      <div className="p-6 bg-[#F8FAFC] space-y-8 overflow-x-auto min-h-[380px]">
+                        {nestedLokasiTree.length === 0 ? (
+                          <div className="py-12 text-center text-[#8A90A2]">
+                            Belum ada data hierarki lokasi untuk ditampilkan.
+                          </div>
                         ) : (
-                          visibleTreeRows.map((row) => {
-                            const isCollapsed = collapsedNodes.has(row.id)
+                          nestedLokasiTree.map((gedung) => {
                             const isGudang =
-                              row.nama.toLowerCase().includes('gudang') ||
-                              row.kode === 'LOC-G-INAKTIF'
-                            const displayTingkat = isGudang ? 'Gudang' : row.tingkat
+                              gedung.nama.toLowerCase().includes('gudang') ||
+                              gedung.kode === 'LOC-G-INAKTIF'
+                            const ruangans = gedung.ruangans || []
+                            const totalRuangans = ruangans.length
+                            const heightRuangans = Math.max(totalRuangans * 72, 80)
 
                             return (
-                              <tr key={row.id} className="hover:bg-[#F8FAFC] transition-colors">
-                                {/* Nama / Hierarki dengan Desain Diagram Garis Bercabang & Dropdown Collapsible */}
-                                <td className="px-5 py-3.5 text-[#1F2333]">
-                                  <div className="flex items-center gap-1.5">
-                                    {/* Diagram Garis Percabangan (Tree Branch Lines) */}
-                                    {row.level > 0 && (
-                                      <div className="flex items-center shrink-0 select-none mr-0.5">
-                                        {/* Garis vertikal pemandu dari tingkat atas (jika level 2 / Rak) */}
-                                        {Array.from({ length: row.level - 1 }).map((_, idx) => (
-                                          <div
-                                            key={idx}
-                                            className="w-5 h-7 flex items-center justify-center shrink-0"
-                                          >
-                                            <div className="w-[1.5px] h-full bg-[#BAE6FD]" />
-                                          </div>
-                                        ))}
-
-                                        {/* Siku Cabang Diagram (Tree Connecting Branch) */}
-                                        <div className="relative w-6 h-7 flex items-center shrink-0">
-                                          <svg
-                                            className="w-6 h-7 overflow-visible"
-                                            viewBox="0 0 24 28"
-                                            fill="none"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                          >
-                                            <path
-                                              d="M 5 0 V 14 C 5 18 9 18 16 18 H 22"
-                                              stroke="#38BDF8"
-                                              strokeWidth="2"
-                                              strokeLinecap="round"
-                                            />
-                                            <circle cx="5" cy="14" r="2.5" fill="#0284C7" />
-                                          </svg>
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {/* Tombol Chevron Dropdown (jika memiliki turunan) atau Spacer sejajar */}
-                                    {row.hasChildren ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleNode(row.id)}
-                                        className="p-1 text-[#0284C7] hover:bg-[#E0F2FE] rounded transition-colors shrink-0"
-                                        title={
-                                          isCollapsed
-                                            ? 'Klik untuk membuka turunan'
-                                            : 'Klik untuk menutup turunan'
-                                        }
-                                      >
-                                        {isCollapsed ? (
-                                          <ChevronRight className="h-4 w-4 text-[#64748B]" />
-                                        ) : (
-                                          <ChevronDown className="h-4 w-4 text-[#0284C7]" />
-                                        )}
-                                      </button>
-                                    ) : row.level === 0 ? (
-                                      <div className="w-6 shrink-0" />
-                                    ) : null}
-
-                                    {/* Ikon Tingkat Lokasi */}
-                                    {row.level === 0 ? (
-                                      isGudang ? (
-                                        <Warehouse className="h-4 w-4 text-[#D97706] shrink-0" />
-                                      ) : (
-                                        <Building2 className="h-4 w-4 text-[#0284C7] shrink-0" />
-                                      )
-                                    ) : row.level === 1 ? (
-                                      <MapPin className="h-3.5 w-3.5 text-[#0369A1] shrink-0" />
+                              <div
+                                key={gedung.id}
+                                className="bg-white rounded-2xl border border-[#BAE6FD] p-6 shadow-2xs hover:shadow-sm transition-all"
+                              >
+                                {/* Header Card Gedung */}
+                                <div className="flex items-center justify-between border-b border-[#F0F9FF] pb-3 mb-6">
+                                  <div className="flex items-center gap-2.5">
+                                    {isGudang ? (
+                                      <Warehouse className="h-5 w-5 text-[#D97706]" />
                                     ) : (
-                                      <Archive className="h-3.5 w-3.5 text-[#64748B] shrink-0" />
+                                      <Building2 className="h-5 w-5 text-[#0284C7]" />
                                     )}
-
-                                    {/* Nama Lokasi */}
+                                    <span className="text-sm font-bold text-[#1F2333]">
+                                      {gedung.nama}
+                                    </span>
+                                    <span className="text-[10px] font-mono text-[#64748B]">
+                                      ({gedung.kode || '-'})
+                                    </span>
                                     <span
-                                      onClick={() => row.hasChildren && toggleNode(row.id)}
-                                      className={`${
-                                        row.hasChildren ? 'cursor-pointer hover:underline' : ''
-                                      } ${
-                                        row.level === 0
-                                          ? isGudang
-                                            ? 'font-bold text-[13px] text-[#B45309]'
-                                            : 'font-bold text-[13px] text-[#0369A1]'
-                                          : row.level === 1
-                                          ? 'font-semibold text-xs text-[#1F2333]'
-                                          : 'font-medium text-xs text-[#475569]'
+                                      className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                                        gedung.status === 'Aktif'
+                                          ? 'bg-[#E6F4EA] text-[#137333]'
+                                          : 'bg-[#F1F5F9] text-[#64748B]'
                                       }`}
                                     >
-                                      {row.nama}
+                                      {gedung.status || 'Aktif'}
                                     </span>
-
-                                    {/* Tingkat Pill (Gudang, Gedung, Ruangan, Rak) */}
-                                    <span
-                                      className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-semibold ${
-                                        isGudang
-                                          ? 'text-[#B45309] bg-[#FEF3C7] border border-[#FDE68A]'
-                                          : 'text-[#0284C7] bg-[#E0F2FE] border border-[#BAE6FD]'
-                                      }`}
-                                    >
-                                      {displayTingkat}
-                                    </span>
-
-                                    {/* Counter badge turunan jika punya anak */}
-                                    {row.hasChildren && (
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleNode(row.id)}
-                                        className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium transition-colors ${
-                                          isCollapsed
-                                            ? 'bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] hover:bg-[#FDE68A]'
-                                            : isGudang
-                                            ? 'bg-[#FEF3C7] text-[#B45309] border border-[#FDE68A] hover:bg-[#FDE68A]'
-                                            : 'bg-[#F0F9FF] text-[#0369A1] border border-[#BAE6FD] hover:bg-[#E0F2FE]'
-                                        }`}
-                                        title={`${row.childCount} ${
-                                          row.tingkat === 'Gedung' ? 'ruangan' : 'rak'
-                                        } di dalamnya. Klik untuk toggle dropdown.`}
-                                      >
-                                        <span>
-                                          {row.childCount} {row.tingkat === 'Gedung' ? 'ruangan' : 'rak'}
-                                        </span>
-                                        {isCollapsed && (
-                                          <span className="text-[9px] font-bold uppercase">
-                                            &bull; tertutup
-                                          </span>
-                                        )}
-                                      </button>
-                                    )}
                                   </div>
-                                </td>
 
-                                {/* Kode Lokasi */}
-                                <td className="px-4 py-3.5 font-mono text-xs text-[#475569]">
-                                  {row.kode || '-'}
-                                </td>
-
-                                {/* Status Badge */}
-                                <td className="px-4 py-3.5">
-                                  <span
-                                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                                      row.status === 'Aktif'
-                                        ? 'bg-[#E6F4EA] text-[#137333]'
-                                        : 'bg-[#F1F5F9] text-[#64748B]'
-                                    }`}
-                                  >
-                                    <span
-                                      className={`h-1.5 w-1.5 rounded-full ${
-                                        row.status === 'Aktif' ? 'bg-[#137333]' : 'bg-[#64748B]'
-                                      }`}
-                                    />
-                                    {row.status}
-                                  </span>
-                                </td>
-
-                                {/* Aksi: Ubah, Nonaktifkan / Aktifkan, Hapus */}
-                                <td className="px-5 py-3.5 text-right">
-                                  <div className="inline-flex items-center gap-1.5">
-                                    {/* Ubah */}
+                                  <div className="flex items-center gap-2">
                                     <button
                                       type="button"
-                                      onClick={() => handleOpenEditLokasi(row)}
-                                      className="inline-flex items-center gap-1 rounded-lg border border-[#D5D9E2] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#1F2333] hover:bg-[#F4F5FA] transition-colors"
+                                      onClick={() => handleOpenEditLokasi(gedung as any)}
+                                      className="text-xs text-[#0284C7] hover:underline font-semibold inline-flex items-center gap-1"
                                     >
-                                      <Edit2 className="h-3 w-3 text-[#64748B]" />
+                                      <Edit2 className="h-3 w-3" />
                                       Ubah
                                     </button>
+                                  </div>
+                                </div>
 
-                                    {/* Toggle Nonaktifkan / Aktifkan */}
-                                    <button
-                                      type="button"
-                                      onClick={() => handleToggleStatusLokasi(row)}
-                                      title={row.status === 'Aktif' ? 'Nonaktifkan' : 'Aktifkan'}
-                                      className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-                                        row.status === 'Aktif'
-                                          ? 'border-[#E2E8F0] bg-white text-[#64748B] hover:bg-[#F8FAFC]'
-                                          : 'border-[#BBEFCA] bg-[#E6F4EA] text-[#137333]'
+                                {/* Area Diagram Pohon Horizontal */}
+                                <div className="min-w-[680px] py-2 flex items-center gap-0">
+                                  {/* 1. Node Induk (Gedung/Gudang): Pill Lonjong Kapsul Persis Gambar Referensi */}
+                                  <div className="shrink-0 flex items-center">
+                                    <div
+                                      className={`relative rounded-full px-5 py-2.5 shadow-sm flex items-center gap-2 border transition-transform hover:scale-[1.02] ${
+                                        isGudang
+                                          ? 'bg-[#D97706] border-[#B45309] text-white'
+                                          : 'bg-[#84CC16] border-[#65A30D] text-white'
                                       }`}
                                     >
-                                      {row.status === 'Aktif' ? (
-                                        <>
-                                          <PowerOff className="h-3 w-3 text-[#64748B]" />
-                                          Nonaktifkan
-                                        </>
+                                      {isGudang ? (
+                                        <Warehouse className="h-4 w-4 text-white shrink-0" />
                                       ) : (
-                                        <>
-                                          <Power className="h-3 w-3 text-[#137333]" />
-                                          Aktifkan
-                                        </>
+                                        <Building2 className="h-4 w-4 text-white shrink-0" />
                                       )}
-                                    </button>
+                                      <span className="text-xs font-bold uppercase tracking-wider">
+                                        {gedung.nama}
+                                      </span>
+                                      <span className="text-[9px] bg-black/20 px-2 py-0.5 rounded-full font-mono font-medium">
+                                        {isGudang ? 'Gudang' : 'Gedung'}
+                                      </span>
 
-                                    {/* Hapus */}
-                                    <button
-                                      type="button"
-                                      onClick={() => setDeletingLokasi(row)}
-                                      className="inline-flex items-center gap-1 rounded-lg border border-[#FCA5A5] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#D64545] hover:bg-[#FDECEC] transition-colors"
-                                    >
-                                      <Trash2 className="h-3 w-3 text-[#D64545]" />
-                                      Hapus
-                                    </button>
+                                      {/* Titik Port Keluar Cabang di Kanan */}
+                                      {totalRuangans > 0 && (
+                                        <div
+                                          className={`absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border-2 shadow-2xs z-10 ${
+                                            isGudang ? 'border-[#D97706]' : 'border-[#84CC16]'
+                                          }`}
+                                        />
+                                      )}
+                                    </div>
                                   </div>
-                                </td>
-                              </tr>
+
+                                  {/* Jika Tidak Memiliki Ruangan */}
+                                  {totalRuangans === 0 ? (
+                                    <div className="ml-8 text-xs text-[#94A3B8] italic flex items-center gap-1.5">
+                                      <span>(Belum ada ruangan terdaftar di lokasi ini)</span>
+                                    </div>
+                                  ) : (
+                                    /* Jika Memiliki Ruangan: Render Kurva Cabang ke Kolom Ruangan */
+                                    <div className="flex items-center">
+                                      {/* Kolom Kurva Kurung Kurawal SVG Antara Gedung & Ruangans */}
+                                      <div
+                                        className="relative w-16 shrink-0 self-stretch flex items-center justify-center"
+                                        style={{ minHeight: `${heightRuangans}px` }}
+                                      >
+                                        <svg
+                                          className="w-full h-full overflow-visible pointer-events-none"
+                                          viewBox={`0 0 64 ${heightRuangans}`}
+                                          preserveAspectRatio="none"
+                                        >
+                                          {ruangans.map((_, idx) => {
+                                            const yMid = heightRuangans / 2
+                                            const yChild =
+                                              totalRuangans === 1
+                                                ? yMid
+                                                : (idx + 0.5) * (heightRuangans / totalRuangans)
+                                            return (
+                                              <g key={idx}>
+                                                {/* Kurva kurung kurawal halus khas diagram mindmap */}
+                                                <path
+                                                  d={`M 0 ${yMid} H 12 C 32 ${yMid}, 32 ${yChild}, 52 ${yChild} H 64`}
+                                                  stroke="#94A3B8"
+                                                  strokeWidth="1.75"
+                                                  strokeLinecap="round"
+                                                  fill="none"
+                                                />
+                                                {/* Dot simpul kecil di titik masuk ruangan */}
+                                                <circle cx="62" cy={yChild} r="3" fill="#0284C7" />
+                                              </g>
+                                            )
+                                          })}
+                                          {/* Dot simpul keluar di titik induk */}
+                                          <circle
+                                            cx="2"
+                                            cy={heightRuangans / 2}
+                                            r="3.5"
+                                            fill={isGudang ? '#D97706' : '#84CC16'}
+                                          />
+                                        </svg>
+                                      </div>
+
+                                      {/* Kolom Ruangans */}
+                                      <div className="flex flex-col gap-4 py-2 shrink-0">
+                                        {ruangans.map((ruangan) => {
+                                          const raks = ruangan.raks || []
+                                          const totalRaks = raks.length
+                                          const heightRaks = Math.max(totalRaks * 52, 60)
+
+                                          return (
+                                            <div
+                                              key={ruangan.id}
+                                              className="flex items-center gap-0"
+                                            >
+                                              {/* Node Ruangan: Pill Lonjong Kapsul Biru Persis Gambar Referensi */}
+                                              <div className="shrink-0 flex items-center">
+                                                <div className="relative rounded-full px-4 py-2 bg-[#0284C7] border border-[#0369A1] text-white shadow-sm flex items-center gap-2 hover:scale-[1.02] transition-transform">
+                                                  <MapPin className="h-3.5 w-3.5 text-white/90 shrink-0" />
+                                                  <span className="text-xs font-semibold">
+                                                    {ruangan.nama}
+                                                  </span>
+                                                  <span className="text-[9px] bg-black/20 px-1.5 py-0.5 rounded-full font-mono">
+                                                    {ruangan.kode}
+                                                  </span>
+
+                                                  {/* Titik Port Keluar Cabang ke Rak di Kanan */}
+                                                  {totalRaks > 0 && (
+                                                    <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white border-2 border-[#0284C7] shadow-2xs z-10" />
+                                                  )}
+                                                </div>
+                                              </div>
+
+                                              {/* Jika Ruangan Memiliki Rak: Render Kurva Cabang ke Kolom Rak */}
+                                              {totalRaks > 0 && (
+                                                <div className="flex items-center">
+                                                  {/* Kurva Kurung Kurawal SVG Antara Ruangan & Raks */}
+                                                  <div
+                                                    className="relative w-14 shrink-0 self-stretch flex items-center justify-center"
+                                                    style={{ minHeight: `${heightRaks}px` }}
+                                                  >
+                                                    <svg
+                                                      className="w-full h-full overflow-visible pointer-events-none"
+                                                      viewBox={`0 0 56 ${heightRaks}`}
+                                                      preserveAspectRatio="none"
+                                                    >
+                                                      {raks.map((_, rkIdx) => {
+                                                        const yRkMid = heightRaks / 2
+                                                        const yRkChild =
+                                                          totalRaks === 1
+                                                            ? yRkMid
+                                                            : (rkIdx + 0.5) *
+                                                              (heightRaks / totalRaks)
+                                                        return (
+                                                          <g key={rkIdx}>
+                                                            <path
+                                                              d={`M 0 ${yRkMid} H 10 C 28 ${yRkMid}, 28 ${yRkChild}, 46 ${yRkChild} H 56`}
+                                                              stroke="#94A3B8"
+                                                              strokeWidth="1.5"
+                                                              strokeLinecap="round"
+                                                              fill="none"
+                                                            />
+                                                            <circle
+                                                              cx="54"
+                                                              cy={yRkChild}
+                                                              r="2.5"
+                                                              fill="#0369A1"
+                                                            />
+                                                          </g>
+                                                        )
+                                                      })}
+                                                      <circle
+                                                        cx="2"
+                                                        cy={heightRaks / 2}
+                                                        r="3"
+                                                        fill="#0284C7"
+                                                      />
+                                                    </svg>
+                                                  </div>
+
+                                                  {/* Kolom Raks */}
+                                                  <div className="flex flex-col gap-2 py-1">
+                                                    {raks.map((rak) => (
+                                                      <div
+                                                        key={rak.id}
+                                                        className="rounded-full px-3.5 py-1 bg-[#F0F9FF] border border-[#BAE6FD] text-[#0369A1] shadow-2xs flex items-center gap-1.5 hover:bg-[#E0F2FE] transition-colors"
+                                                      >
+                                                        <Archive className="h-3 w-3 text-[#0284C7] shrink-0" />
+                                                        <span className="text-[11px] font-medium">
+                                                          {rak.nama}
+                                                        </span>
+                                                        <span className="text-[9px] font-mono text-[#64748B] bg-white border border-[#BAE6FD] px-1 py-0.2 rounded">
+                                                          {rak.kode}
+                                                        </span>
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             )
                           })
                         )}
-                      </tbody>
-                    </table>
+                      </div>
+                    ) : (
+                      /* ================================================================ */
+                      /* MODE 2: TABEL HIERARKI DENGAN KURVA CABANG HALUS KURUNG KURAWAL */
+                      /* ================================================================ */
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-[#F8FAFC] text-[11px] font-semibold text-[#475569] uppercase border-b border-[#BAE6FD]">
+                          <tr>
+                            <th className="px-5 py-3">Nama / Hierarki</th>
+                            <th className="px-4 py-3 font-mono">Kode</th>
+                            <th className="px-4 py-3">Status</th>
+                            <th className="px-5 py-3 text-right">Tindakan</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#ECEEF5]">
+                          {visibleTreeRows.length === 0 ? (
+                            <tr>
+                              <td colSpan={4} className="py-8 text-center text-[#8A90A2]">
+                                Belum ada data hierarki lokasi.
+                              </td>
+                            </tr>
+                          ) : (
+                            visibleTreeRows.map((row) => {
+                              const isCollapsed = collapsedNodes.has(row.id)
+                              const isGudang =
+                                row.nama.toLowerCase().includes('gudang') ||
+                                row.kode === 'LOC-G-INAKTIF'
+                              const displayTingkat = isGudang ? 'Gudang' : row.tingkat
+
+                              return (
+                                <tr key={row.id} className="hover:bg-[#F8FAFC] transition-colors">
+                                  {/* Nama / Hierarki dengan Desain Kurva Cabang Halus & Dropdown Collapsible */}
+                                  <td className="px-5 py-3.5 text-[#1F2333]">
+                                    <div className="flex items-center gap-1.5">
+                                      {/* Diagram Garis Percabangan Kurva Halus (Mindmap Bracket Curve) */}
+                                      {row.level > 0 && (
+                                        <div className="flex items-center shrink-0 select-none mr-0.5">
+                                          {/* Garis vertikal pemandu dari tingkat atas (jika level 2 / Rak) */}
+                                          {Array.from({ length: row.level - 1 }).map((_, idx) => (
+                                            <div
+                                              key={idx}
+                                              className="w-5 h-7 flex items-center justify-center shrink-0"
+                                            >
+                                              <div className="w-[1.5px] h-full bg-[#CBD5E1]" />
+                                            </div>
+                                          ))}
+
+                                          {/* Kurva Cabang Halus Kurung Kurawal (Smooth Bracket Curve) */}
+                                          <div className="relative w-7 h-7 flex items-center shrink-0">
+                                            <svg
+                                              className="w-7 h-7 overflow-visible"
+                                              viewBox="0 0 28 28"
+                                              fill="none"
+                                              xmlns="http://www.w3.org/2000/svg"
+                                            >
+                                              <path
+                                                d="M 4 0 C 4 10, 10 14, 22 14 H 26"
+                                                stroke="#94A3B8"
+                                                strokeWidth="1.75"
+                                                strokeLinecap="round"
+                                              />
+                                              <circle cx="26" cy="14" r="2.5" fill="#0284C7" />
+                                            </svg>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Tombol Chevron Dropdown (jika memiliki turunan) atau Spacer sejajar */}
+                                      {row.hasChildren ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleNode(row.id)}
+                                          className="p-1 text-[#0284C7] hover:bg-[#E0F2FE] rounded transition-colors shrink-0"
+                                          title={
+                                            isCollapsed
+                                              ? 'Klik untuk membuka turunan'
+                                              : 'Klik untuk menutup turunan'
+                                          }
+                                        >
+                                          {isCollapsed ? (
+                                            <ChevronRight className="h-4 w-4 text-[#64748B]" />
+                                          ) : (
+                                            <ChevronDown className="h-4 w-4 text-[#0284C7]" />
+                                          )}
+                                        </button>
+                                      ) : row.level === 0 ? (
+                                        <div className="w-6 shrink-0" />
+                                      ) : null}
+
+                                      {/* Ikon Tingkat Lokasi */}
+                                      {row.level === 0 ? (
+                                        isGudang ? (
+                                          <Warehouse className="h-4 w-4 text-[#D97706] shrink-0" />
+                                        ) : (
+                                          <Building2 className="h-4 w-4 text-[#0284C7] shrink-0" />
+                                        )
+                                      ) : row.level === 1 ? (
+                                        <MapPin className="h-3.5 w-3.5 text-[#0369A1] shrink-0" />
+                                      ) : (
+                                        <Archive className="h-3.5 w-3.5 text-[#64748B] shrink-0" />
+                                      )}
+
+                                      {/* Nama Lokasi */}
+                                      <span
+                                        onClick={() => row.hasChildren && toggleNode(row.id)}
+                                        className={`${
+                                          row.hasChildren ? 'cursor-pointer hover:underline' : ''
+                                        } ${
+                                          row.level === 0
+                                            ? isGudang
+                                              ? 'font-bold text-[13px] text-[#B45309]'
+                                              : 'font-bold text-[13px] text-[#0369A1]'
+                                            : row.level === 1
+                                            ? 'font-semibold text-xs text-[#1F2333]'
+                                            : 'font-medium text-xs text-[#475569]'
+                                        }`}
+                                      >
+                                        {row.nama}
+                                      </span>
+
+                                      {/* Tingkat Pill (Gudang, Gedung, Ruangan, Rak) */}
+                                      <span
+                                        className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-semibold ${
+                                          isGudang
+                                            ? 'text-[#B45309] bg-[#FEF3C7] border border-[#FDE68A]'
+                                            : 'text-[#0284C7] bg-[#E0F2FE] border border-[#BAE6FD]'
+                                        }`}
+                                      >
+                                        {displayTingkat}
+                                      </span>
+
+                                      {/* Counter badge turunan jika punya anak */}
+                                      {row.hasChildren && (
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleNode(row.id)}
+                                          className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium transition-colors ${
+                                            isCollapsed
+                                              ? 'bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] hover:bg-[#FDE68A]'
+                                              : isGudang
+                                              ? 'bg-[#FEF3C7] text-[#B45309] border border-[#FDE68A] hover:bg-[#FDE68A]'
+                                              : 'bg-[#F0F9FF] text-[#0369A1] border border-[#BAE6FD] hover:bg-[#E0F2FE]'
+                                          }`}
+                                          title={`${row.childCount} ${
+                                            row.tingkat === 'Gedung' ? 'ruangan' : 'rak'
+                                          } di dalamnya. Klik untuk toggle dropdown.`}
+                                        >
+                                          <span>
+                                            {row.childCount} {row.tingkat === 'Gedung' ? 'ruangan' : 'rak'}
+                                          </span>
+                                          {isCollapsed && (
+                                            <span className="text-[9px] font-bold uppercase">
+                                              &bull; tertutup
+                                            </span>
+                                          )}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </td>
+
+                                  {/* Kode Lokasi */}
+                                  <td className="px-4 py-3.5 font-mono text-xs text-[#475569]">
+                                    {row.kode || '-'}
+                                  </td>
+
+                                  {/* Status Badge */}
+                                  <td className="px-4 py-3.5">
+                                    <span
+                                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                                        row.status === 'Aktif'
+                                          ? 'bg-[#E6F4EA] text-[#137333]'
+                                          : 'bg-[#F1F5F9] text-[#64748B]'
+                                      }`}
+                                    >
+                                      <span
+                                        className={`h-1.5 w-1.5 rounded-full ${
+                                          row.status === 'Aktif' ? 'bg-[#137333]' : 'bg-[#64748B]'
+                                        }`}
+                                      />
+                                      {row.status}
+                                    </span>
+                                  </td>
+
+                                  {/* Aksi: Ubah, Nonaktifkan / Aktifkan, Hapus */}
+                                  <td className="px-5 py-3.5 text-right">
+                                    <div className="inline-flex items-center gap-1.5">
+                                      {/* Ubah */}
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenEditLokasi(row)}
+                                        className="inline-flex items-center gap-1 rounded-lg border border-[#D5D9E2] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#1F2333] hover:bg-[#F4F5FA] transition-colors"
+                                      >
+                                        <Edit2 className="h-3 w-3 text-[#64748B]" />
+                                        Ubah
+                                      </button>
+
+                                      {/* Toggle Nonaktifkan / Aktifkan */}
+                                      <button
+                                        type="button"
+                                        onClick={() => handleToggleStatusLokasi(row)}
+                                        title={row.status === 'Aktif' ? 'Nonaktifkan' : 'Aktifkan'}
+                                        className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                                          row.status === 'Aktif'
+                                            ? 'border-[#E2E8F0] bg-white text-[#64748B] hover:bg-[#F8FAFC]'
+                                            : 'border-[#BBEFCA] bg-[#E6F4EA] text-[#137333]'
+                                        }`}
+                                      >
+                                        {row.status === 'Aktif' ? (
+                                          <>
+                                            <PowerOff className="h-3 w-3 text-[#64748B]" />
+                                            Nonaktifkan
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Power className="h-3 w-3 text-[#137333]" />
+                                            Aktifkan
+                                          </>
+                                        )}
+                                      </button>
+
+                                      {/* Hapus */}
+                                      <button
+                                        type="button"
+                                        onClick={() => setDeletingLokasi(row)}
+                                        className="inline-flex items-center gap-1 rounded-lg border border-[#FCA5A5] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#D64545] hover:bg-[#FDECEC] transition-colors"
+                                      >
+                                        <Trash2 className="h-3 w-3 text-[#D64545]" />
+                                        Hapus
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    )}
                   </div>
                 </div>
               )}
