@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   Loader2,
   ChevronRight,
+  ChevronDown,
   Download,
   Search,
   X,
@@ -126,6 +127,33 @@ export default function MasterDataPage() {
   // Modal Dialog Konfirmasi Hapus Lokasi
   const [deletingLokasi, setDeletingLokasi] = useState<LokasiItem | null>(null)
   const [isDeletingLokasi, setIsDeletingLokasi] = useState(false)
+
+  // State Dropdown / Collapsible Hierarki Lokasi
+  const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set())
+
+  const toggleNode = (id: string) => {
+    setCollapsedNodes((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const expandAllNodes = () => setCollapsedNodes(new Set())
+
+  const collapseAllNodes = () => {
+    const parentIds = new Set<string>()
+    rawLokasi.forEach((l) => {
+      if (l.tingkat === 'Gedung' || l.tingkat === 'Ruangan') {
+        parentIds.add(l.id)
+      }
+    })
+    setCollapsedNodes(parentIds)
+  }
 
   // Modal State Tambah Organisasi
   const [isAddOrgOpen, setIsAddOrgOpen] = useState(false)
@@ -247,7 +275,10 @@ export default function MasterDataPage() {
     tingkat: 'Gedung' | 'Ruangan' | 'Rak'
     status: 'Aktif' | 'Nonaktif'
     parent_id: string | null
+    parentGedungId?: string | null
     level: number // 0, 1, 2
+    childCount: number
+    hasChildren: boolean
   }
 
   const treeRows = useMemo<TreeRowItem[]>(() => {
@@ -257,6 +288,7 @@ export default function MasterDataPage() {
     const raks = rawLokasi.filter((l) => l.tingkat === 'Rak')
 
     gedungs.forEach((g) => {
+      const childR = ruangans.filter((r) => r.parent_id === g.id)
       rows.push({
         id: g.id,
         kode: g.kode || 'LOC-G',
@@ -265,9 +297,11 @@ export default function MasterDataPage() {
         status: g.status || 'Aktif',
         parent_id: null,
         level: 0,
+        childCount: childR.length,
+        hasChildren: childR.length > 0,
       })
-      const childR = ruangans.filter((r) => r.parent_id === g.id)
       childR.forEach((r) => {
+        const childK = raks.filter((k) => k.parent_id === r.id)
         rows.push({
           id: r.id,
           kode: r.kode || 'LOC-R',
@@ -275,9 +309,11 @@ export default function MasterDataPage() {
           tingkat: 'Ruangan',
           status: r.status || 'Aktif',
           parent_id: g.id,
+          parentGedungId: g.id,
           level: 1,
+          childCount: childK.length,
+          hasChildren: childK.length > 0,
         })
-        const childK = raks.filter((k) => k.parent_id === r.id)
         childK.forEach((k) => {
           rows.push({
             id: k.id,
@@ -286,7 +322,10 @@ export default function MasterDataPage() {
             tingkat: 'Rak',
             status: k.status || 'Aktif',
             parent_id: r.id,
+            parentGedungId: g.id,
             level: 2,
+            childCount: 0,
+            hasChildren: false,
           })
         })
       })
@@ -294,6 +333,22 @@ export default function MasterDataPage() {
 
     return rows
   }, [rawLokasi])
+
+  // Baris hierarki yang tampak (memperhatikan status collapse induknya)
+  const visibleTreeRows = useMemo(() => {
+    return treeRows.filter((row) => {
+      if (row.level === 0) return true
+      if (row.level === 1) {
+        return !collapsedNodes.has(row.parent_id!)
+      }
+      if (row.level === 2) {
+        const isRuanganCollapsed = row.parent_id ? collapsedNodes.has(row.parent_id) : false
+        const isGedungCollapsed = row.parentGedungId ? collapsedNodes.has(row.parentGedungId) : false
+        return !isRuanganCollapsed && !isGedungCollapsed
+      }
+      return true
+    })
+  }, [treeRows, collapsedNodes])
 
   // Pilihan Induk (Parent) untuk Form Tambah/Ubah Lokasi
   // Hanya Gedung (level 1) dan Ruangan (level 2). Rak (level 3) tidak boleh jadi induk.
@@ -724,148 +779,218 @@ export default function MasterDataPage() {
                     </div>
                   )}
 
-                  {/* Tabel Hierarki Master Lokasi (Pola Referensi Gambar) */}
+                  {/* Tabel Hierarki Master Lokasi (Pola Referensi Gambar dengan Dropdown Collapsible) */}
                   <div className="overflow-x-auto rounded-xl border border-[#BAE6FD]">
+                    {/* Header Toolbar Hierarki */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 bg-[#F0F9FF] border-b border-[#BAE6FD]">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold text-[#0369A1] uppercase tracking-wider">
+                          Hierarki Master Lokasi
+                        </span>
+                        <span className="text-[11px] text-[#64748B]">
+                          ({rawLokasi.length} entri &bull; {visibleTreeRows.length} ditampilkan)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={expandAllNodes}
+                          className="px-2.5 py-1 text-[11px] font-semibold text-[#0369A1] bg-white border border-[#BAE6FD] rounded-lg hover:bg-[#E0F2FE] transition-colors shadow-2xs"
+                          title="Tampilkan seluruh tingkatan Ruangan & Rak"
+                        >
+                          Buka Semua
+                        </button>
+                        <button
+                          type="button"
+                          onClick={collapseAllNodes}
+                          className="px-2.5 py-1 text-[11px] font-semibold text-[#64748B] bg-white border border-[#D5D9E2] rounded-lg hover:bg-[#F4F5FA] transition-colors shadow-2xs"
+                          title="Sembunyikan tingkatan anak agar tabel ringkas"
+                        >
+                          Tutup Semua
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleOpenAddLokasi}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-[#0284C7] px-3 py-1 text-xs font-semibold text-white shadow-xs hover:bg-[#0369A1] transition-colors ml-1"
+                        >
+                          <Plus className="h-3.5 w-3.5 text-white" />
+                          <span>Tambah Lokasi</span>
+                        </button>
+                      </div>
+                    </div>
+
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-[#F0F9FF] text-[11px] font-semibold text-[#0369A1] uppercase border-b border-[#BAE6FD]">
+                      <thead className="bg-[#F8FAFC] text-[11px] font-semibold text-[#475569] uppercase border-b border-[#BAE6FD]">
                         <tr>
                           <th className="px-5 py-3">Nama / Hierarki</th>
                           <th className="px-4 py-3 font-mono">Kode</th>
                           <th className="px-4 py-3">Status</th>
-                          <th className="px-5 py-3 text-right">
-                            <div className="inline-flex items-center gap-3">
-                              <span>Tindakan</span>
-                              <button
-                                type="button"
-                                onClick={handleOpenAddLokasi}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-[#0284C7] px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-[#0369A1] transition-colors normal-case"
-                              >
-                                <Plus className="h-3.5 w-3.5 text-white" />
-                                <span>Tambah Lokasi</span>
-                              </button>
-                            </div>
-                          </th>
+                          <th className="px-5 py-3 text-right">Tindakan</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#ECEEF5]">
-                        {treeRows.length === 0 ? (
+                        {visibleTreeRows.length === 0 ? (
                           <tr>
                             <td colSpan={4} className="py-8 text-center text-[#8A90A2]">
                               Belum ada data hierarki lokasi.
                             </td>
                           </tr>
                         ) : (
-                          treeRows.map((row) => (
-                            <tr key={row.id} className="hover:bg-[#F8FAFC] transition-colors">
-                              {/* Nama / Hierarki dengan visual indentasi */}
-                              <td className="px-5 py-3.5 text-[#1F2333]">
-                                <div
-                                  className="flex items-center gap-2"
-                                  style={{ paddingLeft: `${row.level * 24}px` }}
-                                >
-                                  {row.level === 0 && (
-                                    <Building2 className="h-4 w-4 text-[#0284C7] shrink-0" />
-                                  )}
-                                  {row.level === 1 && (
-                                    <span className="text-[#38BDF8] font-mono text-xs select-none">
-                                      └
-                                    </span>
-                                  )}
-                                  {row.level === 2 && (
-                                    <span className="text-[#38BDF8] font-mono text-xs select-none">
-                                      └
-                                    </span>
-                                  )}
-                                  <span
-                                    className={`${
-                                      row.level === 0
-                                        ? 'font-bold text-[13px] text-[#0369A1]'
-                                        : row.level === 1
-                                        ? 'font-semibold text-xs text-[#1F2333]'
-                                        : 'font-medium text-xs text-[#475569]'
-                                    }`}
+                          visibleTreeRows.map((row) => {
+                            const isCollapsed = collapsedNodes.has(row.id)
+                            return (
+                              <tr key={row.id} className="hover:bg-[#F8FAFC] transition-colors">
+                                {/* Nama / Hierarki dengan Fitur Dropdown Collapsible */}
+                                <td className="px-5 py-3.5 text-[#1F2333]">
+                                  <div
+                                    className="flex items-center gap-1.5"
+                                    style={{ paddingLeft: `${row.level * 24}px` }}
                                   >
-                                    {row.nama}
-                                  </span>
-                                  <span className="text-[10px] text-[#0284C7] bg-[#E0F2FE] border border-[#BAE6FD] px-1.5 py-0.2 rounded font-mono">
-                                    {row.tingkat}
-                                  </span>
-                                </div>
-                              </td>
-
-                              {/* Kode Lokasi */}
-                              <td className="px-4 py-3.5 font-mono text-xs text-[#475569]">
-                                {row.kode || '-'}
-                              </td>
-
-                              {/* Status Badge */}
-                              <td className="px-4 py-3.5">
-                                <span
-                                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                                    row.status === 'Aktif'
-                                      ? 'bg-[#E6F4EA] text-[#137333]'
-                                      : 'bg-[#F1F5F9] text-[#64748B]'
-                                  }`}
-                                >
-                                  <span
-                                    className={`h-1.5 w-1.5 rounded-full ${
-                                      row.status === 'Aktif' ? 'bg-[#137333]' : 'bg-[#64748B]'
-                                    }`}
-                                  />
-                                  {row.status}
-                                </span>
-                              </td>
-
-                              {/* Aksi: Ubah, Nonaktifkan / Aktifkan, Hapus */}
-                              <td className="px-5 py-3.5 text-right">
-                                <div className="inline-flex items-center gap-1.5">
-                                  {/* Ubah */}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenEditLokasi(row)}
-                                    className="inline-flex items-center gap-1 rounded-lg border border-[#D5D9E2] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#1F2333] hover:bg-[#F4F5FA] transition-colors"
-                                  >
-                                    <Edit2 className="h-3 w-3 text-[#64748B]" />
-                                    Ubah
-                                  </button>
-
-                                  {/* Toggle Nonaktifkan / Aktifkan */}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleToggleStatusLokasi(row)}
-                                    title={row.status === 'Aktif' ? 'Nonaktifkan' : 'Aktifkan'}
-                                    className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-                                      row.status === 'Aktif'
-                                        ? 'border-[#E2E8F0] bg-white text-[#64748B] hover:bg-[#F8FAFC]'
-                                        : 'border-[#BBEFCA] bg-[#E6F4EA] text-[#137333]'
-                                    }`}
-                                  >
-                                    {row.status === 'Aktif' ? (
-                                      <>
-                                        <PowerOff className="h-3 w-3 text-[#64748B]" />
-                                        Nonaktifkan
-                                      </>
+                                    {/* Tombol Chevron Dropdown jika memiliki turunan */}
+                                    {row.hasChildren ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleNode(row.id)}
+                                        className="p-1 text-[#0284C7] hover:bg-[#E0F2FE] rounded transition-colors shrink-0"
+                                        title={isCollapsed ? 'Klik untuk membuka turunan' : 'Klik untuk menutup turunan'}
+                                      >
+                                        {isCollapsed ? (
+                                          <ChevronRight className="h-4 w-4 text-[#64748B]" />
+                                        ) : (
+                                          <ChevronDown className="h-4 w-4 text-[#0284C7]" />
+                                        )}
+                                      </button>
                                     ) : (
-                                      <>
-                                        <Power className="h-3 w-3 text-[#137333]" />
-                                        Aktifkan
-                                      </>
+                                      <span className="w-6 shrink-0 flex justify-center">
+                                        {row.level > 0 && (
+                                          <span className="text-[#94A3B8] font-mono text-xs select-none">
+                                            └
+                                          </span>
+                                        )}
+                                      </span>
                                     )}
-                                  </button>
 
-                                  {/* Hapus */}
-                                  <button
-                                    type="button"
-                                    onClick={() => setDeletingLokasi(row)}
-                                    className="inline-flex items-center gap-1 rounded-lg border border-[#FCA5A5] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#D64545] hover:bg-[#FDECEC] transition-colors"
+                                    {row.level === 0 && (
+                                      <Building2 className="h-4 w-4 text-[#0284C7] shrink-0" />
+                                    )}
+
+                                    <span
+                                      onClick={() => row.hasChildren && toggleNode(row.id)}
+                                      className={`${
+                                        row.hasChildren ? 'cursor-pointer hover:underline' : ''
+                                      } ${
+                                        row.level === 0
+                                          ? 'font-bold text-[13px] text-[#0369A1]'
+                                          : row.level === 1
+                                          ? 'font-semibold text-xs text-[#1F2333]'
+                                          : 'font-medium text-xs text-[#475569]'
+                                      }`}
+                                    >
+                                      {row.nama}
+                                    </span>
+
+                                    {/* Tingkat Pill */}
+                                    <span className="text-[10px] text-[#0284C7] bg-[#E0F2FE] border border-[#BAE6FD] px-1.5 py-0.2 rounded font-mono">
+                                      {row.tingkat}
+                                    </span>
+
+                                    {/* Counter badge turunan jika punya anak */}
+                                    {row.hasChildren && (
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleNode(row.id)}
+                                        className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium transition-colors ${
+                                          isCollapsed
+                                            ? 'bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] hover:bg-[#FDE68A]'
+                                            : 'bg-[#F0F9FF] text-[#0369A1] border border-[#BAE6FD] hover:bg-[#E0F2FE]'
+                                        }`}
+                                        title={`${row.childCount} ${row.tingkat === 'Gedung' ? 'ruangan' : 'rak'} di dalamnya. Klik untuk toggle dropdown.`}
+                                      >
+                                        <span>
+                                          {row.childCount} {row.tingkat === 'Gedung' ? 'ruangan' : 'rak'}
+                                        </span>
+                                        {isCollapsed && (
+                                          <span className="text-[9px] font-bold uppercase">&bull; tertutup</span>
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+
+                                {/* Kode Lokasi */}
+                                <td className="px-4 py-3.5 font-mono text-xs text-[#475569]">
+                                  {row.kode || '-'}
+                                </td>
+
+                                {/* Status Badge */}
+                                <td className="px-4 py-3.5">
+                                  <span
+                                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                                      row.status === 'Aktif'
+                                        ? 'bg-[#E6F4EA] text-[#137333]'
+                                        : 'bg-[#F1F5F9] text-[#64748B]'
+                                    }`}
                                   >
-                                    <Trash2 className="h-3 w-3 text-[#D64545]" />
-                                    Hapus
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))
+                                    <span
+                                      className={`h-1.5 w-1.5 rounded-full ${
+                                        row.status === 'Aktif' ? 'bg-[#137333]' : 'bg-[#64748B]'
+                                      }`}
+                                    />
+                                    {row.status}
+                                  </span>
+                                </td>
+
+                                {/* Aksi: Ubah, Nonaktifkan / Aktifkan, Hapus */}
+                                <td className="px-5 py-3.5 text-right">
+                                  <div className="inline-flex items-center gap-1.5">
+                                    {/* Ubah */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenEditLokasi(row)}
+                                      className="inline-flex items-center gap-1 rounded-lg border border-[#D5D9E2] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#1F2333] hover:bg-[#F4F5FA] transition-colors"
+                                    >
+                                      <Edit2 className="h-3 w-3 text-[#64748B]" />
+                                      Ubah
+                                    </button>
+
+                                    {/* Toggle Nonaktifkan / Aktifkan */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleStatusLokasi(row)}
+                                      title={row.status === 'Aktif' ? 'Nonaktifkan' : 'Aktifkan'}
+                                      className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                                        row.status === 'Aktif'
+                                          ? 'border-[#E2E8F0] bg-white text-[#64748B] hover:bg-[#F8FAFC]'
+                                          : 'border-[#BBEFCA] bg-[#E6F4EA] text-[#137333]'
+                                      }`}
+                                    >
+                                      {row.status === 'Aktif' ? (
+                                        <>
+                                          <PowerOff className="h-3 w-3 text-[#64748B]" />
+                                          Nonaktifkan
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Power className="h-3 w-3 text-[#137333]" />
+                                          Aktifkan
+                                        </>
+                                      )}
+                                    </button>
+
+                                    {/* Hapus */}
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeletingLokasi(row)}
+                                      className="inline-flex items-center gap-1 rounded-lg border border-[#FCA5A5] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#D64545] hover:bg-[#FDECEC] transition-colors"
+                                    >
+                                      <Trash2 className="h-3 w-3 text-[#D64545]" />
+                                      Hapus
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })
                         )}
                       </tbody>
                     </table>
