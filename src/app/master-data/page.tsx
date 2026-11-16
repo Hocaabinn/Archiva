@@ -996,9 +996,6 @@ export default function MasterDataPage() {
                               </button>
                             )}
                           </div>
-                          <span className="text-[10px] bg-white border border-[#BAE6FD] px-2.5 py-0.5 rounded-full text-[#0369A1] shadow-2xs font-medium hidden sm:inline-block">
-                            💡 Klik badge angka di ruangan/gedung untuk melipat atau membuka cabang
-                          </span>
                         </div>
 
                         {displayedNestedLokasiTree.length === 0 ? (
