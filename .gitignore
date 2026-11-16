@@ -40,9 +40,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# revisi internal
+# revisi internal & backup
 src/revisi-8-9Nov-jgn-dipush-digithub-foldernya/
 revisi-8-9Nov-jgn-dipush-digithub-foldernya/
 revisi-12-nov-2026/
+docs/archive/
+backups/
 backup_*.json
 
