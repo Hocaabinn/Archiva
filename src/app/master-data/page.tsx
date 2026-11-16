@@ -1093,7 +1093,7 @@ export default function MasterDataPage() {
                                       {/* 1. Node Induk (Gedung/Gudang): Pill Ramping Persis Gambar Referensi */}
                                       <div className="shrink-0 flex items-center">
                                         <div
-                                          className={`relative rounded-full px-3.5 py-1.5 shadow-2xs flex items-center gap-2 border transition-transform hover:scale-[1.02] ${
+                                          className={`relative rounded-full px-4 py-2 shadow-xs flex items-center gap-2 border transition-all hover:scale-[1.01] hover:shadow-md ${
                                             isGudang
                                               ? 'bg-[#D97706] border-[#B45309] text-white'
                                               : 'bg-[#84CC16] border-[#65A30D] text-white'
