@@ -8,11 +8,14 @@ export interface UnitOrganisasi {
 }
 
 export type LokasiTingkat = 'Gedung' | 'Ruangan' | 'Rak';
+export type LokasiStatus = 'Aktif' | 'Nonaktif';
 
 export interface Lokasi {
   id: string;
+  kode?: string;
   nama: string;
   tingkat: LokasiTingkat;
+  status?: LokasiStatus;
   parent_id?: string | null;
   created_at: string;
 }
