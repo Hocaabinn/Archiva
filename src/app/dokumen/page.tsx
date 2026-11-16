@@ -321,6 +321,12 @@ function DaftarDokumenContent() {
   const [qrDoc, setQrDoc] = useState<DocRow | null>(null)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  // Superadmin Permanent Delete & Approval Note State
+  const [approvalHapusMap, setApprovalHapusMap] = useState<Record<string, { id: string; keterangan: string; created_at: string }>>({})
+  const [superadminDeletingDoc, setSuperadminDeletingDoc] = useState<DocRow | null>(null)
+  const [superadminDeleteReason, setSuperadminDeleteReason] = useState('')
+  const [isSuperadminDeleting, setIsSuperadminDeleting] = useState(false)
+
   const showToast = useCallback((type: 'success' | 'error', text: string) => {
     setToast({ type, text })
     setTimeout(() => setToast(null), 3500)
@@ -331,7 +337,31 @@ function DaftarDokumenContent() {
     setErrorMessage(null)
     const { data, error } = await supabase.from('dokumen').select(DOC_SELECT).order('created_at', { ascending: false })
     if (error) throw error
-    setDocuments((data || []).map(mapRow))
+    const rows = (data || []).map(mapRow)
+    setDocuments(rows)
+
+    // Load persetujuan_hapus logs untuk audit & hak hapus Superadmin
+    try {
+      const { data: logs } = await supabase
+        .from('log_aktivitas')
+        .select('id, dokumen_id, keterangan, created_at')
+        .eq('aksi', 'persetujuan_hapus')
+        .not('dokumen_id', 'is', null)
+
+      if (logs && logs.length > 0) {
+        const map: Record<string, { id: string; keterangan: string; created_at: string }> = {}
+        logs.forEach((l) => {
+          if (l.dokumen_id) {
+            map[l.dokumen_id] = { id: l.id, keterangan: l.keterangan, created_at: l.created_at }
+          }
+        })
+        setApprovalHapusMap(map)
+      } else {
+        setApprovalHapusMap({})
+      }
+    } catch (logErr) {
+      console.warn('Gagal memuat log persetujuan_hapus:', logErr)
+    }
   }, [supabase])
 
   useEffect(() => {
@@ -696,47 +726,96 @@ function DaftarDokumenContent() {
     )
   }
 
-  const ActionButtons = ({ doc }: { doc: DocRow }) => (
-    <div className="flex items-center justify-end gap-1">
-      {role !== 'staff' && (
-        <button
-          type="button"
-          onClick={() => setQrDoc(doc)}
-          title="Label QR"
+  const ActionButtons = ({ doc }: { doc: DocRow }) => {
+    const approvalNote = approvalHapusMap[doc.id]
+    const hasApprovalHapus = Boolean(approvalNote)
+
+    return (
+      <div className="flex items-center justify-end gap-1">
+        {/* Tombol QR Label (Kecuali Staff) */}
+        {role !== 'staff' && (
+          <button
+            type="button"
+            onClick={() => setQrDoc(doc)}
+            title="Label QR"
+            className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]"
+          >
+            <QrCode className="h-4 w-4" />
+          </button>
+        )}
+
+        {/* Tombol View Detail & Log Audit (Ikon Mata) */}
+        <Link
+          href={`/dokumen/${doc.id}`}
+          title={role === 'superadmin' ? 'View Detail & Audit Trail' : 'Lihat detail'}
           className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]"
         >
-          <QrCode className="h-4 w-4" />
-        </button>
-      )}
-      <Link
-        href={`/dokumen/${doc.id}`}
-        title={role === 'superadmin' ? 'Lihat / Audit Dokumen' : 'Lihat detail'}
-        className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]"
-      >
-        <Eye className="h-4 w-4" />
-      </Link>
-      {canEdit(doc) && (
-        <button
-          type="button"
-          onClick={() => openEdit(doc)}
-          title="Ubah"
+          <Eye className="h-4 w-4" />
+        </Link>
+
+        {/* Tombol Unduh / Download File PDF Dokumen */}
+        <a
+          href={`/api/dokumen/${doc.id}/download`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Unduh Berkas PDF"
           className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]"
         >
-          <Pencil className="h-4 w-4" />
-        </button>
-      )}
-      {canDelete(doc) && (
-        <button
-          type="button"
-          onClick={() => setDeleting(doc)}
-          title="Hapus"
-          className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#FDECEC] hover:text-[#D64545]"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      )}
-    </div>
-  )
+          <Download className="h-4 w-4" />
+        </a>
+
+        {/* Ikon Ubah (Pencil) HANYA untuk PIC Arsip Aktif selagi menunggu/ditolak. HAPUS/NONAKTIFKAN untuk Superadmin */}
+        {canEdit(doc) && (
+          <button
+            type="button"
+            onClick={() => openEdit(doc)}
+            title="Ubah"
+            className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#EEF7FD] hover:text-[#1E86C8]"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+        )}
+
+        {/* Opsi Khusus Superadmin: Hapus Permanen (Hanya aktif bila ada persetujuan_hapus dari Atasan) */}
+        {role === 'superadmin' && (
+          <button
+            type="button"
+            disabled={!hasApprovalHapus}
+            onClick={() => {
+              if (hasApprovalHapus) {
+                setSuperadminDeletingDoc(doc)
+                setSuperadminDeleteReason('')
+              }
+            }}
+            title={
+              hasApprovalHapus
+                ? 'Hapus Permanen (Persetujuan Atasan Terverifikasi)'
+                : 'Hapus Permanen Dibatasi: Memerlukan pencatatan persetujuan_hapus resmi dari Atasan'
+            }
+            className={`rounded-md p-1.5 transition-colors ${
+              hasApprovalHapus
+                ? 'text-[#D64545] hover:bg-[#FDECEC] hover:text-[#991B1B] cursor-pointer'
+                : 'text-[#CBD5E1] cursor-not-allowed opacity-40'
+            }`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+
+        {/* Tombol Hapus Biasa untuk peran lain yang berhak (bila ada) */}
+        {role !== 'superadmin' && canDelete(doc) && (
+          <button
+            type="button"
+            onClick={() => setDeleting(doc)}
+            title="Hapus"
+            className="rounded-md p-1.5 text-[#6B7185] hover:bg-[#FDECEC] hover:text-[#D64545]"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    )
+  }
 
   const cardClass = 'bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)]'
 
@@ -1408,6 +1487,100 @@ function DaftarDokumenContent() {
             >
               {isDeleting && <Loader2 className="h-4 w-4 animate-spin" />}
               Ya, Hapus
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ================= MODAL HAPUS PERMANEN (SUPERADMIN) ================= */}
+      {superadminDeletingDoc && (
+        <Modal
+          title="Eksekusi Hapus Permanen Dokumen"
+          subtitle={`Kode Arsip: #${superadminDeletingDoc.kode_arsip}`}
+          onClose={() => !isSuperadminDeleting && setSuperadminDeletingDoc(null)}
+          maxWidth="max-w-lg"
+        >
+          <div className="space-y-4 px-6 py-5 text-xs text-[#4B5163]">
+            <div className="p-3.5 bg-[#FEF2F2] border border-[#FCA5A5] rounded-xl space-y-2">
+              <div className="flex items-center gap-2 text-[#991B1B] font-bold text-sm">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>Peringatan Audit Pemusnahan Arsip</span>
+              </div>
+              <p className="leading-relaxed text-[#7F1D1D]">
+                Penghapusan ini bersifat <strong>PERMANEN</strong>. Berkas PDF/lampiran pada Supabase Storage akan dimusnahkan dan baris database dihapus. Dokumen: <strong>{superadminDeletingDoc.judul}</strong>.
+              </p>
+            </div>
+
+            {/* Bukti Catatan Persetujuan Atasan */}
+            <div className="p-3 bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl space-y-1">
+              <span className="text-[11px] font-bold text-[#166534] flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Catatan Persetujuan Atasan Terverifikasi di Log:
+              </span>
+              <p className="text-xs text-[#14532D] font-mono bg-white/80 p-2 rounded border border-[#DCFCE7]">
+                {approvalHapusMap[superadminDeletingDoc.id]?.keterangan ||
+                  'Atasan Arsip telah menyetujui permohonan penghapusan dokumen ini.'}
+              </p>
+              <span className="text-[10px] text-[#15803D] block">
+                Tanggal persetujuan: {formatTanggal(approvalHapusMap[superadminDeletingDoc.id]?.created_at)}
+              </span>
+            </div>
+
+            {/* Input Alasan Eksekusi Superadmin */}
+            <div>
+              <label className="block text-xs font-semibold text-[#1F2333] mb-1">
+                Alasan Penghapusan Permanen oleh Superadmin <span className="text-[#D64545]">*</span>
+              </label>
+              <textarea
+                required
+                rows={3}
+                value={superadminDeleteReason}
+                onChange={(e) => setSuperadminDeleteReason(e.target.value)}
+                placeholder="Tuliskan dasar/nomor surat atau alasan eksekusi penghapusan permanen untuk audit..."
+                className="w-full rounded-lg border border-[#CBD7E3] p-2.5 text-xs text-[#111827] focus:outline-none focus:border-[#091E42]"
+              />
+              <p className="text-[11px] text-[#64748B] mt-1">
+                Alasan ini akan dicatat ke dalam tabel <code>log_aktivitas</code> sebagai rekam jejak audit independen.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 border-t border-[#ECEEF5] px-6 py-4">
+            <button
+              type="button"
+              onClick={() => setSuperadminDeletingDoc(null)}
+              disabled={isSuperadminDeleting}
+              className="rounded-lg border border-[#E3E6F0] px-4 py-2 text-xs font-semibold text-[#4B5163] hover:bg-[#F4F5FA] disabled:opacity-50"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              disabled={isSuperadminDeleting || !superadminDeleteReason.trim()}
+              onClick={async () => {
+                if (!superadminDeletingDoc || !superadminDeleteReason.trim()) return
+                try {
+                  setIsSuperadminDeleting(true)
+                  const res = await fetch(`/api/dokumen/${superadminDeletingDoc.id}/hapus-permanen`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ alasan: superadminDeleteReason.trim() }),
+                  })
+                  const json = await res.json()
+                  if (!res.ok) throw new Error(json.error || 'Gagal menghapus permanen dokumen.')
+                  showToast('success', json.message || 'Dokumen berhasil dihapus permanen.')
+                  setSuperadminDeletingDoc(null)
+                  await loadDocuments()
+                } catch (delErr: any) {
+                  showToast('error', delErr.message || 'Gagal memproses penghapusan.')
+                } finally {
+                  setIsSuperadminDeleting(false)
+                }
+              }}
+              className="inline-flex items-center gap-2 rounded-lg bg-[#D64545] px-4 py-2 text-xs font-semibold text-white hover:bg-[#B91C1C] disabled:opacity-50"
+            >
+              {isSuperadminDeleting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Eksekusi Hapus Permanen
             </button>
           </div>
         </Modal>
