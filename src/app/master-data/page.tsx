@@ -1237,7 +1237,7 @@ export default function MasterDataPage() {
 
                                                       {/* Titik Port Keluar Cabang ke Rak di Kanan */}
                                                       {totalRaks > 0 && !isRuanganCollapsed && (
-                                                        <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white border-2 border-[#0284C7] shadow-2xs z-10" />
+                                                        <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white border-2 border-[#0284C7] shadow-2xs z-10" />
                                                       )}
                                                     </div>
                                                   </div>
