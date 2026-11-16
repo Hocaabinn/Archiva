@@ -6,7 +6,7 @@ import {
   kirimNotifikasiKeUser,
   kirimNotifikasiKePeran,
 } from '@/lib/server-dokumen'
-import { alokasiBoks } from '@/lib/server-boks'
+import { alokasiBoks, simpanDokumenBoks } from '@/lib/server-boks'
 
 export const dynamic = 'force-dynamic'
 
@@ -250,14 +250,16 @@ async function runKadaluarsaCron(request: NextRequest) {
             }
           }
 
-          // 2.3 Alokasi Boks di Rak Inaktif 01 (buat Boks baru bila belum ada)
+          // 2.3 Alokasi Boks di Rak Inaktif 01 (M9 — Multi-Boks)
           let inaktifBoksId = doc.boks_id
+          let detailAlokasiInaktif: any[] = []
           let lokasiInaktifStr = 'Gudang Inaktif > Ruang Arsip Inaktif > Rak Inaktif 01'
           if (rakInaktif) {
             try {
               const inaktifBoks = await alokasiBoks(doc.jumlah_halaman || 1, rakInaktif.id)
               if (inaktifBoks) {
                 inaktifBoksId = inaktifBoks.id
+                detailAlokasiInaktif = inaktifBoks.detailAlokasi || []
               }
             } catch (boksErr) {
               console.warn(`Gagal alokasi boks inaktif untuk ${doc.kode_arsip}:`, boksErr)
@@ -280,6 +282,11 @@ async function runKadaluarsaCron(request: NextRequest) {
           if (updateError) {
             console.error(`Gagal update status dokumen ${doc.kode_arsip}:`, updateError)
             continue
+          }
+
+          // 2.4.1 Simpan Relasi Multi-Boks Inaktif
+          if (detailAlokasiInaktif.length > 0) {
+            await simpanDokumenBoks(doc.id, detailAlokasiInaktif)
           }
 
           // 2.5 Catat ke log_aktivitas

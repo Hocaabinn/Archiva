@@ -46,19 +46,21 @@ Metafora visual: **kertas kerja kedinasan, tinta stempel, cap status dokumen, ma
    - **Topbar:** Bersih tanpa kotak pencarian utama (pencarian diletakkan langsung di atas tabel dokumen). Menampilkan lonceng notifikasi dan profil pengguna.
    - **Sidebar:** Menampilkan peran aktif dengan lencana hierarki, menu disesuaikan menurut 6 peran R.03 (`superadmin`, `pic_aktif`, `atasan_aktif`, `pic_inaktif`, `atasan_inaktif`, `staff`).
 
-3. **Daftar Dokumen:**
+3. **Daftar Dokumen & Detail Dokumen (Aturan M9 Multi-Boks):**
    - Satu kotak pencarian terpadu yang memfilter nomor payment (PPL), doc voucher, kode lengkap SIG, maupun judul dokumen.
    - Filter dropdown status, kategori, tanggal, pemegang, dan lokasi master.
-   - Tabel padat menampilkan kode SIG monospace, judul, status cap, pemegang saat ini, lokasi rak/boks, dan batas retensi (dengan penanda 'Akan Kadaluarsa' untuk masa < 90 hari).
+   - Tabel padat menampilkan kode SIG monospace, judul, status cap, pemegang saat ini, lokasi rak/boks (misal `Boks 02, 03` untuk dokumen multi-boks), dan batas retensi (dengan penanda 'Akan Kadaluarsa' untuk masa < 90 hari).
+   - Halaman detail dokumen menampilkan alokasi seluruh nomor boks fisik yang ditempati beserta lembar per boks dan status keterisian boks.
 
 4. **Serah Terima, Transfer Dokumen & Peminjaman:**
    - Scan barcode/QR kamera beresolusi tinggi + kolom input scanner USB.
-   - Bukti Berita Acara Serah Terima (BAST) dan Berita Acara Penyerahan Arsip (Transfer) otomatis diterbitkan dalam format PDF kedinasan.
+   - Bukti Berita Acara Serah Terima (BAST) dan Berita Acara Penyerahan Arsip (Transfer) otomatis diterbitkan dalam format PDF kedinasan, mencantumkan seluruh nomor boks alokasi dokumen.
    - Perpindahan pemegang fisik hanya sah setelah penerima mengonfirmasi scan.
 
-5. **Dasbor Kapasitas & Metrik Kearsipan (M8):**
-   - Toggle metrik dwi-satuan: Berkas/Lembar vs Satuan Boks.
+5. **Dasbor Kapasitas & Metrik Kearsipan (M8/M9):**
+   - Toggle metrik dwi-satuan: Berkas/Lembar vs Satuan Boks (mendukung akumulasi boks multi-alokasi).
    - Widget Okupansi & Kapasitas per Ruangan & Rak berbasis pembacaan data master boks/tabel `boks`.
+   - Master Data Boks: Detail isi dokumen per boks menampilkan dokumen yang terbagi di boks tersebut tanpa risiko overflow atau tampilan 600/500 lembar.
    - Kartu statistik 4 kuadran padat informasi dengan lencana peringatan kedaluwarsa.
    - Grafik tren arsip tahunan yang menunjukkan volume dokumen masuk dan pergeseran ke inaktif.
 

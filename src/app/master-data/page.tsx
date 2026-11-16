@@ -19,6 +19,8 @@ import {
   Search,
   X,
   Sparkles,
+  Eye,
+  FileText,
 } from 'lucide-react'
 
 interface UnitOrg {
@@ -111,6 +113,30 @@ export default function MasterDataPage() {
 
   // Modal QR Boks
   const [qrModalBoks, setQrModalBoks] = useState<BoksItem | null>(null)
+
+  // Modal Detail Dokumen di Boks (M9)
+  const [detailBoks, setDetailBoks] = useState<BoksItem | null>(null)
+  const [detailDocs, setDetailDocs] = useState<any[]>([])
+  const [loadingDetailDocs, setLoadingDetailDocs] = useState(false)
+
+  const handleOpenDetailBoks = async (boks: BoksItem) => {
+    setDetailBoks(boks)
+    setLoadingDetailDocs(true)
+    try {
+      const res = await fetch(`/api/boks/${boks.id}/dokumen`)
+      const json = await res.json()
+      if (res.ok && json.dokumen) {
+        setDetailDocs(json.dokumen)
+      } else {
+        setDetailDocs([])
+      }
+    } catch (err) {
+      console.error('Gagal mengambil isi dokumen boks:', err)
+      setDetailDocs([])
+    } finally {
+      setLoadingDetailDocs(false)
+    }
+  }
 
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message })
@@ -558,7 +584,7 @@ export default function MasterDataPage() {
                       <tbody className="divide-y divide-[#ECEEF5]">
                         {boksList.map((boks) => {
                           const maxCap = boks.kapasitas_maks_lembar || 500
-                          const filled = boks.jumlah_lembar_terisi || 0
+                          const filled = Math.min(boks.jumlah_lembar_terisi || 0, maxCap)
                           const pct = Math.min(100, Math.round((filled / maxCap) * 100))
                           return (
                             <tr key={boks.id} className="hover:bg-[#F8FAFC]">
@@ -598,7 +624,16 @@ export default function MasterDataPage() {
                                   {boks.status || (pct >= 100 ? 'Penuh' : 'Aktif')}
                                 </span>
                               </td>
-                              <td className="px-4 py-3.5 text-right space-x-2">
+                              <td className="px-4 py-3.5 text-right space-x-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenDetailBoks(boks)}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-[#BCE1F9] bg-[#F0F8FF] px-2.5 py-1.5 text-xs font-semibold text-[#1E86C8] hover:bg-[#E1F1FD]"
+                                  title="Lihat Dokumen di Dalam Boks"
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                  Dokumen
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -617,7 +652,7 @@ export default function MasterDataPage() {
                                   <button
                                     type="button"
                                     onClick={() => setQrModalBoks(boks)}
-                                    className="inline-flex items-center gap-1 rounded-lg border border-[#BCE1F9] bg-[#F0F8FF] px-2.5 py-1.5 text-xs font-semibold text-[#1E86C8] hover:bg-[#E1F1FD]"
+                                    className="inline-flex items-center gap-1 rounded-lg border border-[#D5D9E2] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#4B5163] hover:bg-[#F4F5FA]"
                                     title="Lihat QR Boks"
                                   >
                                     <QrCode className="h-3.5 w-3.5" />
@@ -933,6 +968,133 @@ export default function MasterDataPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+        {/* MODAL DETAIL ISI DOKUMEN BOKS (M9) */}
+        {detailBoks && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-in fade-in">
+            <div className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl bg-white shadow-2xl overflow-hidden">
+              <div className="flex items-center justify-between border-b border-[#ECEEF5] px-6 py-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EAF5FD] text-[#3BA4E8]">
+                    <Archive className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <h3 className="text-base font-bold text-[#1F2333]">
+                      Daftar Dokumen di BOKS-{detailBoks.nomor_boks}
+                    </h3>
+                    <p className="text-xs text-[#6B7185]">
+                      {detailBoks.rak?.nama || 'Rak Arsip'} &bull; Kapasitas Maksimal: {detailBoks.kapasitas_maks_lembar || 500} lembar
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDetailBoks(null)}
+                  className="rounded-lg p-1 text-[#6B7185] hover:bg-black/5"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#F8FBFE] p-4 border border-[#ECEEF5]">
+                  <div>
+                    <span className="text-xs text-[#8A90A2]">Keterisian Boks Saat Ini</span>
+                    <p className="text-sm font-bold text-[#1F2333]">
+                      {Math.min(detailBoks.jumlah_lembar_terisi || 0, detailBoks.kapasitas_maks_lembar || 500)} / {detailBoks.kapasitas_maks_lembar || 500} lembar
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-[#8A90A2]">Status Fisik Boks</span>
+                    <p className="text-sm font-bold text-[#1F2333] flex items-center gap-1.5">
+                      <span
+                        className={`inline-block h-2 w-2 rounded-full ${
+                          detailBoks.status === 'Penuh' ? 'bg-[#D64545]' : 'bg-[#137333]'
+                        }`}
+                      />
+                      {detailBoks.status || 'Aktif'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-[#8A90A2]">Jumlah Entri Dokumen</span>
+                    <p className="text-sm font-bold text-[#1F2333]">
+                      {detailDocs.length} dokumen
+                    </p>
+                  </div>
+                </div>
+
+                {loadingDetailDocs ? (
+                  <div className="py-12 text-center text-xs text-[#6B7185]">
+                    <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2 text-[#3BA4E8]" />
+                    Memuat daftar dokumen di dalam boks...
+                  </div>
+                ) : detailDocs.length === 0 ? (
+                  <div className="py-10 text-center text-xs text-[#8A90A2]">
+                    Belum ada dokumen yang dialokasikan ke boks ini.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-[#ECEEF5]">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-[#F8FBFE] text-[#4B5163] uppercase border-b border-[#ECEEF5] font-semibold">
+                        <tr>
+                          <th className="px-3.5 py-2.5">Kode Arsip</th>
+                          <th className="px-3.5 py-2.5">Judul Dokumen</th>
+                          <th className="px-3.5 py-2.5">Lembar di Boks</th>
+                          <th className="px-3.5 py-2.5">Total Fisik</th>
+                          <th className="px-3.5 py-2.5">Status</th>
+                          <th className="px-3.5 py-2.5">PIC Unit</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#ECEEF5]">
+                        {detailDocs.map((docItem, idx) => (
+                          <tr key={docItem.id || idx} className="hover:bg-[#F8FAFC]">
+                            <td className="px-3.5 py-2.5 font-mono font-bold text-[#3BA4E8]">
+                              {docItem.kode_arsip}
+                            </td>
+                            <td className="px-3.5 py-2.5 font-medium text-[#1F2333] max-w-[200px] truncate">
+                              {docItem.judul}
+                            </td>
+                            <td className="px-3.5 py-2.5 font-bold text-[#1F2333]">
+                              {docItem.lembar_di_boks} lbr
+                            </td>
+                            <td className="px-3.5 py-2.5 text-[#6B7185]">
+                              {docItem.total_halaman} lbr
+                            </td>
+                            <td className="px-3.5 py-2.5">
+                              <span
+                                className={`rounded px-1.5 py-0.5 text-[10px] font-semibold capitalize ${
+                                  docItem.status === 'aktif'
+                                    ? 'bg-[#E6F4EA] text-[#137333]'
+                                    : docItem.status === 'inaktif'
+                                    ? 'bg-[#EEF0F4] text-[#4B5163]'
+                                    : 'bg-[#FEF7E0] text-[#B06000]'
+                                }`}
+                              >
+                                {docItem.status}
+                              </span>
+                            </td>
+                            <td className="px-3.5 py-2.5 text-[#6B7185]">
+                              {docItem.pemilik_nama}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-[#ECEEF5] px-6 py-3 bg-[#F8FBFE] flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setDetailBoks(null)}
+                  className="px-4 py-2 text-xs font-semibold text-[#1F2333] bg-white border border-[#D5D9E2] rounded-xl hover:bg-[#F4F5FA]"
+                >
+                  Tutup
+                </button>
+              </div>
             </div>
           </div>
         )}

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { catatLogAktivitas, kirimNotifikasiKeUser, kirimNotifikasiKePeran } from '@/lib/server-dokumen'
-import { alokasiBoks } from '@/lib/server-boks'
+import { alokasiBoks, simpanDokumenBoks } from '@/lib/server-boks'
 
 export const dynamic = 'force-dynamic'
 
@@ -160,6 +160,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .maybeSingle()
 
     let inaktifBoksId = null
+    let detailAlokasiInaktif: any[] = []
     const lokasiInaktifStr = 'Gudang Inaktif > Ruang Arsip Inaktif > Rak Inaktif 01'
 
     if (rakInaktif) {
@@ -167,6 +168,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         const boksResult = await alokasiBoks(doc.jumlah_halaman || 1, rakInaktif.id)
         if (boksResult) {
           inaktifBoksId = boksResult.id
+          detailAlokasiInaktif = boksResult.detailAlokasi || []
         }
       } catch (boksErr) {
         console.warn('Gagal alokasi boks inaktif otomatis:', boksErr)
@@ -223,6 +225,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       )
     }
 
+    // 3.1 Simpan Relasi Multi-Boks Inaktif (M9)
+    if (detailAlokasiInaktif.length > 0) {
+      await simpanDokumenBoks(doc.id, detailAlokasiInaktif)
+    }
+
     // 4. Update status serah terima menjadi 'Diterima'
     await admin
       .from('serah_terima')
@@ -266,10 +273,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       dokumenId: doc.id,
     })
 
+    const boksLabel = detailAlokasiInaktif.length > 0
+      ? detailAlokasiInaktif.map((d) => `BOKS-${d.boks.nomor_boks} (${d.jumlah_lembar} lbr)`).join(', ')
+      : 'Boks Inaktif'
+
     return NextResponse.json({
       success: true,
       message: `Dokumen ${doc.kode_arsip} berhasil diverifikasi dan resmi berstatus Inaktif di Gudang Inaktif.`,
       inaktifBoksId,
+      alokasiBoks: {
+        boksId: inaktifBoksId,
+        nomorBoks: boksLabel,
+      },
       lokasi: lokasiInaktifStr,
     })
   } catch (err: unknown) {

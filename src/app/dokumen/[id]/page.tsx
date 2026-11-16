@@ -33,6 +33,7 @@ import {
   Upload,
   Trash2,
   ShieldAlert,
+  Archive,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { KodeArsip } from '@/components/documents/kode-arsip'
@@ -62,6 +63,16 @@ interface LogItem {
   keterangan?: string
   created_at: string
   user?: { nama_lengkap?: string; email?: string }
+}
+
+export interface DokumenBoksInfo {
+  id: string
+  boks_id: string
+  nomor_boks: string
+  status_boks: string
+  jumlah_lembar: number
+  urutan: number
+  lokasi_teks?: string
 }
 
 interface DetailDokumen {
@@ -104,6 +115,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
   const [currentUserRole, setCurrentUserRole] = useState<UserRole>('staff')
   const [doc, setDoc] = useState<DetailDokumen | null>(null)
   const [lampiranList, setLampiranList] = useState<Lampiran[]>([])
+  const [dokumenBoksList, setDokumenBoksList] = useState<DokumenBoksInfo[]>([])
   const [logList, setLogList] = useState<LogItem[]>([])
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -162,7 +174,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
           penandatangan, deskripsi, status, bucket, file_path, file_tipe, ukuran_file,
           pemilik_id, pemegang_saat_ini, lokasi_saat_ini, tanggal_dokumen, tanggal_masuk,
           tanggal_disetujui, tanggal_kadaluarsa, disetujui_oleh,
-          alasan_penolakan, created_at, jumlah_halaman, unit_id,
+          alasan_penolakan, created_at, jumlah_halaman, unit_id, boks_id,
           kategori_dokumen ( nama ),
           unit:unit_organisasi ( nama ),
           pemilik:profiles!dokumen_pemilik_id_fkey ( nama_lengkap, email ),
@@ -217,6 +229,66 @@ export default function DetailDokumenPage({ params }: PageProps) {
       setEditPenandatangan(formatted.penandatangan || '')
       setEditDeskripsi(formatted.deskripsi || '')
       setEditLokasi(formatted.lokasi_saat_ini)
+
+      // Query Dokumen Boks (Multi-Boks M9)
+      try {
+        const { data: dboksData } = await supabase
+          .from('dokumen_boks')
+          .select(`
+            id, boks_id, jumlah_lembar, urutan,
+            boks:boks_id (
+              id, nomor_boks, status,
+              lokasi:rak_id ( nama, parent:parent_id ( nama, parent:parent_id ( nama ) ) )
+            )
+          `)
+          .eq('dokumen_id', id)
+          .order('urutan', { ascending: true })
+
+        if (dboksData && dboksData.length > 0) {
+          const formattedBoks: DokumenBoksInfo[] = dboksData.map((b: any) => {
+            const rak = b.boks?.lokasi?.nama || ''
+            const ruangan = b.boks?.lokasi?.parent?.nama || ''
+            const gedung = b.boks?.lokasi?.parent?.parent?.nama || ''
+            const lokasiStr = [gedung, ruangan, rak].filter(Boolean).join(' > ')
+            return {
+              id: b.id,
+              boks_id: b.boks_id,
+              nomor_boks: b.boks?.nomor_boks || 'BOKS',
+              status_boks: b.boks?.status || 'Aktif',
+              jumlah_lembar: b.jumlah_lembar || 0,
+              urutan: b.urutan || 1,
+              lokasi_teks: lokasiStr || undefined,
+            }
+          })
+          setDokumenBoksList(formattedBoks)
+        } else if (d.boks_id) {
+          const { data: singleBoks } = await supabase
+            .from('boks')
+            .select('id, nomor_boks, status')
+            .eq('id', d.boks_id)
+            .single()
+
+          if (singleBoks) {
+            setDokumenBoksList([
+              {
+                id: singleBoks.id,
+                boks_id: singleBoks.id,
+                nomor_boks: singleBoks.nomor_boks,
+                status_boks: singleBoks.status || 'Aktif',
+                jumlah_lembar: d.jumlah_halaman || 1,
+                urutan: 1,
+              },
+            ])
+          } else {
+            setDokumenBoksList([])
+          }
+        } else {
+          setDokumenBoksList([])
+        }
+      } catch (errBoks) {
+        console.error('Gagal memuat relasi dokumen_boks:', errBoks)
+        setDokumenBoksList([])
+      }
 
       // Query Lampiran
       const { data: lamps } = await supabase
@@ -432,6 +504,32 @@ export default function DetailDokumenPage({ params }: PageProps) {
     { icon: MapPin, label: 'Lokasi Fisik', value: doc.lokasi_saat_ini },
     { icon: Calendar, label: 'Tanggal Dokumen', value: formatTanggal(doc.tanggal_dokumen, 'long') },
     { icon: FileText, label: 'Lembar Fisik', value: `${doc.jumlah_halaman || 1} lembar` },
+    {
+      icon: Archive,
+      label: 'Alokasi Boks Fisik',
+      value:
+        dokumenBoksList.length > 0 ? (
+          <div className="flex flex-col gap-1.5 pt-0.5">
+            {dokumenBoksList.map((b) => (
+              <div key={b.id || b.boks_id} className="inline-flex items-center gap-2 text-xs">
+                <span className="font-mono font-bold text-[#1F2333]">BOKS-{b.nomor_boks}</span>
+                <span className="text-[#6B7185]">&mdash; {b.jumlah_lembar} lembar</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                    b.status_boks === 'Penuh'
+                      ? 'bg-[#FDECEC] text-[#D64545]'
+                      : 'bg-[#E6F4EA] text-[#137333]'
+                  }`}
+                >
+                  {b.status_boks}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          '-'
+        ),
+    },
     { icon: ShieldCheck, label: 'Unit Organisasi', value: doc.unit_nama || 'Keuangan' },
     {
       icon: CheckCircle2,
@@ -772,6 +870,21 @@ export default function DetailDokumenPage({ params }: PageProps) {
                   )
                 })}
               </dl>
+              {dokumenBoksList.length > 1 && (
+                <div className="border-t border-[#ECEEF5] bg-[#F0F8FF] px-5 py-3.5 flex items-start gap-3">
+                  <Archive className="h-5 w-5 text-[#1E86C8] shrink-0 mt-0.5" />
+                  <div className="text-xs text-[#1F2333]">
+                    <span className="font-bold text-[#1E86C8]">Alokasi Multi-Boks (Aturan M9):</span>
+                    <p className="mt-0.5 text-[#4B5163]">
+                      Dokumen bervolume tebal ({doc.jumlah_halaman} lembar) dipecah secara berurutan ke{' '}
+                      <strong>{dokumenBoksList.length} boks</strong> sesuai kapasitas maksimal standar (500 lembar per boks):{' '}
+                      <span className="font-semibold text-[#1F2333]">
+                        {dokumenBoksList.map((b) => `BOKS-${b.nomor_boks} (${b.jumlah_lembar} lbr - ${b.status_boks})`).join(', ')}
+                      </span>.
+                    </p>
+                  </div>
+                </div>
+              )}
               {doc.deskripsi && (
                 <div className="border-t border-[#ECEEF5] px-5 py-4">
                   <p className="text-xs text-[#8A90A2]">Deskripsi / Ringkasan</p>

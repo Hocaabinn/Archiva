@@ -9,7 +9,18 @@ export interface BoksRecord {
   jumlah_lembar_terisi: number
   qr_path: string | null
   status: 'Aktif' | 'Penuh'
-  created_at: string
+  created_at?: string
+}
+
+export interface DetailAlokasiBoks {
+  boks: BoksRecord
+  jumlah_lembar: number
+  urutan: number
+}
+
+export interface HasilAlokasiMulti {
+  boksUtama: BoksRecord
+  detailAlokasi: DetailAlokasiBoks[]
 }
 
 /**
@@ -96,101 +107,62 @@ export async function getNextNomorBoks(rakId: string): Promise<string> {
 }
 
 /**
- * Alokasi Boks Otomatis sesuai pseudo-code-kapasitas-boks.md & BLUEPRINT.md 3.5:
+ * Alokasi Boks Multi Otomatis (M9 — Aturan Baru 16 Nov 2026):
  *
- * 1. Ambil kapasitas maksimal dari Master (default 500 lembar).
- * 2. Cek boks aktif yang sedang berjalan di rak ini (status = 'Aktif').
- * 3. Jika dokumen sendirian sudah >= kapasitas (mis. 600 lembar):
- *    - Masuk boks baru dan langsung ditandai 'Penuh', tanpa dipecah.
- * 4. Jika boks aktif + lembar baru <= kapasitas:
- *    - Masuk boks yang sama, jumlah_lembar_terisi bertambah.
- * 5. Jika melampaui batas (mis. 350 + 300 = 650 > 500):
- *    - Tandai boks aktif saat ini menjadi 'Penuh'.
- *    - Buat boks baru bernomor urut berikutnya (mis. '02').
- *    - Masukkan dokumen ke boks baru tersebut.
- * 6. Terbitkan QR tersendiri per boks baru.
+ * 1. Dokumen > 500 lembar DIPECAH ke beberapa boks secara berurutan.
+ * 2. Kapasitas boks dibaca dinamis dari Master Kapasitas Boks (maks 500).
+ * 3. Boks aktif diisi hingga 500 lembar (status Penuh).
+ * 4. Sisa lembar dokumen berlanjut ke boks berikutnya bernomor urut berurutan.
+ * 5. Boks terakhir yang terisi sebagian TETAP TERBUKA (status Aktif) untuk dokumen berikutnya.
+ *
+ * Contoh:
+ * - Dokumen 600 lembar: Boks 02 terisi 500 (Penuh) + Boks 03 terisi 100 (Aktif, sisa 400).
+ * - Dokumen 300 lembar berikutnya: Masuk ke Boks 03 yang berisi 100 -> jadi 400/500 (Aktif).
+ * - Dokumen 1000 lembar: 2 boks @500, keduanya Penuh.
+ * - Dokumen 1001 lembar: 3 boks (500 + 500 + 1).
  */
-export async function alokasiBoks(jumlahHalamanBaru: number, rakId: string): Promise<BoksRecord> {
+export async function alokasiBoksMulti(
+  jumlahHalamanBaru: number,
+  rakId: string
+): Promise<HasilAlokasiMulti> {
   const admin = createAdminClient()
   const kapasitasMaks = await getMasterKapasitasBoks()
 
-  // 1. Cari boks aktif di rak ini
-  const { data: boksAktifList, error: errCari } = await admin
-    .from('boks')
-    .select('*')
-    .eq('rak_id', rakId)
-    .eq('status', 'Aktif')
-    .order('created_at', { ascending: false })
-    .limit(1)
+  let sisaLembar = Math.max(1, jumlahHalamanBaru)
+  let urutan = 1
+  const detailAlokasi: DetailAlokasiBoks[] = []
 
-  if (errCari) {
-    console.error('Error mencari boks aktif:', errCari)
-  }
-
-  let boksAktif = boksAktifList && boksAktifList.length > 0 ? (boksAktifList[0] as BoksRecord) : null
-
-  // Kasus 1: Belum ada boks aktif sama sekali di rak ini
-  if (!boksAktif) {
-    const nomorBoks = await getNextNomorBoks(rakId)
-    const isOver = jumlahHalamanBaru >= kapasitasMaks
-    const statusAwal = isOver ? 'Penuh' : 'Aktif'
-
-    const { data: created, error: createErr } = await admin
+  while (sisaLembar > 0) {
+    // 1. Cari boks aktif di rak ini
+    const { data: boksAktifList, error: errCari } = await admin
       .from('boks')
-      .insert({
-        nomor_boks: nomorBoks,
-        rak_id: rakId,
-        kapasitas_maks_lembar: kapasitasMaks,
-        jumlah_lembar_terisi: jumlahHalamanBaru,
-        status: statusAwal,
-      })
-      .select()
-      .single()
+      .select('*')
+      .eq('rak_id', rakId)
+      .eq('status', 'Aktif')
+      .order('nomor_boks', { ascending: true })
+      .limit(1)
 
-    if (createErr || !created) {
-      throw new Error(`Gagal membuat boks baru: ${createErr?.message}`)
+    if (errCari) {
+      console.error('Error mencari boks aktif:', errCari)
     }
 
-    // Terbitkan QR code untuk boks
-    const qrPath = await generateAndUploadBoksQR(created.id, nomorBoks)
-    if (qrPath) {
-      await admin.from('boks').update({ qr_path: qrPath }).eq('id', created.id)
-      created.qr_path = qrPath
-    }
+    let boksAktif: BoksRecord | null =
+      boksAktifList && boksAktifList.length > 0 ? (boksAktifList[0] as BoksRecord) : null
 
-    return created as BoksRecord
-  }
-
-  // Kasus 2: Dokumen sendirian sudah >= kapasitas (misal 600 lembar >= 500)
-  if (jumlahHalamanBaru >= kapasitasMaks) {
-    if (boksAktif.jumlah_lembar_terisi === 0) {
-      // Boks aktif saat ini masih 0 lembar, pakai boks ini dan tandai langsung Penuh
-      const { data: updated, error: updateErr } = await admin
-        .from('boks')
-        .update({
-          jumlah_lembar_terisi: jumlahHalamanBaru,
-          status: 'Penuh',
-        })
-        .eq('id', boksAktif.id)
-        .select()
-        .single()
-
-      if (updateErr) throw new Error(`Gagal mengupdate boks: ${updateErr.message}`)
-      return updated as BoksRecord
-    } else {
-      // Boks aktif sudah ada isinya, tutup boks aktif ini -> Penuh
-      await admin.from('boks').update({ status: 'Penuh' }).eq('id', boksAktif.id)
-
-      // Buat boks baru bernomor urut berikutnya, isi dokumen ini, langsung Penuh
+    // 2. Jika tidak ada boks aktif, buat boks baru bernomor urut berikutnya
+    if (!boksAktif) {
       const nextNomor = await getNextNomorBoks(rakId)
+      const lembarMasuk = Math.min(sisaLembar, kapasitasMaks)
+      const statusAwal: 'Aktif' | 'Penuh' = lembarMasuk >= kapasitasMaks ? 'Penuh' : 'Aktif'
+
       const { data: created, error: createErr } = await admin
         .from('boks')
         .insert({
           nomor_boks: nextNomor,
           rak_id: rakId,
           kapasitas_maks_lembar: kapasitasMaks,
-          jumlah_lembar_terisi: jumlahHalamanBaru,
-          status: 'Penuh',
+          jumlah_lembar_terisi: lembarMasuk,
+          status: statusAwal,
         })
         .select()
         .single()
@@ -199,64 +171,111 @@ export async function alokasiBoks(jumlahHalamanBaru: number, rakId: string): Pro
         throw new Error(`Gagal membuat boks baru: ${createErr?.message}`)
       }
 
+      // Generate QR Code untuk boks baru
       const qrPath = await generateAndUploadBoksQR(created.id, nextNomor)
       if (qrPath) {
         await admin.from('boks').update({ qr_path: qrPath }).eq('id', created.id)
         created.qr_path = qrPath
       }
 
-      return created as BoksRecord
+      detailAlokasi.push({
+        boks: created as BoksRecord,
+        jumlah_lembar: lembarMasuk,
+        urutan,
+      })
+
+      sisaLembar -= lembarMasuk
+      urutan++
+      continue
     }
-  }
 
-  // Kasus 3: Dokumen normal (< kapasitas)
-  const totalBaru = boksAktif.jumlah_lembar_terisi + jumlahHalamanBaru
+    // 3. Jika ada boks aktif, cek sisa ruangnya
+    const sisaKapasitas = boksAktif.kapasitas_maks_lembar - boksAktif.jumlah_lembar_terisi
 
-  if (totalBaru <= kapasitasMaks) {
-    // Masuk boks yang sama!
-    const statusBaru = totalBaru === kapasitasMaks ? 'Penuh' : 'Aktif'
+    // Jika boks aktif ternyata sudah penuh (sisaKapasitas <= 0), kunci statusnya dan cari lagi
+    if (sisaKapasitas <= 0) {
+      await admin.from('boks').update({ status: 'Penuh' }).eq('id', boksAktif.id)
+      continue
+    }
+
+    // 4. Masukkan lembar ke boks aktif ini
+    const lembarMasuk = Math.min(sisaLembar, sisaKapasitas)
+    const terisiBaru = boksAktif.jumlah_lembar_terisi + lembarMasuk
+    const statusBaru: 'Aktif' | 'Penuh' =
+      terisiBaru >= boksAktif.kapasitas_maks_lembar ? 'Penuh' : 'Aktif'
+
     const { data: updated, error: updateErr } = await admin
       .from('boks')
       .update({
-        jumlah_lembar_terisi: totalBaru,
+        jumlah_lembar_terisi: terisiBaru,
         status: statusBaru,
       })
       .eq('id', boksAktif.id)
       .select()
       .single()
 
-    if (updateErr) throw new Error(`Gagal mengupdate boks: ${updateErr.message}`)
-    return updated as BoksRecord
-  } else {
-    // Melampaui kapasitas! (misal 350 + 300 = 650 > 500)
-    // 1. Tandai boks aktif saat ini menjadi Penuh
-    await admin.from('boks').update({ status: 'Penuh' }).eq('id', boksAktif.id)
-
-    // 2. Buat boks baru bernomor urut berikutnya
-    const nextNomor = await getNextNomorBoks(rakId)
-    const { data: created, error: createErr } = await admin
-      .from('boks')
-      .insert({
-        nomor_boks: nextNomor,
-        rak_id: rakId,
-        kapasitas_maks_lembar: kapasitasMaks,
-        jumlah_lembar_terisi: jumlahHalamanBaru,
-        status: 'Aktif',
-      })
-      .select()
-      .single()
-
-    if (createErr || !created) {
-      throw new Error(`Gagal membuat boks baru: ${createErr?.message}`)
+    if (updateErr || !updated) {
+      throw new Error(`Gagal mengupdate boks: ${updateErr?.message}`)
     }
 
-    const qrPath = await generateAndUploadBoksQR(created.id, nextNomor)
-    if (qrPath) {
-      await admin.from('boks').update({ qr_path: qrPath }).eq('id', created.id)
-      created.qr_path = qrPath
-    }
+    detailAlokasi.push({
+      boks: updated as BoksRecord,
+      jumlah_lembar: lembarMasuk,
+      urutan,
+    })
 
-    return created as BoksRecord
+    sisaLembar -= lembarMasuk
+    urutan++
+  }
+
+  return {
+    boksUtama: detailAlokasi[0].boks,
+    detailAlokasi,
   }
 }
 
+/**
+ * Menyimpan relasi multi-boks ke tabel junction `dokumen_boks`
+ */
+export async function simpanDokumenBoks(
+  dokumenId: string,
+  detailAlokasi: DetailAlokasiBoks[]
+): Promise<void> {
+  const admin = createAdminClient()
+
+  // Hapus relasi lama jika ada (untuk re-alokasi atau pindah inaktif)
+  try {
+    await admin.from('dokumen_boks').delete().eq('dokumen_id', dokumenId)
+  } catch (err) {
+    console.warn('Gagal membersihkan dokumen_boks lama:', err)
+  }
+
+  const rows = detailAlokasi.map((item) => ({
+    dokumen_id: dokumenId,
+    boks_id: item.boks.id,
+    jumlah_lembar: item.jumlah_lembar,
+    urutan: item.urutan,
+  }))
+
+  const { error } = await admin.from('dokumen_boks').insert(rows)
+  if (error) {
+    console.error('Error insert dokumen_boks:', error)
+    // Jangan hentikan seluruh request jika tabel belum dimigrasi di remote
+  }
+}
+
+/**
+ * Wrapper alokasi boks untuk kompatibilitas fungsi lama
+ * Mengembalikan boks utama (boks pertama) dengan properti multi-boks tambahan
+ */
+export async function alokasiBoks(
+  jumlahHalamanBaru: number,
+  rakId: string
+): Promise<BoksRecord & { detailAlokasi?: DetailAlokasiBoks[] }> {
+  const hasil = await alokasiBoksMulti(jumlahHalamanBaru, rakId)
+  const boksRecord = {
+    ...hasil.boksUtama,
+    detailAlokasi: hasil.detailAlokasi,
+  }
+  return boksRecord
+}

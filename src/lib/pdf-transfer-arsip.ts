@@ -7,6 +7,7 @@ export interface ItemDokumenTransfer {
   jumlahHalaman: number
   tanggalKadaluarsa: string
   sisaHari: number
+  nomorBoks?: string
 }
 
 export interface BeritaAcaraTransferData {
@@ -191,9 +192,10 @@ export async function generateBeritaAcaraTransferPDF(data: BeritaAcaraTransferDa
   })
   page.drawText('NO', { x: 55, y: y - 12, size: 7.5, font: fontBold, color: navyColor })
   page.drawText('KODE ARSIP (SIG)', { x: 75, y: y - 12, size: 7.5, font: fontBold, color: navyColor })
-  page.drawText('JUDUL / PERIHAL', { x: 235, y: y - 12, size: 7.5, font: fontBold, color: navyColor })
-  page.drawText('KATEGORI', { x: 410, y: y - 12, size: 7.5, font: fontBold, color: navyColor })
-  page.drawText('HAL', { x: 465, y: y - 12, size: 7.5, font: fontBold, color: navyColor })
+  page.drawText('JUDUL / PERIHAL', { x: 215, y: y - 12, size: 7.5, font: fontBold, color: navyColor })
+  page.drawText('KATEGORI', { x: 350, y: y - 12, size: 7.5, font: fontBold, color: navyColor })
+  page.drawText('BOKS', { x: 405, y: y - 12, size: 7.5, font: fontBold, color: navyColor })
+  page.drawText('HAL', { x: 460, y: y - 12, size: 7.5, font: fontBold, color: navyColor })
   page.drawText('RETENSI', { x: 495, y: y - 12, size: 7.5, font: fontBold, color: navyColor })
 
   y -= 18
@@ -218,10 +220,11 @@ export async function generateBeritaAcaraTransferPDF(data: BeritaAcaraTransferDa
     page.drawText(String(idx + 1), { x: 55, y: y - 12, size: 7.5, font: fontRegular, color: darkGray })
     page.drawText(doc.kodeArsip, { x: 75, y: y - 12, size: 7, font: fontMono, color: navyColor })
 
-    const judulTruncated = doc.judul.length > 36 ? doc.judul.substring(0, 33) + '...' : doc.judul
-    page.drawText(judulTruncated, { x: 235, y: y - 12, size: 7.5, font: fontRegular, color: darkGray })
-    page.drawText(doc.kategori || 'Umum', { x: 410, y: y - 12, size: 7.5, font: fontRegular, color: darkGray })
-    page.drawText(`${doc.jumlahHalaman} lbr`, { x: 465, y: y - 12, size: 7, font: fontRegular, color: darkGray })
+    const judulTruncated = doc.judul.length > 28 ? doc.judul.substring(0, 25) + '...' : doc.judul
+    page.drawText(judulTruncated, { x: 215, y: y - 12, size: 7.5, font: fontRegular, color: darkGray })
+    page.drawText(doc.kategori || 'Umum', { x: 350, y: y - 12, size: 7, font: fontRegular, color: darkGray })
+    page.drawText(doc.nomorBoks || '-', { x: 405, y: y - 12, size: 6.5, font: fontMono, color: navyColor })
+    page.drawText(`${doc.jumlahHalaman} lbr`, { x: 460, y: y - 12, size: 7, font: fontRegular, color: darkGray })
 
     const statusRetensi = doc.sisaHari <= 0 ? 'Kedaluwarsa' : `H-${doc.sisaHari}`
     page.drawText(statusRetensi, { x: 495, y: y - 12, size: 7, font: fontBold, color: rgb(0.8, 0.2, 0.2) })

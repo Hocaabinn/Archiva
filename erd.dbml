@@ -60,7 +60,7 @@ Table dokumen {
   unit_id uuid [ref: > unit_organisasi.id] // Unit PIC Arsip Aktif pengentri
   pemilik_id uuid [ref: > profiles.id] // PIC Arsip Aktif pengentri
   pemegang_saat_ini uuid [ref: > profiles.id]
-  boks_id uuid [ref: > boks.id] // Wadah fisik dokumen
+  boks_id uuid [ref: > boks.id] // Boks utama (urutan 1)
   lokasi_saat_ini text // Gedung A / Ruangan Arsip / Rak 1
   tanggal_dokumen date [default: `CURRENT_DATE`]
   tanggal_masuk timestamptz [default: `now()`]
@@ -78,6 +78,15 @@ Table dokumen {
   alasan_penolakan text
   created_at timestamptz [default: `now()`]
   updated_at timestamptz [default: `now()`]
+}
+
+Table dokumen_boks {
+  id uuid [pk]
+  dokumen_id uuid [not null, ref: > dokumen.id]
+  boks_id uuid [not null, ref: > boks.id]
+  jumlah_lembar int [not null]
+  urutan int [not null, default: 1]
+  created_at timestamptz [default: `now()`]
 }
 
 Table peminjaman {

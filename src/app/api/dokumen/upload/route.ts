@@ -8,7 +8,7 @@ import {
   catatLogAktivitas,
   kirimNotifikasiKePeran,
 } from '@/lib/server-dokumen'
-import { alokasiBoks } from '@/lib/server-boks'
+import { alokasiBoks, simpanDokumenBoks } from '@/lib/server-boks'
 
 export const dynamic = 'force-dynamic'
 
@@ -282,7 +282,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 8.5 Alokasi Boks Otomatis (Blueprint 3.5 & pseudo-code-kapasitas-boks.md)
-    let allocatedBoks: { id: string; nomor_boks: string; status: string }
+    let allocatedBoks: Awaited<ReturnType<typeof alokasiBoks>>
     try {
       allocatedBoks = await alokasiBoks(jumlahHalaman, rakLokasi.id)
     } catch (boksErr: any) {
@@ -332,6 +332,11 @@ export async function POST(request: NextRequest) {
         { error: `Penyimpanan dokumen ditolak oleh kebijakan keamanan (RLS): ${insertDocError?.message}` },
         { status: 403 }
       )
+    }
+
+    // 9.1 Simpan Relasi Multi-Boks (M9 — Blueprint 3.5 & dokumen_boks)
+    if (allocatedBoks.detailAlokasi && allocatedBoks.detailAlokasi.length > 0) {
+      await simpanDokumenBoks(newDoc.id, allocatedBoks.detailAlokasi)
     }
 
     // 10. Simpan Lampiran (jika ada)

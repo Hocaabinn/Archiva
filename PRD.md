@@ -60,12 +60,13 @@ Skema database mengacu penuh pada BLUEPRINT.md 4.3 dan 4.4:
 2. `unit_organisasi`: Master unit kerja kedinasan (Keuangan, Legal, dsb.) dengan kode perusahaan SIG (`2000`).
 3. `kategori_dokumen`: Master kategori arsip (`KEU`, `SDM`, `KTR`, dsb.).
 4. `lokasi`: Struktur hierarki lokasi penyimpanan (`Gedung` > `Ruangan` > `Rak`).
-5. `boks`: Wadah fisik arsip berkapasitas 500 lembar dengan nomor urut otomatis dan QR label boks.
+5. `boks`: Wadah fisik arsip berkapasitas dinamis (default 500 lembar) dengan nomor urut otomatis, QR label boks, dan status Aktif/Penuh.
 6. `dokumen`: Data induk arsip digital dan fisik, kode arsip SIG, bucket storage, dan status retensi.
-7. `peminjaman`: Sirkulasi peminjaman berkas arsip inaktif.
-8. `serah_terima`: Transaksi serah terima fisik antar pegawai berbasis scan QR dan verifikasi penerima.
-9. `log_aktivitas`: Rekam jejak audit keamanan seluruh aktivitas sistem.
-10. `notifikasi`: Notifikasi lonceng dasbor bagi pengguna.
+7. `dokumen_boks`: Relasi multi-boks dokumen (Aturan M9), mencatat pemecahan dokumen tebal (>500 lembar) secara berurutan ke beberapa nomor boks beserta jumlah lembar di tiap boks.
+8. `peminjaman`: Sirkulasi peminjaman berkas arsip inaktif.
+9. `serah_terima`: Transaksi serah terima fisik antar pegawai berbasis scan QR dan verifikasi penerima.
+10. `log_aktivitas`: Rekam jejak audit keamanan seluruh aktivitas sistem.
+11. `notifikasi`: Notifikasi lonceng dasbor bagi pengguna.
 
 ---
 

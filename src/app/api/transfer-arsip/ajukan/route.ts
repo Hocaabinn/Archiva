@@ -68,10 +68,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 2. Ambil dokumen-dokumen yang dipilih
+    // 2. Ambil dokumen-dokumen yang dipilih beserta relasi boks (M9)
     const { data: docs, error: docErr } = await admin
       .from('dokumen')
-      .select('id, kode_arsip, judul, status, jumlah_halaman, tanggal_kadaluarsa, lokasi_saat_ini, kategori_dokumen:kategori_id(nama)')
+      .select(`
+        id, kode_arsip, judul, status, jumlah_halaman, tanggal_kadaluarsa, lokasi_saat_ini, boks_id,
+        kategori_dokumen:kategori_id(nama),
+        boks:boks_id(nomor_boks),
+        dokumen_boks(urutan, jumlah_lembar, boks:boks_id(nomor_boks))
+      `)
       .in('id', dokumen_ids)
 
     if (docErr || !docs || docs.length === 0) {
@@ -104,10 +109,21 @@ export async function POST(request: NextRequest) {
     const now = new Date()
     const nomorBa = `BA-TRANSFER/${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}/${Math.random().toString(36).substring(2, 8).toUpperCase()}`
 
-    // 3. Susun data untuk PDF Berita Acara
+    // 3. Susun data untuk PDF Berita Acara (Mencantumkan seluruh nomor boks)
     const dokumenListForPdf = docs.map((d: any) => {
       const expDate = d.tanggal_kadaluarsa ? new Date(d.tanggal_kadaluarsa) : new Date()
       const diffDays = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+
+      let nomorBoksLabel = '-'
+      if (d.dokumen_boks && Array.isArray(d.dokumen_boks) && d.dokumen_boks.length > 0) {
+        nomorBoksLabel = d.dokumen_boks
+          .sort((a: any, b: any) => (a.urutan || 0) - (b.urutan || 0))
+          .map((db: any) => `B.${db.boks?.nomor_boks || '?'}`)
+          .join(', ')
+      } else if (d.boks?.nomor_boks) {
+        nomorBoksLabel = `B.${d.boks.nomor_boks}`
+      }
+
       return {
         kodeArsip: d.kode_arsip,
         judul: d.judul,
@@ -115,6 +131,7 @@ export async function POST(request: NextRequest) {
         jumlahHalaman: d.jumlah_halaman || 1,
         tanggalKadaluarsa: d.tanggal_kadaluarsa || '-',
         sisaHari: diffDays,
+        nomorBoks: nomorBoksLabel,
       }
     })
 

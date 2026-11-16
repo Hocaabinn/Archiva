@@ -145,6 +145,16 @@ CREATE TABLE IF NOT EXISTS public.dokumen (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 7b. TABEL DOKUMEN_BOKS (Relasi Many-to-Many Multi-Boks Dokumen > 500 Lembar - Aturan M9)
+CREATE TABLE IF NOT EXISTS public.dokumen_boks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    dokumen_id UUID NOT NULL REFERENCES public.dokumen(id) ON DELETE CASCADE,
+    boks_id UUID NOT NULL REFERENCES public.boks(id) ON DELETE CASCADE,
+    jumlah_lembar INT NOT NULL CHECK (jumlah_lembar > 0),
+    urutan INT NOT NULL DEFAULT 1,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- 8. TABEL PEMINJAMAN (Hanya untuk Dokumen Inaktif)
 CREATE TABLE IF NOT EXISTS public.peminjaman (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -202,6 +212,8 @@ CREATE INDEX IF NOT EXISTS idx_dokumen_kode_arsip ON public.dokumen(kode_arsip);
 CREATE INDEX IF NOT EXISTS idx_dokumen_status ON public.dokumen(status);
 CREATE INDEX IF NOT EXISTS idx_dokumen_pemegang ON public.dokumen(pemegang_saat_ini);
 CREATE INDEX IF NOT EXISTS idx_dokumen_boks ON public.dokumen(boks_id);
+CREATE INDEX IF NOT EXISTS idx_dokumen_boks_dokumen_id ON public.dokumen_boks(dokumen_id);
+CREATE INDEX IF NOT EXISTS idx_dokumen_boks_boks_id ON public.dokumen_boks(boks_id);
 CREATE INDEX IF NOT EXISTS idx_log_aktivitas_dokumen ON public.log_aktivitas(dokumen_id);
 CREATE INDEX IF NOT EXISTS idx_log_aktivitas_user ON public.log_aktivitas(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifikasi_user_unread ON public.notifikasi(user_id) WHERE dibaca = FALSE;

@@ -145,6 +145,7 @@ const DOC_SELECT = `
   tanggal_kadaluarsa, pemilik_id, pemegang_saat_ini, boks_id,
   kategori_dokumen ( id, nama, kode ),
   boks:boks_id ( id, nomor_boks, status ),
+  dokumen_boks ( urutan, jumlah_lembar, boks:boks_id ( nomor_boks ) ),
   pemegang:profiles!dokumen_pemegang_saat_ini_fkey ( id, nama_lengkap, email ),
   pemilik:profiles!dokumen_pemilik_id_fkey ( id, nama_lengkap, email )
 `
@@ -175,6 +176,18 @@ function sisaHari(iso: string | null) {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapRow(d: any): DocRow {
+  let boksDisplay: string | undefined = undefined
+  if (Array.isArray(d.dokumen_boks) && d.dokumen_boks.length > 0) {
+    const sorted = [...d.dokumen_boks].sort((a, b) => (a.urutan || 1) - (b.urutan || 1))
+    const boksNomorList = sorted.map((item: any) => item.boks?.nomor_boks).filter(Boolean)
+    if (boksNomorList.length > 0) {
+      boksDisplay = boksNomorList.join(', ')
+    }
+  }
+  if (!boksDisplay) {
+    boksDisplay = (d.boks as any)?.nomor_boks || undefined
+  }
+
   return {
     id: d.id,
     kode_arsip: d.kode_arsip,
@@ -188,7 +201,7 @@ function mapRow(d: any): DocRow {
     lokasi_saat_ini: d.lokasi_saat_ini || '-',
     pemegang_saat_ini: d.pemegang_saat_ini || d.pemilik_id,
     pemegang_nama: (d.pemegang as any)?.nama_lengkap || (d.pemegang as any)?.email || (d.pemilik as any)?.nama_lengkap || (d.pemilik as any)?.email || 'PIC Unit',
-    boks_nomor: (d.boks as any)?.nomor_boks || undefined,
+    boks_nomor: boksDisplay,
     tanggal_dokumen: d.tanggal_dokumen || '',
     tanggal_kadaluarsa: d.tanggal_kadaluarsa || null,
     file_size: d.ukuran_file ?? d.file_size ?? null,

@@ -47,6 +47,7 @@ interface DocumentItem {
   created_at: string | null
   tanggal_kadaluarsa: string | null
   boks_id: string | null
+  boks_ids?: string[]
   jumlah_halaman: number
 }
 
@@ -273,6 +274,7 @@ function DashboardBody() {
           boks_id,
           jumlah_halaman,
           kategori_dokumen ( nama ),
+          dokumen_boks ( boks_id ),
           pemegang:profiles!dokumen_pemegang_saat_ini_fkey ( nama_lengkap, email ),
           pemilik:profiles!dokumen_pemilik_id_fkey ( nama_lengkap, email )
         `)
@@ -322,6 +324,16 @@ function DashboardBody() {
         const pemegangNama =
           d.pemegang?.nama_lengkap || d.pemegang?.email || d.pemilik?.nama_lengkap || d.pemilik?.email || 'PIC Unit'
 
+        const boksIds: string[] = []
+        if (Array.isArray(d.dokumen_boks) && d.dokumen_boks.length > 0) {
+          d.dokumen_boks.forEach((item: any) => {
+            if (item.boks_id) boksIds.push(item.boks_id)
+          })
+        }
+        if (boksIds.length === 0 && d.boks_id) {
+          boksIds.push(d.boks_id)
+        }
+
         return {
           id: d.id,
           kode_arsip: d.kode_arsip,
@@ -335,7 +347,8 @@ function DashboardBody() {
           ukuran_file: sizeStr,
           created_at: d.created_at || null,
           tanggal_kadaluarsa: d.tanggal_kadaluarsa || null,
-          boks_id: d.boks_id || null,
+          boks_id: d.boks_id || (boksIds[0] || null),
+          boks_ids: boksIds,
           jumlah_halaman: d.jumlah_halaman || 1,
         }
       })
@@ -382,10 +395,17 @@ function DashboardBody() {
     }
   }, [supabase, loadData])
 
-  // Hitung jumlah boks unik yang diasosiasikan dengan dokumen tertentu
+  // Hitung jumlah boks unik yang diasosiasikan dengan dokumen tertentu (M9 multi-boks support)
   const countBoxesForDocs = useCallback(
     (docList: DocumentItem[]) => {
-      const boksIds = new Set(docList.map((d) => d.boks_id).filter(Boolean))
+      const boksIds = new Set<string>()
+      docList.forEach((d) => {
+        if (d.boks_ids && d.boks_ids.length > 0) {
+          d.boks_ids.forEach((bid) => boksIds.add(bid))
+        } else if (d.boks_id) {
+          boksIds.add(d.boks_id)
+        }
+      })
       return boksIds.size
     },
     []
@@ -455,7 +475,11 @@ function DashboardBody() {
         if (yearsMap.has(y)) {
           const entry = yearsMap.get(y)!
           entry.berkasMasuk += 1
-          if (d.boks_id) entry.boksMasuk.add(d.boks_id)
+          if (d.boks_ids && d.boks_ids.length > 0) {
+            d.boks_ids.forEach((bid) => entry.boksMasuk.add(bid))
+          } else if (d.boks_id) {
+            entry.boksMasuk.add(d.boks_id)
+          }
         }
       }
       if (d.status === 'inaktif' && d.tanggal_kadaluarsa) {
