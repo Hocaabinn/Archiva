@@ -977,7 +977,7 @@ export default function MasterDataPage() {
                       /* MODE 1: DIAGRAM POHON BERCABANG KOMPAK, RESPONSIF & ZOOMABLE      */
                       /* Ukuran ringkas, kurva kurung kurawal presisi, collapsible per node */
                       /* ================================================================ */
-                      <div className="relative overflow-auto max-h-[700px] p-2.5 sm:p-5 bg-[#F8FAFC] bg-[radial-gradient(#CBD5E1_1px,transparent_1px)] [background-size:16px_16px] rounded-b-xl border border-t-0 border-[#BAE6FD]">
+                      <div className="relative overflow-auto max-h-[720px] p-2.5 sm:p-5 bg-[#F8FAFC] bg-[radial-gradient(#CBD5E1_1px,transparent_1px)] [background-size:16px_16px] rounded-b-xl border border-t-0 border-[#BAE6FD]">
                         {/* Baris Tips & Status Zoom */}
                         <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#64748B] mb-3 px-1">
                           <div className="flex items-center gap-2">
