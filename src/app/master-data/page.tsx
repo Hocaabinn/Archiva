@@ -1265,16 +1265,16 @@ export default function MasterDataPage() {
                                                             return (
                                                               <g key={rkIdx}>
                                                                 <path
-                                                                  d={`M 0 ${yRkMid} H 8 C 20 ${yRkMid}, 20 ${yRkChild}, 32 ${yRkChild} H 40`}
+                                                                  d={`M 0 ${yRkMid} H 8 C 18 ${yRkMid}, 22 ${yRkChild}, 32 ${yRkChild} H 40`}
                                                                   stroke="#94A3B8"
-                                                                  strokeWidth="1.25"
+                                                                  strokeWidth="1.4"
                                                                   strokeLinecap="round"
                                                                   fill="none"
                                                                 />
                                                                 <circle
                                                                   cx="38"
                                                                   cy={yRkChild}
-                                                                  r="2"
+                                                                  r="2.2"
                                                                   fill="#0369A1"
                                                                 />
                                                               </g>
