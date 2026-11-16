@@ -1170,9 +1170,9 @@ export default function MasterDataPage() {
                                                   <g key={idx}>
                                                     {/* Kurva kurung kurawal halus */}
                                                     <path
-                                                      d={`M 0 ${yMid} H 10 C 28 ${yMid}, 28 ${yChild}, 46 ${yChild} H 56`}
+                                                      d={`M 0 ${yMid} H 10 C 26 ${yMid}, 30 ${yChild}, 46 ${yChild} H 56`}
                                                       stroke="#94A3B8"
-                                                      strokeWidth="1.5"
+                                                      strokeWidth="1.65"
                                                       strokeLinecap="round"
                                                       fill="none"
                                                     />
