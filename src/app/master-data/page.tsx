@@ -11,6 +11,10 @@ import {
   Warehouse,
   GitFork,
   List,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Filter,
   Plus,
   Edit2,
   Trash2,
@@ -160,6 +164,24 @@ export default function MasterDataPage() {
 
   // Mode Tampilan Hierarki Lokasi: 'tabel' atau 'diagram' (diagram percabangan kurva kurung kurawal)
   const [lokasiViewMode, setLokasiViewMode] = useState<'tabel' | 'diagram'>('diagram')
+
+  // Kontrol Diagram Responsif & Skala Zoom (untuk menampung data banyak)
+  const [diagramScale, setDiagramScale] = useState<number>(85) // default 85% agar muat banyak
+  const [selectedGedungFilter, setSelectedGedungFilter] = useState<string>('all')
+  const [collapsedDiagramNodes, setCollapsedDiagramNodes] = useState<Set<string>>(new Set())
+
+  const toggleDiagramNode = (id: string) => {
+    setCollapsedDiagramNodes((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const zoomInDiagram = () => setDiagramScale((prev) => Math.min(prev + 15, 125))
+  const zoomOutDiagram = () => setDiagramScale((prev) => Math.max(prev - 15, 50))
+  const resetZoomDiagram = () => setDiagramScale(85)
 
   // Modal State Tambah Organisasi
   const [isAddOrgOpen, setIsAddOrgOpen] = useState(false)
@@ -378,6 +400,12 @@ export default function MasterDataPage() {
       }
     })
   }, [rawLokasi])
+
+  // Filter Gedung yang ditampilkan di Diagram (bisa fokus per gedung jika data sangat banyak)
+  const displayedNestedLokasiTree = useMemo(() => {
+    if (selectedGedungFilter === 'all') return nestedLokasiTree
+    return nestedLokasiTree.filter((g) => g.id === selectedGedungFilter)
+  }, [nestedLokasiTree, selectedGedungFilter])
 
   // Pilihan Induk (Parent) untuk Form Tambah/Ubah Lokasi
   // Hanya Gedung (level 1) dan Ruangan (level 2). Rak (level 3) tidak boleh jadi induk.
@@ -859,6 +887,56 @@ export default function MasterDataPage() {
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {/* KONTROL DIAGRAM VIEW (FILTER & ZOOM SCALING) */}
+                        {lokasiViewMode === 'diagram' && (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {/* Filter Fokus Gedung Cepat */}
+                            <div className="flex items-center gap-1.5 bg-white border border-[#BAE6FD] rounded-lg px-2.5 py-1 text-xs">
+                              <Filter className="h-3 w-3 text-[#0284C7]" />
+                              <select
+                                value={selectedGedungFilter}
+                                onChange={(e) => setSelectedGedungFilter(e.target.value)}
+                                className="bg-transparent text-xs font-semibold text-[#1F2333] focus:outline-none cursor-pointer"
+                              >
+                                <option value="all">Semua Lokasi ({nestedLokasiTree.length})</option>
+                                {nestedLokasiTree.map((g) => (
+                                  <option key={g.id} value={g.id}>
+                                    {g.nama}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Tombol Skala / Zoom Controller */}
+                            <div className="inline-flex items-center rounded-lg border border-[#BAE6FD] bg-white p-0.5 shadow-2xs">
+                              <button
+                                type="button"
+                                onClick={zoomOutDiagram}
+                                className="p-1 text-[#64748B] hover:text-[#0284C7] hover:bg-[#F0F9FF] rounded transition-colors"
+                                title="Kecilkan Skala (Zoom Out)"
+                              >
+                                <ZoomOut className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={resetZoomDiagram}
+                                className="px-2 py-0.5 text-[11px] font-mono font-semibold text-[#0369A1] hover:bg-[#E0F2FE] rounded transition-colors"
+                                title="Reset Skala Tampilan (85%)"
+                              >
+                                {diagramScale}%
+                              </button>
+                              <button
+                                type="button"
+                                onClick={zoomInDiagram}
+                                className="p-1 text-[#64748B] hover:text-[#0284C7] hover:bg-[#F0F9FF] rounded transition-colors"
+                                title="Perbesar Skala (Zoom In)"
+                              >
+                                <ZoomIn className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
                         {lokasiViewMode === 'tabel' && (
                           <>
                             <button
@@ -893,254 +971,344 @@ export default function MasterDataPage() {
                     {/* KONTEN MODE: DIAGRAM BERCABANG ATAU TABEL HIERARKI */}
                     {lokasiViewMode === 'diagram' ? (
                       /* ================================================================ */
-                      /* MODE 1: DIAGRAM POHON BERCABANG (KURVA KURUNG KURAWAL / MINDMAP)  */
-                      /* Persis seperti referensi visual yang diinginkan user              */
+                      /* MODE 1: DIAGRAM POHON BERCABANG KOMPAK, RESPONSIF & ZOOMABLE      */
+                      /* Ukuran ringkas, kurva kurung kurawal presisi, collapsible per node */
                       /* ================================================================ */
-                      <div className="p-6 bg-[#F8FAFC] space-y-8 overflow-x-auto min-h-[380px]">
-                        {nestedLokasiTree.length === 0 ? (
-                          <div className="py-12 text-center text-[#8A90A2]">
-                            Belum ada data hierarki lokasi untuk ditampilkan.
+                      <div className="relative overflow-auto max-h-[660px] p-5 bg-[#F8FAFC] bg-[radial-gradient(#CBD5E1_1px,transparent_1px)] [background-size:16px_16px] rounded-b-xl border border-t-0 border-[#BAE6FD]">
+                        {/* Baris Tips & Status Zoom */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#64748B] mb-4 px-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-[#0369A1]">
+                              {displayedNestedLokasiTree.length} Lokasi
+                            </span>
+                            <span>&bull;</span>
+                            <span>Skala: <strong className="font-mono text-[#1F2333]">{diagramScale}%</strong></span>
+                            {selectedGedungFilter !== 'all' && (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedGedungFilter('all')}
+                                className="text-[10px] text-[#0284C7] underline hover:text-[#0369A1]"
+                              >
+                                (Reset Filter)
+                              </button>
+                            )}
+                          </div>
+                          <span className="text-[10px] bg-white border border-[#BAE6FD] px-2.5 py-0.5 rounded-full text-[#0369A1] shadow-2xs font-medium">
+                            💡 Klik badge angka di ruangan/gedung untuk melipat atau membuka cabang
+                          </span>
+                        </div>
+
+                        {displayedNestedLokasiTree.length === 0 ? (
+                          <div className="py-16 text-center text-[#8A90A2] bg-white rounded-xl border border-[#ECEEF5]">
+                            Belum ada data hierarki lokasi untuk filter terpilih.
                           </div>
                         ) : (
-                          nestedLokasiTree.map((gedung) => {
-                            const isGudang =
-                              gedung.nama.toLowerCase().includes('gudang') ||
-                              gedung.kode === 'LOC-G-INAKTIF'
-                            const ruangans = gedung.ruangans || []
-                            const totalRuangans = ruangans.length
-                            const heightRuangans = Math.max(totalRuangans * 72, 80)
+                          /* Inner Canvas dengan Scale Transform untuk Muat Banyak Data */
+                          <div
+                            style={{
+                              transform: `scale(${diagramScale / 100})`,
+                              transformOrigin: 'top left',
+                              width: `${Math.max(100, 100 * (100 / diagramScale))}%`,
+                            }}
+                            className="space-y-4 transition-transform duration-100 ease-out"
+                          >
+                            {displayedNestedLokasiTree.map((gedung) => {
+                              const isGudang =
+                                gedung.nama.toLowerCase().includes('gudang') ||
+                                gedung.kode === 'LOC-G-INAKTIF'
+                              const ruangans = gedung.ruangans || []
+                              const totalRuangans = ruangans.length
+                              const isGedungCollapsed = collapsedDiagramNodes.has(gedung.id)
 
-                            return (
-                              <div
-                                key={gedung.id}
-                                className="bg-white rounded-2xl border border-[#BAE6FD] p-6 shadow-2xs hover:shadow-sm transition-all"
-                              >
-                                {/* Header Card Gedung */}
-                                <div className="flex items-center justify-between border-b border-[#F0F9FF] pb-3 mb-6">
-                                  <div className="flex items-center gap-2.5">
-                                    {isGudang ? (
-                                      <Warehouse className="h-5 w-5 text-[#D97706]" />
-                                    ) : (
-                                      <Building2 className="h-5 w-5 text-[#0284C7]" />
-                                    )}
-                                    <span className="text-sm font-bold text-[#1F2333]">
-                                      {gedung.nama}
-                                    </span>
-                                    <span className="text-[10px] font-mono text-[#64748B]">
-                                      ({gedung.kode || '-'})
-                                    </span>
-                                    <span
-                                      className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                                        gedung.status === 'Aktif'
-                                          ? 'bg-[#E6F4EA] text-[#137333]'
-                                          : 'bg-[#F1F5F9] text-[#64748B]'
-                                      }`}
-                                    >
-                                      {gedung.status || 'Aktif'}
-                                    </span>
-                                  </div>
+                              // Hitung tinggi kumulatif ruangan (memperhatikan rak di dalamnya)
+                              const calculatedHeightRuangans = isGedungCollapsed
+                                ? 0
+                                : Math.max(
+                                    ruangans.reduce((acc, r) => {
+                                      const isRCollapsed = collapsedDiagramNodes.has(r.id)
+                                      const raksCount = r.raks?.length || 0
+                                      const rHeight =
+                                        isRCollapsed || raksCount === 0
+                                          ? 38
+                                          : Math.max(raksCount * 30, 38)
+                                      return acc + rHeight + 10
+                                    }, 0),
+                                    50
+                                  )
 
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenEditLokasi(gedung as any)}
-                                      className="text-xs text-[#0284C7] hover:underline font-semibold inline-flex items-center gap-1"
-                                    >
-                                      <Edit2 className="h-3 w-3" />
-                                      Ubah
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* Area Diagram Pohon Horizontal */}
-                                <div className="min-w-[680px] py-2 flex items-center gap-0">
-                                  {/* 1. Node Induk (Gedung/Gudang): Pill Lonjong Kapsul Persis Gambar Referensi */}
-                                  <div className="shrink-0 flex items-center">
-                                    <div
-                                      className={`relative rounded-full px-5 py-2.5 shadow-sm flex items-center gap-2 border transition-transform hover:scale-[1.02] ${
-                                        isGudang
-                                          ? 'bg-[#D97706] border-[#B45309] text-white'
-                                          : 'bg-[#84CC16] border-[#65A30D] text-white'
-                                      }`}
-                                    >
+                              return (
+                                <div
+                                  key={gedung.id}
+                                  className="bg-white rounded-xl border border-[#BAE6FD] p-4 shadow-2xs hover:shadow-sm transition-all"
+                                >
+                                  {/* Header Mini Gedung */}
+                                  <div className="flex items-center justify-between border-b border-[#F0F9FF] pb-2.5 mb-3">
+                                    <div className="flex items-center gap-2">
                                       {isGudang ? (
-                                        <Warehouse className="h-4 w-4 text-white shrink-0" />
+                                        <Warehouse className="h-4 w-4 text-[#D97706]" />
                                       ) : (
-                                        <Building2 className="h-4 w-4 text-white shrink-0" />
+                                        <Building2 className="h-4 w-4 text-[#0284C7]" />
                                       )}
-                                      <span className="text-xs font-bold uppercase tracking-wider">
+                                      <span className="text-xs font-bold text-[#1F2333]">
                                         {gedung.nama}
                                       </span>
-                                      <span className="text-[9px] bg-black/20 px-2 py-0.5 rounded-full font-mono font-medium">
-                                        {isGudang ? 'Gudang' : 'Gedung'}
+                                      <span className="text-[10px] font-mono text-[#64748B]">
+                                        ({gedung.kode || '-'})
                                       </span>
+                                      <span
+                                        className={`text-[9px] px-2 py-0.2 rounded-full font-semibold ${
+                                          gedung.status === 'Aktif'
+                                            ? 'bg-[#E6F4EA] text-[#137333]'
+                                            : 'bg-[#F1F5F9] text-[#64748B]'
+                                        }`}
+                                      >
+                                        {gedung.status || 'Aktif'}
+                                      </span>
+                                    </div>
 
-                                      {/* Titik Port Keluar Cabang di Kanan */}
-                                      {totalRuangans > 0 && (
-                                        <div
-                                          className={`absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border-2 shadow-2xs z-10 ${
-                                            isGudang ? 'border-[#D97706]' : 'border-[#84CC16]'
-                                          }`}
-                                        />
-                                      )}
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenEditLokasi(gedung as any)}
+                                        className="text-[11px] text-[#0284C7] hover:underline font-semibold inline-flex items-center gap-1"
+                                      >
+                                        <Edit2 className="h-2.5 w-2.5" />
+                                        Ubah
+                                      </button>
                                     </div>
                                   </div>
 
-                                  {/* Jika Tidak Memiliki Ruangan */}
-                                  {totalRuangans === 0 ? (
-                                    <div className="ml-8 text-xs text-[#94A3B8] italic flex items-center gap-1.5">
-                                      <span>(Belum ada ruangan terdaftar di lokasi ini)</span>
-                                    </div>
-                                  ) : (
-                                    /* Jika Memiliki Ruangan: Render Kurva Cabang ke Kolom Ruangan */
-                                    <div className="flex items-center">
-                                      {/* Kolom Kurva Kurung Kurawal SVG Antara Gedung & Ruangans */}
+                                  {/* Area Diagram Horizontal Kompak */}
+                                  <div className="min-w-[580px] py-1 flex items-center gap-0">
+                                    {/* 1. Node Induk (Gedung/Gudang): Pill Ramping Persis Gambar Referensi */}
+                                    <div className="shrink-0 flex items-center">
                                       <div
-                                        className="relative w-16 shrink-0 self-stretch flex items-center justify-center"
-                                        style={{ minHeight: `${heightRuangans}px` }}
+                                        className={`relative rounded-full px-3.5 py-1.5 shadow-2xs flex items-center gap-2 border transition-transform hover:scale-[1.02] ${
+                                          isGudang
+                                            ? 'bg-[#D97706] border-[#B45309] text-white'
+                                            : 'bg-[#84CC16] border-[#65A30D] text-white'
+                                        }`}
                                       >
-                                        <svg
-                                          className="w-full h-full overflow-visible pointer-events-none"
-                                          viewBox={`0 0 64 ${heightRuangans}`}
-                                          preserveAspectRatio="none"
+                                        {isGudang ? (
+                                          <Warehouse className="h-3.5 w-3.5 text-white shrink-0" />
+                                        ) : (
+                                          <Building2 className="h-3.5 w-3.5 text-white shrink-0" />
+                                        )}
+                                        <span className="text-[11px] font-bold uppercase tracking-wider">
+                                          {gedung.nama}
+                                        </span>
+
+                                        {/* Toggle Collapse Cabang Gedung */}
+                                        {totalRuangans > 0 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleDiagramNode(gedung.id)}
+                                            className="text-[9px] bg-black/25 hover:bg-black/40 px-1.5 py-0.2 rounded-full font-mono transition-colors"
+                                            title={
+                                              isGedungCollapsed
+                                                ? 'Klik untuk membuka cabang ruangan'
+                                                : 'Klik untuk melipat cabang ruangan'
+                                            }
+                                          >
+                                            {isGedungCollapsed
+                                              ? `+${totalRuangans} ruangan`
+                                              : `${totalRuangans} ruangan`}
+                                          </button>
+                                        )}
+
+                                        {/* Titik Port Keluar Cabang di Kanan */}
+                                        {totalRuangans > 0 && !isGedungCollapsed && (
+                                          <div
+                                            className={`absolute -right-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white border-2 shadow-2xs z-10 ${
+                                              isGudang ? 'border-[#D97706]' : 'border-[#84CC16]'
+                                            }`}
+                                          />
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Jika Gedung Tidak Memiliki Ruangan atau Sedang Dilipat */}
+                                    {totalRuangans === 0 ? (
+                                      <div className="ml-6 text-[11px] text-[#94A3B8] italic flex items-center gap-1">
+                                        <span>(Belum ada ruangan di lokasi ini)</span>
+                                      </div>
+                                    ) : isGedungCollapsed ? (
+                                      <div className="ml-4 text-[10px] text-[#64748B] italic">
+                                        &larr; Cabang ruangan dilipat ({totalRuangans} ruangan)
+                                      </div>
+                                    ) : (
+                                      /* Jika Memiliki Ruangan: Render Kurva Cabang ke Kolom Ruangan */
+                                      <div className="flex items-center">
+                                        {/* Kolom Kurva Kurung Kurawal SVG Antara Gedung & Ruangans */}
+                                        <div
+                                          className="relative w-10 shrink-0 self-stretch flex items-center justify-center"
+                                          style={{ minHeight: `${calculatedHeightRuangans}px` }}
                                         >
-                                          {ruangans.map((_, idx) => {
-                                            const yMid = heightRuangans / 2
-                                            const yChild =
-                                              totalRuangans === 1
-                                                ? yMid
-                                                : (idx + 0.5) * (heightRuangans / totalRuangans)
+                                          <svg
+                                            className="w-full h-full overflow-visible pointer-events-none"
+                                            viewBox={`0 0 40 ${calculatedHeightRuangans}`}
+                                            preserveAspectRatio="none"
+                                          >
+                                            {ruangans.map((_, idx) => {
+                                              const yMid = calculatedHeightRuangans / 2
+                                              const yChild =
+                                                totalRuangans === 1
+                                                  ? yMid
+                                                  : (idx + 0.5) *
+                                                    (calculatedHeightRuangans / totalRuangans)
+                                              return (
+                                                <g key={idx}>
+                                                  {/* Kurva kurung kurawal halus */}
+                                                  <path
+                                                    d={`M 0 ${yMid} H 8 C 20 ${yMid}, 20 ${yChild}, 32 ${yChild} H 40`}
+                                                    stroke="#94A3B8"
+                                                    strokeWidth="1.5"
+                                                    strokeLinecap="round"
+                                                    fill="none"
+                                                  />
+                                                  {/* Dot simpul kecil di titik masuk ruangan */}
+                                                  <circle cx="38" cy={yChild} r="2.5" fill="#0284C7" />
+                                                </g>
+                                              )
+                                            })}
+                                            {/* Dot simpul keluar di titik induk */}
+                                            <circle
+                                              cx="2"
+                                              cy={calculatedHeightRuangans / 2}
+                                              r="3"
+                                              fill={isGudang ? '#D97706' : '#84CC16'}
+                                            />
+                                          </svg>
+                                        </div>
+
+                                        {/* Kolom Ruangans */}
+                                        <div className="flex flex-col gap-2.5 py-1 shrink-0">
+                                          {ruangans.map((ruangan) => {
+                                            const raks = ruangan.raks || []
+                                            const totalRaks = raks.length
+                                            const isRuanganCollapsed = collapsedDiagramNodes.has(
+                                              ruangan.id
+                                            )
+                                            const heightRaks = Math.max(totalRaks * 30, 36)
+
                                             return (
-                                              <g key={idx}>
-                                                {/* Kurva kurung kurawal halus khas diagram mindmap */}
-                                                <path
-                                                  d={`M 0 ${yMid} H 12 C 32 ${yMid}, 32 ${yChild}, 52 ${yChild} H 64`}
-                                                  stroke="#94A3B8"
-                                                  strokeWidth="1.75"
-                                                  strokeLinecap="round"
-                                                  fill="none"
-                                                />
-                                                {/* Dot simpul kecil di titik masuk ruangan */}
-                                                <circle cx="62" cy={yChild} r="3" fill="#0284C7" />
-                                              </g>
+                                              <div
+                                                key={ruangan.id}
+                                                className="flex items-center gap-0"
+                                              >
+                                                {/* Node Ruangan: Pill Ramping Kapsul Biru */}
+                                                <div className="shrink-0 flex items-center">
+                                                  <div className="relative rounded-full px-3 py-1 bg-[#0284C7] border border-[#0369A1] text-white shadow-2xs flex items-center gap-1.5 hover:scale-[1.02] transition-transform">
+                                                    <MapPin className="h-3 w-3 text-white/90 shrink-0" />
+                                                    <span className="text-[11px] font-semibold">
+                                                      {ruangan.nama}
+                                                    </span>
+                                                    <span className="text-[8.5px] bg-black/20 px-1 py-0.2 rounded font-mono">
+                                                      {ruangan.kode}
+                                                    </span>
+
+                                                    {/* Toggle Collapse Cabang Rak */}
+                                                    {totalRaks > 0 && (
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => toggleDiagramNode(ruangan.id)}
+                                                        className="text-[8.5px] bg-black/25 hover:bg-black/40 px-1.5 py-0.2 rounded-full font-mono transition-colors"
+                                                        title={
+                                                          isRuanganCollapsed
+                                                            ? 'Klik untuk membuka rak'
+                                                            : 'Klik untuk melipat rak'
+                                                        }
+                                                      >
+                                                        {isRuanganCollapsed
+                                                          ? `+${totalRaks} rak`
+                                                          : `${totalRaks} rak`}
+                                                      </button>
+                                                    )}
+
+                                                    {/* Titik Port Keluar Cabang ke Rak di Kanan */}
+                                                    {totalRaks > 0 && !isRuanganCollapsed && (
+                                                      <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white border-2 border-[#0284C7] shadow-2xs z-10" />
+                                                    )}
+                                                  </div>
+                                                </div>
+
+                                                {/* Jika Ruangan Memiliki Rak & Tidak Dilipat */}
+                                                {totalRaks > 0 && !isRuanganCollapsed && (
+                                                  <div className="flex items-center">
+                                                    {/* Kurva Kurung Kurawal SVG Antara Ruangan & Raks */}
+                                                    <div
+                                                      className="relative w-8 shrink-0 self-stretch flex items-center justify-center"
+                                                      style={{ minHeight: `${heightRaks}px` }}
+                                                    >
+                                                      <svg
+                                                        className="w-full h-full overflow-visible pointer-events-none"
+                                                        viewBox={`0 0 32 ${heightRaks}`}
+                                                        preserveAspectRatio="none"
+                                                      >
+                                                        {raks.map((_, rkIdx) => {
+                                                          const yRkMid = heightRaks / 2
+                                                          const yRkChild =
+                                                            totalRaks === 1
+                                                              ? yRkMid
+                                                              : (rkIdx + 0.5) *
+                                                                (heightRaks / totalRaks)
+                                                          return (
+                                                            <g key={rkIdx}>
+                                                              <path
+                                                                d={`M 0 ${yRkMid} H 6 C 16 ${yRkMid}, 16 ${yRkChild}, 26 ${yRkChild} H 32`}
+                                                                stroke="#94A3B8"
+                                                                strokeWidth="1.25"
+                                                                strokeLinecap="round"
+                                                                fill="none"
+                                                              />
+                                                              <circle
+                                                                cx="30"
+                                                                cy={yRkChild}
+                                                                r="2"
+                                                                fill="#0369A1"
+                                                              />
+                                                            </g>
+                                                          )
+                                                        })}
+                                                        <circle
+                                                          cx="1.5"
+                                                          cy={heightRaks / 2}
+                                                          r="2.5"
+                                                          fill="#0284C7"
+                                                        />
+                                                      </svg>
+                                                    </div>
+
+                                                    {/* Kolom Raks: Pill Sangat Ramping */}
+                                                    <div className="flex flex-col gap-1.5 py-0.5">
+                                                      {raks.map((rak) => (
+                                                        <div
+                                                          key={rak.id}
+                                                          className="rounded-full px-2.5 py-0.5 bg-[#F0F9FF] border border-[#BAE6FD] text-[#0369A1] shadow-2xs flex items-center gap-1 hover:bg-[#E0F2FE] transition-colors"
+                                                        >
+                                                          <Archive className="h-2.5 w-2.5 text-[#0284C7] shrink-0" />
+                                                          <span className="text-[10px] font-medium">
+                                                            {rak.nama}
+                                                          </span>
+                                                          <span className="text-[8.5px] font-mono text-[#64748B] bg-white border border-[#BAE6FD] px-1 py-0.1 rounded">
+                                                            {rak.kode}
+                                                          </span>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </div>
                                             )
                                           })}
-                                          {/* Dot simpul keluar di titik induk */}
-                                          <circle
-                                            cx="2"
-                                            cy={heightRuangans / 2}
-                                            r="3.5"
-                                            fill={isGudang ? '#D97706' : '#84CC16'}
-                                          />
-                                        </svg>
+                                        </div>
                                       </div>
-
-                                      {/* Kolom Ruangans */}
-                                      <div className="flex flex-col gap-4 py-2 shrink-0">
-                                        {ruangans.map((ruangan) => {
-                                          const raks = ruangan.raks || []
-                                          const totalRaks = raks.length
-                                          const heightRaks = Math.max(totalRaks * 52, 60)
-
-                                          return (
-                                            <div
-                                              key={ruangan.id}
-                                              className="flex items-center gap-0"
-                                            >
-                                              {/* Node Ruangan: Pill Lonjong Kapsul Biru Persis Gambar Referensi */}
-                                              <div className="shrink-0 flex items-center">
-                                                <div className="relative rounded-full px-4 py-2 bg-[#0284C7] border border-[#0369A1] text-white shadow-sm flex items-center gap-2 hover:scale-[1.02] transition-transform">
-                                                  <MapPin className="h-3.5 w-3.5 text-white/90 shrink-0" />
-                                                  <span className="text-xs font-semibold">
-                                                    {ruangan.nama}
-                                                  </span>
-                                                  <span className="text-[9px] bg-black/20 px-1.5 py-0.5 rounded-full font-mono">
-                                                    {ruangan.kode}
-                                                  </span>
-
-                                                  {/* Titik Port Keluar Cabang ke Rak di Kanan */}
-                                                  {totalRaks > 0 && (
-                                                    <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white border-2 border-[#0284C7] shadow-2xs z-10" />
-                                                  )}
-                                                </div>
-                                              </div>
-
-                                              {/* Jika Ruangan Memiliki Rak: Render Kurva Cabang ke Kolom Rak */}
-                                              {totalRaks > 0 && (
-                                                <div className="flex items-center">
-                                                  {/* Kurva Kurung Kurawal SVG Antara Ruangan & Raks */}
-                                                  <div
-                                                    className="relative w-14 shrink-0 self-stretch flex items-center justify-center"
-                                                    style={{ minHeight: `${heightRaks}px` }}
-                                                  >
-                                                    <svg
-                                                      className="w-full h-full overflow-visible pointer-events-none"
-                                                      viewBox={`0 0 56 ${heightRaks}`}
-                                                      preserveAspectRatio="none"
-                                                    >
-                                                      {raks.map((_, rkIdx) => {
-                                                        const yRkMid = heightRaks / 2
-                                                        const yRkChild =
-                                                          totalRaks === 1
-                                                            ? yRkMid
-                                                            : (rkIdx + 0.5) *
-                                                              (heightRaks / totalRaks)
-                                                        return (
-                                                          <g key={rkIdx}>
-                                                            <path
-                                                              d={`M 0 ${yRkMid} H 10 C 28 ${yRkMid}, 28 ${yRkChild}, 46 ${yRkChild} H 56`}
-                                                              stroke="#94A3B8"
-                                                              strokeWidth="1.5"
-                                                              strokeLinecap="round"
-                                                              fill="none"
-                                                            />
-                                                            <circle
-                                                              cx="54"
-                                                              cy={yRkChild}
-                                                              r="2.5"
-                                                              fill="#0369A1"
-                                                            />
-                                                          </g>
-                                                        )
-                                                      })}
-                                                      <circle
-                                                        cx="2"
-                                                        cy={heightRaks / 2}
-                                                        r="3"
-                                                        fill="#0284C7"
-                                                      />
-                                                    </svg>
-                                                  </div>
-
-                                                  {/* Kolom Raks */}
-                                                  <div className="flex flex-col gap-2 py-1">
-                                                    {raks.map((rak) => (
-                                                      <div
-                                                        key={rak.id}
-                                                        className="rounded-full px-3.5 py-1 bg-[#F0F9FF] border border-[#BAE6FD] text-[#0369A1] shadow-2xs flex items-center gap-1.5 hover:bg-[#E0F2FE] transition-colors"
-                                                      >
-                                                        <Archive className="h-3 w-3 text-[#0284C7] shrink-0" />
-                                                        <span className="text-[11px] font-medium">
-                                                          {rak.nama}
-                                                        </span>
-                                                        <span className="text-[9px] font-mono text-[#64748B] bg-white border border-[#BAE6FD] px-1 py-0.2 rounded">
-                                                          {rak.kode}
-                                                        </span>
-                                                      </div>
-                                                    ))}
-                                                  </div>
-                                                </div>
-                                              )}
-                                            </div>
-                                          )
-                                        })}
-                                      </div>
-                                    </div>
-                                  )}
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            )
-                          })
+                              )
+                            })}
+                          </div>
                         )}
                       </div>
                     ) : (
