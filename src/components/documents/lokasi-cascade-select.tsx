@@ -5,8 +5,10 @@ import { MapPin, Loader2, AlertCircle } from 'lucide-react'
 
 export interface LokasiItem {
   id: string
+  kode?: string
   nama: string
   tingkat: 'Gedung' | 'Ruangan' | 'Rak'
+  status?: 'Aktif' | 'Nonaktif'
   parent_id: string | null
 }
 
@@ -43,17 +45,21 @@ export function LokasiCascadeSelect({
   const [selectedRuanganId, setSelectedRuanganId] = useState<string>('')
   const [selectedRakId, setSelectedRakId] = useState<string>(valueRakId)
 
-  // 1. Fetch data Master Lokasi
+  // 1. Fetch data Master Lokasi (hanya yang status Aktif untuk pilihan formulir)
   useEffect(() => {
     let active = true
     async function load() {
       try {
         setLoading(true)
-        const res = await fetch('/api/lokasi')
+        const res = await fetch('/api/lokasi?status=Aktif')
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Gagal memuat Master Lokasi')
         if (active) {
-          setAllLokasi(data.raw || [])
+          // Pastikan hanya lokasi berstatus Aktif
+          const activeOnly = (data.raw || []).filter(
+            (l: LokasiItem) => !l.status || l.status === 'Aktif'
+          )
+          setAllLokasi(activeOnly)
           setFetchError(null)
         }
       } catch (err: unknown) {
@@ -70,19 +76,23 @@ export function LokasiCascadeSelect({
     }
   }, [])
 
-  // Pisahkan berdasarkan tingkat
+  // Pisahkan berdasarkan tingkat (hanya yang aktif)
   const gedungOptions = useMemo(() => {
-    return allLokasi.filter((l) => l.tingkat === 'Gedung')
+    return allLokasi.filter((l) => l.tingkat === 'Gedung' && l.status !== 'Nonaktif')
   }, [allLokasi])
 
   const ruanganOptions = useMemo(() => {
     if (!selectedGedungId) return []
-    return allLokasi.filter((l) => l.tingkat === 'Ruangan' && l.parent_id === selectedGedungId)
+    return allLokasi.filter(
+      (l) => l.tingkat === 'Ruangan' && l.parent_id === selectedGedungId && l.status !== 'Nonaktif'
+    )
   }, [allLokasi, selectedGedungId])
 
   const rakOptions = useMemo(() => {
     if (!selectedRuanganId) return []
-    return allLokasi.filter((l) => l.tingkat === 'Rak' && l.parent_id === selectedRuanganId)
+    return allLokasi.filter(
+      (l) => l.tingkat === 'Rak' && l.parent_id === selectedRuanganId && l.status !== 'Nonaktif'
+    )
   }, [allLokasi, selectedRuanganId])
 
   // Inisialisasi awal bila valueRakId sudah ada
@@ -106,10 +116,14 @@ export function LokasiCascadeSelect({
     if (!selectedGedungId && gedungOptions.length > 0) {
       const firstG = gedungOptions[0]
       setSelectedGedungId(firstG.id)
-      const firstR = allLokasi.find((l) => l.tingkat === 'Ruangan' && l.parent_id === firstG.id)
+      const firstR = allLokasi.find(
+        (l) => l.tingkat === 'Ruangan' && l.parent_id === firstG.id && l.status !== 'Nonaktif'
+      )
       if (firstR) {
         setSelectedRuanganId(firstR.id)
-        const firstK = allLokasi.find((l) => l.tingkat === 'Rak' && l.parent_id === firstR.id)
+        const firstK = allLokasi.find(
+          (l) => l.tingkat === 'Rak' && l.parent_id === firstR.id && l.status !== 'Nonaktif'
+        )
         if (firstK) {
           setSelectedRakId(firstK.id)
           const locStr = `${firstG.nama} > ${firstR.nama} > ${firstK.nama}`
@@ -133,11 +147,15 @@ export function LokasiCascadeSelect({
     setSelectedRakId('')
 
     // Reset pilihan anak
-    const availableR = allLokasi.filter((l) => l.tingkat === 'Ruangan' && l.parent_id === gid)
+    const availableR = allLokasi.filter(
+      (l) => l.tingkat === 'Ruangan' && l.parent_id === gid && l.status !== 'Nonaktif'
+    )
     if (availableR.length > 0) {
       const firstR = availableR[0]
       setSelectedRuanganId(firstR.id)
-      const availableK = allLokasi.filter((l) => l.tingkat === 'Rak' && l.parent_id === firstR.id)
+      const availableK = allLokasi.filter(
+        (l) => l.tingkat === 'Rak' && l.parent_id === firstR.id && l.status !== 'Nonaktif'
+      )
       if (availableK.length > 0) {
         const firstK = availableK[0]
         setSelectedRakId(firstK.id)
@@ -162,7 +180,9 @@ export function LokasiCascadeSelect({
     setSelectedRuanganId(rid)
     setSelectedRakId('')
 
-    const availableK = allLokasi.filter((l) => l.tingkat === 'Rak' && l.parent_id === rid)
+    const availableK = allLokasi.filter(
+      (l) => l.tingkat === 'Rak' && l.parent_id === rid && l.status !== 'Nonaktif'
+    )
     if (availableK.length > 0) {
       const firstK = availableK[0]
       setSelectedRakId(firstK.id)
@@ -257,7 +277,7 @@ export function LokasiCascadeSelect({
                 <option value="">-- Pilih Gedung --</option>
                 {gedungOptions.map((g) => (
                   <option key={g.id} value={g.id}>
-                    {g.nama}
+                    {g.nama} {g.kode ? `(${g.kode})` : ''}
                   </option>
                 ))}
               </select>
@@ -276,7 +296,7 @@ export function LokasiCascadeSelect({
                 <option value="">-- Pilih Ruangan --</option>
                 {ruanganOptions.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.nama}
+                    {r.nama} {r.kode ? `(${r.kode})` : ''}
                   </option>
                 ))}
               </select>
@@ -295,7 +315,7 @@ export function LokasiCascadeSelect({
                 <option value="">-- Pilih Rak --</option>
                 {rakOptions.map((k) => (
                   <option key={k.id} value={k.id}>
-                    {k.nama}
+                    {k.nama} {k.kode ? `(${k.kode})` : ''}
                   </option>
                 ))}
               </select>
@@ -304,12 +324,12 @@ export function LokasiCascadeSelect({
 
           {/* Konfirmasi Hirarki Lokasi Resmi */}
           {selectedLocString ? (
-            <div className="p-2 bg-[#F0F7FF] border border-[#BAE6FD] rounded-md flex items-center justify-between text-xs font-mono">
+            <div className="p-2.5 bg-[#F0F7FF] border border-[#BAE6FD] rounded-md flex items-center justify-between text-xs font-mono">
               <span className="text-[#0369A1] font-semibold flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-[#0284C7]" />
-                {selectedLocString}
+                <MapPin className="w-3.5 h-3.5 text-[#0284C7] shrink-0" />
+                <span>📍 {selectedLocString}</span>
               </span>
-              <span className="text-[10px] bg-[#E0F2FE] text-[#0369A1] px-2 py-0.5 rounded font-bold">
+              <span className="text-[10px] bg-[#E0F2FE] text-[#0369A1] px-2 py-0.5 rounded font-bold border border-[#BAE6FD]">
                 TERDAFTAR DI MASTER
               </span>
             </div>
@@ -323,4 +343,3 @@ export function LokasiCascadeSelect({
     </div>
   )
 }
-
