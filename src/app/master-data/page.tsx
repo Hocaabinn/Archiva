@@ -1129,7 +1129,7 @@ export default function MasterDataPage() {
                                           {/* Titik Port Keluar Cabang di Kanan */}
                                           {totalRuangans > 0 && !isGedungCollapsed && (
                                             <div
-                                              className={`absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border-2 shadow-2xs z-10 ${
+                                              className={`absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border-2 ring-1 ring-black/10 shadow-2xs z-10 ${
                                                 isGudang ? 'border-[#D97706]' : 'border-[#84CC16]'
                                               }`}
                                             />
