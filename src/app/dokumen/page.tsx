@@ -84,7 +84,7 @@ interface FormState {
 const PRIVILEGED: UserRole[] = ['superadmin', 'pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif']
 const PAGE_SIZE = 8
 
-// Blueprint 3.1: 3 Kategori resmi (Keuangan, SDM, Kontrak)
+// 3 Kategori resmi arsip (Keuangan, SDM, Kontrak)
 const blueprintKategori: Kategori[] = [
   { id: 'keu', nama: 'Keuangan' },
   { id: 'sdm', nama: 'SDM' },
