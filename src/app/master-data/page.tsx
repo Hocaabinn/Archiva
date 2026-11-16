@@ -1039,7 +1039,7 @@ export default function MasterDataPage() {
                               return (
                                 <div
                                   key={gedung.id}
-                                  className="bg-white rounded-xl border border-[#BAE6FD] p-3 sm:p-4 shadow-2xs hover:shadow-sm transition-all"
+                                  className="bg-white rounded-xl border border-[#BAE6FD] p-3 sm:p-4 shadow-2xs hover:shadow-sm transition-all w-full min-w-[720px] lg:min-w-[920px]"
                                 >
                                   {/* Header Mini Gedung Responsif Mobile & iPad */}
                                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#F0F9FF] pb-2.5 mb-2 sm:mb-3">
