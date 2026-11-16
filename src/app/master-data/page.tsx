@@ -1081,8 +1081,8 @@ export default function MasterDataPage() {
                                   {/* Petunjuk Geser Horizontal di Mobile jika Memiliki Ruangan */}
                                   {totalRuangans > 0 && !isGedungCollapsed && (
                                     <div className="sm:hidden flex items-center justify-end mb-1">
-                                      <span className="text-[9.5px] text-[#0284C7] bg-[#F0F9FF] border border-[#BAE6FD] px-2 py-0.5 rounded-full inline-flex items-center gap-1 font-medium">
-                                        👉 Geser untuk lihat rak &rarr;
+                                      <span className="text-[9.5px] text-[#0369A1] bg-[#F0F9FF] border border-[#BAE6FD] px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 font-medium shadow-2xs">
+                                        <span>👉</span> Geser ke kanan untuk melihat rak
                                       </span>
                                     </div>
                                   )}
