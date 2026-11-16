@@ -15,6 +15,7 @@ import {
   ZoomOut,
   Maximize2,
   Filter,
+  MoveRight,
   Plus,
   Edit2,
   Trash2,
@@ -1078,11 +1079,12 @@ export default function MasterDataPage() {
                                     </div>
                                   </div>
 
-                                  {/* Petunjuk Geser Horizontal di Mobile jika Memiliki Ruangan */}
+                                  {/* Petunjuk Geser Horizontal di Mobile & iPad jika Memiliki Ruangan */}
                                   {totalRuangans > 0 && !isGedungCollapsed && (
-                                    <div className="sm:hidden flex items-center justify-end mb-1">
-                                      <span className="text-[9.5px] text-[#0369A1] bg-[#F0F9FF] border border-[#BAE6FD] px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 font-medium shadow-2xs">
-                                        <span>👉</span> Geser ke kanan untuk melihat rak
+                                    <div className="lg:hidden flex items-center justify-start mb-2">
+                                      <span className="text-[10px] text-[#0369A1] bg-[#F0F9FF] border border-[#BAE6FD] px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 font-medium shadow-2xs">
+                                        <MoveRight className="h-3 w-3 text-[#0284C7] shrink-0" />
+                                        <span>Geser ke kanan untuk melihat rak</span>
                                       </span>
                                     </div>
                                   )}
