@@ -613,10 +613,10 @@ Tabel 17. Transisi Status Dokumen
 | Status | Arti | Transisi berikutnya |
 | --- | --- | --- |
 | `menunggu_persetujuan` | Baru dientri, menunggu Atasan Arsip Aktif | Aktif (persetujuan Atasan Arsip Aktif); Ditolak (ditolak Atasan Arsip Aktif beserta alasan) |
-| `aktif` | Sudah disetujui, masa 3 tahun berjalan | Inaktif (masa 3 tahun habis, otomatis lewat cron harian) |
+| `aktif` | Sudah disetujui, masa 3 tahun berjalan | Inaktif (masa 3 tahun habis via cron harian, ATAU via Transfer Berkas ke Inaktif yang diverifikasi PIC Arsip Inaktif); Dibatalkan (dibatalkan resmi oleh Atasan Arsip Aktif beserta alasan wajib) |
 | `ditolak` | Ditolak Atasan Arsip Aktif beserta alasan | Menunggu Persetujuan (diperbaiki dan diajukan ulang oleh PIC Arsip Aktif) |
-| `inaktif` | Masa aktif habis (cron) | Tetap Inaktif (dipinjam lewat fitur peminjaman; tidak kembali Aktif) |
-| `dibatalkan` | Dibatalkan Atasan Arsip Aktif beserta alasan | Tetap Dibatalkan (tidak ada transisi berikutnya) |
+| `inaktif` | Masa aktif habis (cron) atau hasil transfer arsip | Tetap Inaktif (dipinjam lewat fitur peminjaman PIC Arsip Inaktif; tidak kembali Aktif) |
+| `dibatalkan` | Dibatalkan Atasan Arsip Aktif beserta alasan wajib | Tetap Dibatalkan (status terminal, tidak ada transisi berikutnya) |
 
 Gambar 13. Siklus Status Dokumen. Lihat `siklus-status-dokumen.png` di folder ini.
 
