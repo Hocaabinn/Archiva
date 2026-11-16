@@ -996,6 +996,9 @@ export default function MasterDataPage() {
                               </button>
                             )}
                           </div>
+                          <span className="text-[10px] bg-white border border-[#BAE6FD] px-2.5 py-0.5 rounded-full text-[#0369A1] shadow-2xs font-medium hidden sm:inline-block">
+                            💡 Klik badge angka di ruangan/gedung untuk melipat atau membuka cabang
+                          </span>
                         </div>
 
                         {displayedNestedLokasiTree.length === 0 ? (
@@ -1735,7 +1738,7 @@ export default function MasterDataPage() {
               {activeTab === 'kategori' && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-base font-bold text-[#1F2333]">Kategori Arsip Resmi (Blueprint 3.1)</h3>
+                    <h3 className="text-base font-bold text-[#1F2333]">Kategori Arsip Resmi</h3>
                     <p className="text-xs text-[#6B7185] mt-0.5">
                       3 kategori dokumen resmi dengan singkatan kode SIG (Keuangan: KEU, SDM: SDM, Kontrak: KTR).
                     </p>
