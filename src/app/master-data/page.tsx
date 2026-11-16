@@ -1089,7 +1089,7 @@ export default function MasterDataPage() {
 
                                   {/* Area Diagram Horizontal Kompak - Swipeable & Scrollable di Mobile/iPad */}
                                   <div className="overflow-x-auto pb-3 pt-1 -mx-2 px-2 scrollbar-thin touch-pan-x">
-                                    <div className="min-w-max py-1 flex items-center gap-0 pr-6">
+                                    <div className="min-w-max py-1 flex items-center gap-0 pr-12">
                                       {/* 1. Node Induk (Gedung/Gudang): Pill Ramping Persis Gambar Referensi */}
                                       <div className="shrink-0 flex items-center">
                                         <div
