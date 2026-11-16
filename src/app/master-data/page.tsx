@@ -1294,13 +1294,13 @@ export default function MasterDataPage() {
                                                         {raks.map((rak) => (
                                                           <div
                                                             key={rak.id}
-                                                            className="rounded-full px-2.5 py-0.5 bg-[#F0F9FF] border border-[#BAE6FD] text-[#0369A1] shadow-2xs flex items-center gap-1 hover:bg-[#E0F2FE] transition-colors"
+                                                            className="rounded-full px-3 py-1 bg-[#F0F9FF] border border-[#BAE6FD] text-[#0369A1] shadow-2xs flex items-center gap-1.5 hover:bg-[#E0F2FE] transition-colors"
                                                           >
-                                                            <Archive className="h-2.5 w-2.5 text-[#0284C7] shrink-0" />
-                                                            <span className="text-[10px] font-medium">
+                                                            <Archive className="h-3 w-3 text-[#0284C7] shrink-0" />
+                                                            <span className="text-[10.5px] font-medium">
                                                               {rak.nama}
                                                             </span>
-                                                            <span className="text-[8.5px] font-mono text-[#64748B] bg-white border border-[#BAE6FD] px-1 py-0.1 rounded">
+                                                            <span className="text-[9px] font-mono text-[#64748B] bg-white border border-[#BAE6FD] px-1.5 py-0.2 rounded font-semibold">
                                                               {rak.kode}
                                                             </span>
                                                           </div>
