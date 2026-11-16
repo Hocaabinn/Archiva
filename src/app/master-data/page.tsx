@@ -296,9 +296,11 @@ export default function MasterDataPage() {
     }
   }
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (isSilent = false) => {
     try {
-      setLoading(true)
+      if (!isSilent) {
+        setLoading(true)
+      }
       // 1. Fetch Organisasi & Kategori
       const resMaster = await fetch('/api/master-data')
       const jsonMaster = await resMaster.json()
@@ -323,45 +325,43 @@ export default function MasterDataPage() {
       }
       setLastRealtimeUpdate(new Date())
     } catch (err: any) {
-      showToast('error', err.message || 'Gagal memuat master data.')
+      if (!isSilent) {
+        showToast('error', err.message || 'Gagal memuat master data.')
+      }
     } finally {
-      setLoading(false)
+      if (!isSilent) {
+        setLoading(false)
+      }
     }
   }, [])
 
   useEffect(() => {
     if (userRole === 'superadmin') {
-      loadData()
+      loadData(false)
     }
   }, [userRole, loadData])
 
-  // Real-time Supabase Listener untuk Boks & Dokumen & Lokasi
+  // Real-time Supabase Listener untuk Boks & Dokumen & Lokasi (Silent Background Sync)
   useEffect(() => {
     if (userRole !== 'superadmin') return
 
     const channel = supabase
       .channel('master-realtime-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'boks' }, () => {
-        loadData()
+        loadData(true)
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lokasi' }, () => {
-        loadData()
+        loadData(true)
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'dokumen' }, () => {
-        loadData()
+        loadData(true)
       })
       .subscribe((status) => {
         setRealtimeActive(status === 'SUBSCRIBED')
       })
 
-    // Polling background setiap 15 detik jika websocket idle
-    const pollTimer = setInterval(() => {
-      loadData()
-    }, 15000)
-
     return () => {
       supabase.removeChannel(channel)
-      clearInterval(pollTimer)
     }
   }, [userRole, supabase, loadData])
 
