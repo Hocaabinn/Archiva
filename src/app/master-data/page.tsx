@@ -8,6 +8,7 @@ import {
   FolderArchive,
   MapPin,
   Archive,
+  Warehouse,
   Plus,
   Edit2,
   Trash2,
@@ -742,12 +743,19 @@ export default function MasterDataPage() {
                             className="w-full h-10 px-3.5 text-xs bg-white border border-[#BAE6FD] rounded-lg focus:outline-none focus:border-[#0284C7] text-[#111827]"
                           >
                             <option value="root">Tanpa induk (Tingkat Gedung / Root)</option>
-                            {parentOptions.map((opt) => (
-                              <option key={opt.id} value={opt.id}>
-                                {opt.tingkat === 'Gedung' ? '🏢 [Gedung] ' : '🚪 [Ruangan] '}
-                                {opt.label}
-                              </option>
-                            ))}
+                            {parentOptions.map((opt) => {
+                              const isOptGudang = opt.label.toLowerCase().includes('gudang')
+                              return (
+                                <option key={opt.id} value={opt.id}>
+                                  {opt.tingkat === 'Gedung'
+                                    ? isOptGudang
+                                      ? '🏬 [Gudang] '
+                                      : '🏢 [Gedung] '
+                                    : '🚪 [Ruangan] '}
+                                  {opt.label}
+                                </option>
+                              )
+                            })}
                           </select>
                           <p className="text-[11px] text-[#64748B] mt-1">
                             Pilih &quot;Tanpa induk&quot; untuk level Gedung. Tingkat terisi otomatis: Tanpa induk &rarr; Gedung, Induk Gedung &rarr; Ruangan, Induk Ruangan &rarr; Rak.
@@ -838,21 +846,60 @@ export default function MasterDataPage() {
                         ) : (
                           visibleTreeRows.map((row) => {
                             const isCollapsed = collapsedNodes.has(row.id)
+                            const isGudang =
+                              row.nama.toLowerCase().includes('gudang') ||
+                              row.kode === 'LOC-G-INAKTIF'
+                            const displayTingkat = isGudang ? 'Gudang' : row.tingkat
+
                             return (
                               <tr key={row.id} className="hover:bg-[#F8FAFC] transition-colors">
-                                {/* Nama / Hierarki dengan Fitur Dropdown Collapsible */}
+                                {/* Nama / Hierarki dengan Desain Diagram Garis Bercabang & Dropdown Collapsible */}
                                 <td className="px-5 py-3.5 text-[#1F2333]">
-                                  <div
-                                    className="flex items-center gap-1.5"
-                                    style={{ paddingLeft: `${row.level * 24}px` }}
-                                  >
-                                    {/* Tombol Chevron Dropdown jika memiliki turunan */}
+                                  <div className="flex items-center gap-1.5">
+                                    {/* Diagram Garis Percabangan (Tree Branch Lines) */}
+                                    {row.level > 0 && (
+                                      <div className="flex items-center shrink-0 select-none mr-0.5">
+                                        {/* Garis vertikal pemandu dari tingkat atas (jika level 2 / Rak) */}
+                                        {Array.from({ length: row.level - 1 }).map((_, idx) => (
+                                          <div
+                                            key={idx}
+                                            className="w-5 h-7 flex items-center justify-center shrink-0"
+                                          >
+                                            <div className="w-[1.5px] h-full bg-[#BAE6FD]" />
+                                          </div>
+                                        ))}
+
+                                        {/* Siku Cabang Diagram (Tree Connecting Branch) */}
+                                        <div className="relative w-6 h-7 flex items-center shrink-0">
+                                          <svg
+                                            className="w-6 h-7 overflow-visible"
+                                            viewBox="0 0 24 28"
+                                            fill="none"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                          >
+                                            <path
+                                              d="M 5 0 V 14 C 5 18 9 18 16 18 H 22"
+                                              stroke="#38BDF8"
+                                              strokeWidth="2"
+                                              strokeLinecap="round"
+                                            />
+                                            <circle cx="5" cy="14" r="2.5" fill="#0284C7" />
+                                          </svg>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Tombol Chevron Dropdown (jika memiliki turunan) atau Spacer sejajar */}
                                     {row.hasChildren ? (
                                       <button
                                         type="button"
                                         onClick={() => toggleNode(row.id)}
                                         className="p-1 text-[#0284C7] hover:bg-[#E0F2FE] rounded transition-colors shrink-0"
-                                        title={isCollapsed ? 'Klik untuk membuka turunan' : 'Klik untuk menutup turunan'}
+                                        title={
+                                          isCollapsed
+                                            ? 'Klik untuk membuka turunan'
+                                            : 'Klik untuk menutup turunan'
+                                        }
                                       >
                                         {isCollapsed ? (
                                           <ChevronRight className="h-4 w-4 text-[#64748B]" />
@@ -860,27 +907,33 @@ export default function MasterDataPage() {
                                           <ChevronDown className="h-4 w-4 text-[#0284C7]" />
                                         )}
                                       </button>
+                                    ) : row.level === 0 ? (
+                                      <div className="w-6 shrink-0" />
+                                    ) : null}
+
+                                    {/* Ikon Tingkat Lokasi */}
+                                    {row.level === 0 ? (
+                                      isGudang ? (
+                                        <Warehouse className="h-4 w-4 text-[#D97706] shrink-0" />
+                                      ) : (
+                                        <Building2 className="h-4 w-4 text-[#0284C7] shrink-0" />
+                                      )
+                                    ) : row.level === 1 ? (
+                                      <MapPin className="h-3.5 w-3.5 text-[#0369A1] shrink-0" />
                                     ) : (
-                                      <span className="w-6 shrink-0 flex justify-center">
-                                        {row.level > 0 && (
-                                          <span className="text-[#94A3B8] font-mono text-xs select-none">
-                                            └
-                                          </span>
-                                        )}
-                                      </span>
+                                      <Archive className="h-3.5 w-3.5 text-[#64748B] shrink-0" />
                                     )}
 
-                                    {row.level === 0 && (
-                                      <Building2 className="h-4 w-4 text-[#0284C7] shrink-0" />
-                                    )}
-
+                                    {/* Nama Lokasi */}
                                     <span
                                       onClick={() => row.hasChildren && toggleNode(row.id)}
                                       className={`${
                                         row.hasChildren ? 'cursor-pointer hover:underline' : ''
                                       } ${
                                         row.level === 0
-                                          ? 'font-bold text-[13px] text-[#0369A1]'
+                                          ? isGudang
+                                            ? 'font-bold text-[13px] text-[#B45309]'
+                                            : 'font-bold text-[13px] text-[#0369A1]'
                                           : row.level === 1
                                           ? 'font-semibold text-xs text-[#1F2333]'
                                           : 'font-medium text-xs text-[#475569]'
@@ -889,9 +942,15 @@ export default function MasterDataPage() {
                                       {row.nama}
                                     </span>
 
-                                    {/* Tingkat Pill */}
-                                    <span className="text-[10px] text-[#0284C7] bg-[#E0F2FE] border border-[#BAE6FD] px-1.5 py-0.2 rounded font-mono">
-                                      {row.tingkat}
+                                    {/* Tingkat Pill (Gudang, Gedung, Ruangan, Rak) */}
+                                    <span
+                                      className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-semibold ${
+                                        isGudang
+                                          ? 'text-[#B45309] bg-[#FEF3C7] border border-[#FDE68A]'
+                                          : 'text-[#0284C7] bg-[#E0F2FE] border border-[#BAE6FD]'
+                                      }`}
+                                    >
+                                      {displayTingkat}
                                     </span>
 
                                     {/* Counter badge turunan jika punya anak */}
@@ -902,15 +961,21 @@ export default function MasterDataPage() {
                                         className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium transition-colors ${
                                           isCollapsed
                                             ? 'bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] hover:bg-[#FDE68A]'
+                                            : isGudang
+                                            ? 'bg-[#FEF3C7] text-[#B45309] border border-[#FDE68A] hover:bg-[#FDE68A]'
                                             : 'bg-[#F0F9FF] text-[#0369A1] border border-[#BAE6FD] hover:bg-[#E0F2FE]'
                                         }`}
-                                        title={`${row.childCount} ${row.tingkat === 'Gedung' ? 'ruangan' : 'rak'} di dalamnya. Klik untuk toggle dropdown.`}
+                                        title={`${row.childCount} ${
+                                          row.tingkat === 'Gedung' ? 'ruangan' : 'rak'
+                                        } di dalamnya. Klik untuk toggle dropdown.`}
                                       >
                                         <span>
                                           {row.childCount} {row.tingkat === 'Gedung' ? 'ruangan' : 'rak'}
                                         </span>
                                         {isCollapsed && (
-                                          <span className="text-[9px] font-bold uppercase">&bull; tertutup</span>
+                                          <span className="text-[9px] font-bold uppercase">
+                                            &bull; tertutup
+                                          </span>
                                         )}
                                       </button>
                                     )}

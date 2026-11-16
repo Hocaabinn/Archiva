@@ -75,3 +75,49 @@ SELECT 'Rak Inaktif 02 Lt. 01', 'Rak', 'LOC-RAK-INAKTIF-02-L01', 'Aktif', id
 FROM public.lokasi
 WHERE nama = 'Ruang Arsip Inaktif' AND tingkat = 'Ruangan'
 ON CONFLICT (kode) DO NOTHING;
+
+-- 7. Tambah Gedung Graha Semen Indonesia & Turunan Berlantai
+INSERT INTO public.lokasi (nama, tingkat, kode, status, parent_id)
+VALUES ('Gedung Graha Semen Indonesia', 'Gedung', 'LOC-G-SEMEN', 'Aktif', NULL)
+ON CONFLICT (kode) DO NOTHING;
+
+-- Ruang Arsip Operasional Pabrik Lt. 01
+INSERT INTO public.lokasi (nama, tingkat, kode, status, parent_id)
+SELECT 'Ruang Arsip Operasional Pabrik Lt. 01', 'Ruangan', 'LOC-R-PABRIK-L01', 'Aktif', id
+FROM public.lokasi
+WHERE kode = 'LOC-G-SEMEN'
+ON CONFLICT (kode) DO NOTHING;
+
+-- Rak Lt. 01
+INSERT INTO public.lokasi (nama, tingkat, kode, status, parent_id)
+SELECT 'Rak 01 Lt. 01', 'Rak', 'LOC-RAK-01-SMN-L01', 'Aktif', id
+FROM public.lokasi
+WHERE kode = 'LOC-R-PABRIK-L01'
+ON CONFLICT (kode) DO NOTHING;
+
+INSERT INTO public.lokasi (nama, tingkat, kode, status, parent_id)
+SELECT 'Rak 02 Lt. 01', 'Rak', 'LOC-RAK-02-SMN-L01', 'Aktif', id
+FROM public.lokasi
+WHERE kode = 'LOC-R-PABRIK-L01'
+ON CONFLICT (kode) DO NOTHING;
+
+-- Ruang Arsip Distribusi & Logistik Lt. 02
+INSERT INTO public.lokasi (nama, tingkat, kode, status, parent_id)
+SELECT 'Ruang Arsip Distribusi & Logistik Lt. 02', 'Ruangan', 'LOC-R-LOGISTIK-L02', 'Aktif', id
+FROM public.lokasi
+WHERE kode = 'LOC-G-SEMEN'
+ON CONFLICT (kode) DO NOTHING;
+
+-- Rak Lt. 02
+INSERT INTO public.lokasi (nama, tingkat, kode, status, parent_id)
+SELECT 'Rak 01 Lt. 02', 'Rak', 'LOC-RAK-01-SMN-L02', 'Aktif', id
+FROM public.lokasi
+WHERE kode = 'LOC-R-LOGISTIK-L02'
+ON CONFLICT (kode) DO NOTHING;
+
+INSERT INTO public.lokasi (nama, tingkat, kode, status, parent_id)
+SELECT 'Rak 02 Lt. 02', 'Rak', 'LOC-RAK-02-SMN-L02', 'Aktif', id
+FROM public.lokasi
+WHERE kode = 'LOC-R-LOGISTIK-L02'
+ON CONFLICT (kode) DO NOTHING;
+
