@@ -174,6 +174,7 @@ Berikut adalah tabel rekam jejak (*logbook*) kegiatan teknis yang telah diselesa
 | 18 | 05 Nov 2026 | **Pemasangan Pustaka Bcryptjs & Aset Logo** | Instalasi dependensi bcryptjs, integrasi aset grafis logo1 dan logo gabungan Archiva pada folder pic dan public/pic. | Selesai |
 | 19 | 05 Nov 2026 | **Migrasi Konvensi Perutean Proxy Next.js 16** | Refaktorisasi middleware.ts menjadi src/proxy.ts sesuai spesifikasi Next.js 16 terkini guna menghilangkan pesan peringatan usang. | Selesai |
 | 20 | 05 Nov 2026 | **Penyempurnaan Akhir & Rilis Stabil Versi 1.1** | Pembersihan tooltip berlebih, perbaikan tipografi lisensi kedinasan, dan verifikasi kelulusan kompilasi Turbopack 100%. | Selesai |
+| 21 | 16 Nov 2026 | **Diagram Hierarki Lokasi Organik & Penyempurnaan Master Data** | Implementasi diagram pohon kurva kurung kurawal (mindmap cubic bezier), zoom scaling, collapsible node, responsivitas mobile swipeable card, serta pembersihan label Blueprint 3.1. | Selesai |
 
 ---
 
