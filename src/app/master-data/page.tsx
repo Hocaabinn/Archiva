@@ -1208,12 +1208,12 @@ export default function MasterDataPage() {
                                                 >
                                                   {/* Node Ruangan: Pill Ramping Kapsul Biru */}
                                                   <div className="shrink-0 flex items-center">
-                                                    <div className="relative rounded-full px-3 py-1 bg-[#0284C7] border border-[#0369A1] text-white shadow-2xs flex items-center gap-1.5 hover:scale-[1.02] transition-transform">
-                                                      <MapPin className="h-3 w-3 text-white/90 shrink-0" />
+                                                    <div className="relative rounded-full px-3.5 py-1.5 bg-[#0284C7] border border-[#0369A1] text-white shadow-2xs flex items-center gap-2 hover:scale-[1.01] transition-all">
+                                                      <MapPin className="h-3.5 w-3.5 text-white/90 shrink-0" />
                                                       <span className="text-[11px] font-semibold">
                                                         {ruangan.nama}
                                                       </span>
-                                                      <span className="text-[8.5px] bg-black/20 px-1 py-0.2 rounded font-mono">
+                                                      <span className="text-[9px] bg-black/20 px-1.5 py-0.2 rounded font-mono font-medium">
                                                         {ruangan.kode}
                                                       </span>
 
