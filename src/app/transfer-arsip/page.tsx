@@ -19,6 +19,7 @@ import {
   Layers,
   ArrowRight,
   ShieldAlert,
+  Archive,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { KodeArsip } from '@/components/documents/kode-arsip'
@@ -34,8 +35,18 @@ interface TransferDoc {
   tanggal_kadaluarsa: string | null
   lokasi_saat_ini: string
   sisa_hari: number
-  kategori_retensi: 'H-7' | 'H-30' | 'H-90' | 'Lewat Retensi'
+  kategori_retensi: 'H-7' | 'H-30' | 'H-90' | 'Lewat Retensi' | 'Aman'
   isPendingTransfer: boolean
+}
+
+interface RecentTransferItem {
+  id: string
+  nomor_ba: string
+  status_serah: string
+  tanggal_serah: string
+  bukti_pdf_path: string | null
+  kode_arsip: string
+  judul: string
 }
 
 function TransferArsipContent() {
@@ -43,9 +54,11 @@ function TransferArsipContent() {
   const [userRole, setUserRole] = useState<UserRole>('staff')
   const [userName, setUserName] = useState<string>('')
   const [docs, setDocs] = useState<TransferDoc[]>([])
+  const [recentTransfers, setRecentTransfers] = useState<RecentTransferItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [filterTab, setFilterTab] = useState<'retensi' | 'semua'>('retensi')
 
   // Modal Kirim Transfer
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false)
@@ -110,43 +123,75 @@ function TransferArsipContent() {
 
       const pendingSet = new Set((pendingTransfers || []).map((t) => t.dokumen_id))
 
-      const now = Date.now()
-      const mapped: TransferDoc[] = (rawDocs || [])
-        .map((d: any) => {
-          let sisaHari = 9999
-          if (d.tanggal_kadaluarsa) {
-            const expTime = new Date(d.tanggal_kadaluarsa).getTime()
-            sisaHari = Math.ceil((expTime - now) / (1000 * 3600 * 24))
-          }
+      // Query riwayat pengajuan transfer terakhir
+      const { data: recentSt } = await supabase
+        .from('serah_terima')
+        .select(`
+          id,
+          keterangan,
+          status_serah,
+          tanggal_serah,
+          bukti_pdf_path,
+          dokumen:dokumen_id(kode_arsip, judul)
+        `)
+        .ilike('keterangan', '%TRANSFER_INAKTIF%')
+        .order('created_at', { ascending: false })
+        .limit(10)
 
-          let kategoriRetensi: 'H-7' | 'H-30' | 'H-90' | 'Lewat Retensi' = 'H-90'
-          if (sisaHari <= 0) {
-            kategoriRetensi = 'Lewat Retensi'
-          } else if (sisaHari <= 7) {
-            kategoriRetensi = 'H-7'
-          } else if (sisaHari <= 30) {
-            kategoriRetensi = 'H-30'
-          } else if (sisaHari <= 90) {
-            kategoriRetensi = 'H-90'
+      if (recentSt) {
+        const parsedRecent: RecentTransferItem[] = recentSt.map((st: any) => {
+          let nomorBa = 'BAST-TRANSFER'
+          const parts = (st.keterangan || '').split('|')
+          if (parts.length >= 2) {
+            nomorBa = parts[1].trim()
           }
-
           return {
-            id: d.id,
-            kode_arsip: d.kode_arsip,
-            nomor_dokumen: d.nomor_dokumen || '-',
-            judul: d.judul,
-            kategori_nama: d.kategori_dokumen?.nama || 'Umum',
-            jumlah_halaman: d.jumlah_halaman || 1,
-            tanggal_dokumen: d.tanggal_dokumen,
-            tanggal_kadaluarsa: d.tanggal_kadaluarsa,
-            lokasi_saat_ini: d.lokasi_saat_ini || 'Unit Pengolah',
-            sisa_hari: sisaHari,
-            kategori_retensi: kategoriRetensi,
-            isPendingTransfer: pendingSet.has(d.id),
+            id: st.id,
+            nomor_ba: nomorBa,
+            status_serah: st.status_serah,
+            tanggal_serah: st.tanggal_serah,
+            bukti_pdf_path: st.bukti_pdf_path,
+            kode_arsip: st.dokumen?.kode_arsip || '-',
+            judul: st.dokumen?.judul || '-',
           }
         })
-        // Filter hanya yang mendekati atau sudah kedaluwarsa (<= 90 hari) atau sisaHari <= 90
-        .filter((d) => d.sisa_hari <= 90)
+        setRecentTransfers(parsedRecent)
+      }
+
+      const now = Date.now()
+      const mapped: TransferDoc[] = (rawDocs || []).map((d: any) => {
+        let sisaHari = 9999
+        if (d.tanggal_kadaluarsa) {
+          const expTime = new Date(d.tanggal_kadaluarsa).getTime()
+          sisaHari = Math.ceil((expTime - now) / (1000 * 3600 * 24))
+        }
+
+        let kategoriRetensi: 'H-7' | 'H-30' | 'H-90' | 'Lewat Retensi' | 'Aman' = 'Aman'
+        if (sisaHari <= 0) {
+          kategoriRetensi = 'Lewat Retensi'
+        } else if (sisaHari <= 7) {
+          kategoriRetensi = 'H-7'
+        } else if (sisaHari <= 30) {
+          kategoriRetensi = 'H-30'
+        } else if (sisaHari <= 90) {
+          kategoriRetensi = 'H-90'
+        }
+
+        return {
+          id: d.id,
+          kode_arsip: d.kode_arsip,
+          nomor_dokumen: d.nomor_dokumen || '-',
+          judul: d.judul,
+          kategori_nama: d.kategori_dokumen?.nama || 'Umum',
+          jumlah_halaman: d.jumlah_halaman || 1,
+          tanggal_dokumen: d.tanggal_dokumen,
+          tanggal_kadaluarsa: d.tanggal_kadaluarsa,
+          lokasi_saat_ini: d.lokasi_saat_ini || 'Unit Pengolah',
+          sisa_hari: sisaHari,
+          kategori_retensi: kategoriRetensi,
+          isPendingTransfer: pendingSet.has(d.id),
+        }
+      })
 
       setDocs(mapped)
       setErrorMessage(null)
@@ -162,18 +207,23 @@ function TransferArsipContent() {
     fetchExpiringDocs()
   }, [fetchExpiringDocs])
 
-  // Filter pencarian
+  // Filter pencarian dan tab
   const filteredDocs = useMemo(() => {
-    if (!searchQuery.trim()) return docs
+    let result = docs
+    if (filterTab === 'retensi') {
+      result = result.filter((d) => d.sisa_hari <= 90)
+    }
+
+    if (!searchQuery.trim()) return result
     const q = searchQuery.toLowerCase()
-    return docs.filter(
+    return result.filter(
       (d) =>
         d.kode_arsip.toLowerCase().includes(q) ||
         d.judul.toLowerCase().includes(q) ||
         d.nomor_dokumen?.toLowerCase().includes(q) ||
         d.kategori_nama.toLowerCase().includes(q)
     )
-  }, [docs, searchQuery])
+  }, [docs, filterTab, searchQuery])
 
   // Checkbox handlers
   const handleToggleSelect = (id: string) => {
@@ -313,34 +363,62 @@ function TransferArsipContent() {
       )}
 
       {/* Filter and Stats Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-[#ECEEF5] shadow-xs">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A90A2]" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari kode arsip, nomor dokumen, atau judul..."
-            className="w-full pl-9 pr-4 py-2 text-sm border border-[#D5D9E2] rounded-lg focus:outline-none focus:border-[#3BA4E8] focus:ring-2 focus:ring-[#3BA4E8]/20"
-          />
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-[#ECEEF5] shadow-xs">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
+          {/* Tab Filter Mode */}
+          <div className="inline-flex rounded-lg bg-[#F0F2F7] p-1 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setFilterTab('retensi')}
+              className={`rounded-md px-3 py-1.5 transition-all ${
+                filterTab === 'retensi'
+                  ? 'bg-white text-[#1F2333] shadow-xs'
+                  : 'text-[#6B7185] hover:text-[#1F2333]'
+              }`}
+            >
+              Mendekati Retensi (&le; 90 Hari)
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterTab('semua')}
+              className={`rounded-md px-3 py-1.5 transition-all ${
+                filterTab === 'semua'
+                  ? 'bg-white text-[#1F2333] shadow-xs'
+                  : 'text-[#6B7185] hover:text-[#1F2333]'
+              }`}
+            >
+              Semua Dokumen Aktif (Mode Uji Coba)
+            </button>
+          </div>
+
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#8A90A2]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari kode arsip, nomor, atau judul..."
+              className="w-full pl-8 pr-3 py-1.5 text-xs border border-[#D5D9E2] rounded-lg focus:outline-none focus:border-[#3BA4E8] focus:ring-2 focus:ring-[#3BA4E8]/20"
+            />
+          </div>
         </div>
 
-        <div className="flex items-center gap-4 text-xs font-medium text-[#4B5163]">
+        <div className="flex items-center gap-3 text-xs font-medium text-[#4B5163]">
           <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#D64545]" />
-            Lewat Retensi / H-7
+            <span className="h-2 w-2 rounded-full bg-[#D64545]" />
+            H-7
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#E37400]" />
+            <span className="h-2 w-2 rounded-full bg-[#E37400]" />
             H-30
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#F29900]" />
+            <span className="h-2 w-2 rounded-full bg-[#F29900]" />
             H-90
           </span>
           <span className="text-[#8A90A2]">|</span>
           <span className="font-semibold text-[#1F2333]">
-            Total: {filteredDocs.length} berkas
+            {filteredDocs.length} berkas
           </span>
         </div>
       </div>
@@ -350,7 +428,7 @@ function TransferArsipContent() {
         {loading ? (
           <div className="py-20 flex flex-col items-center justify-center gap-3 text-[#6B7185]">
             <Loader2 className="h-8 w-8 animate-spin text-[#3BA4E8]" />
-            <p className="text-sm font-medium">Memindai arsip mendekati masa kedaluwarsa...</p>
+            <p className="text-sm font-medium">Memindai arsip aktif...</p>
           </div>
         ) : filteredDocs.length === 0 ? (
           <div className="py-16 text-center text-[#6B7185] space-y-2">
@@ -359,7 +437,9 @@ function TransferArsipContent() {
               Tidak Ada Berkas yang Perlu Ditransfer
             </p>
             <p className="text-xs text-[#8A90A2] max-w-md mx-auto">
-              Seluruh dokumen aktif berada dalam masa retensi aman (&gt; 90 hari) atau sudah diajukan ke Gudang Inaktif.
+              {filterTab === 'retensi'
+                ? 'Seluruh dokumen aktif berada dalam masa retensi aman (> 90 hari). Anda dapat beralih ke tab "Semua Dokumen Aktif (Mode Uji Coba)" untuk mencoba transfer.'
+                : 'Tidak ada dokumen aktif yang terdaftar di unit Anda.'}
             </p>
           </div>
         ) : (
@@ -388,11 +468,13 @@ function TransferArsipContent() {
                   const isPending = doc.isPendingTransfer
 
                   // Styling badge retensi
-                  let badgeClass = 'bg-[#FFF4DE] text-[#C98A1B] border-[#FEEFC3]'
+                  let badgeClass = 'bg-[#F0F2F7] text-[#4B5163] border-[#D5D9E2]'
                   if (doc.kategori_retensi === 'Lewat Retensi' || doc.kategori_retensi === 'H-7') {
                     badgeClass = 'bg-[#FDECEC] text-[#D64545] border-[#FAD2CF]'
                   } else if (doc.kategori_retensi === 'H-30') {
                     badgeClass = 'bg-[#FEF7E0] text-[#B06000] border-[#FEEFC3]'
+                  } else if (doc.kategori_retensi === 'H-90') {
+                    badgeClass = 'bg-[#FFF4DE] text-[#C98A1B] border-[#FEEFC3]'
                   }
 
                   return (
@@ -444,7 +526,7 @@ function TransferArsipContent() {
                         )}
                       </td>
                       <td className="py-3.5 px-4">
-                        <div className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider ${badgeClass}">
+                        <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider ${badgeClass}`}>
                           <Clock className="h-3 w-3 shrink-0" />
                           <span>
                             {doc.sisa_hari <= 0
@@ -473,6 +555,80 @@ function TransferArsipContent() {
           </div>
         )}
       </div>
+
+      {/* Riwayat Pengajuan & Unduh Berita Acara (BAST) */}
+      {recentTransfers.length > 0 && (
+        <div className="bg-white rounded-xl border border-[#ECEEF5] p-5 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-[#ECEEF5] pb-3">
+            <div className="flex items-center gap-2">
+              <Archive className="h-4 w-4 text-[#3BA4E8]" />
+              <h2 className="text-sm font-bold text-[#1F2333]">
+                Riwayat Pengajuan &amp; Berita Acara (BAST)
+              </h2>
+            </div>
+            <Link
+              href="/verifikasi-transfer"
+              className="text-xs font-semibold text-[#3BA4E8] hover:underline inline-flex items-center gap-1"
+            >
+              Ke Halaman Verifikasi PIC Inaktif &rarr;
+            </Link>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-[#F7F8FC] border-b border-[#ECEEF5] text-[#4B5163] font-semibold">
+                <tr>
+                  <th className="py-2.5 px-3">Nomor BAST</th>
+                  <th className="py-2.5 px-3">Dokumen</th>
+                  <th className="py-2.5 px-3">Waktu Penyerahan</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3 text-right">Aksi Dokumen</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#ECEEF5]">
+                {recentTransfers.map((st) => (
+                  <tr key={st.id} className="hover:bg-[#F7F8FC]">
+                    <td className="py-2.5 px-3 font-mono font-bold text-[#1F2333]">
+                      {st.nomor_ba}
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <p className="font-semibold text-[#1F2333] line-clamp-1">{st.judul}</p>
+                      <p className="text-[11px] text-[#8A90A2] font-mono">{st.kode_arsip}</p>
+                    </td>
+                    <td className="py-2.5 px-3 text-[#6B7185]">
+                      {new Date(st.tanggal_serah).toLocaleString('id-ID')}
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold ${
+                        st.status_serah === 'Diterima'
+                          ? 'bg-[#E7F6EC] text-[#2F9E5B]'
+                          : 'bg-[#FFF4DE] text-[#C98A1B]'
+                      }`}>
+                        {st.status_serah}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right">
+                      {st.bukti_pdf_path ? (
+                        <a
+                          href={`/api/transfer-arsip/ba-pdf?path=${encodeURIComponent(st.bukti_pdf_path)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-[#3BA4E8] text-[#3BA4E8] rounded-md hover:bg-[#F0F8FD] font-semibold"
+                        >
+                          <Download className="h-3 w-3" />
+                          Unduh BAST (PDF)
+                        </a>
+                      ) : (
+                        <span className="text-[#8A90A2] italic">Tidak ada berkas PDF</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Modal Konfirmasi Pengajuan Transfer */}
       {isSubmitModalOpen && (

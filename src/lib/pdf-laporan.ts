@@ -284,3 +284,4 @@ export function exportLaporanToCSV(options: GenerateLaporanPdfOptions) {
   link.click()
   document.body.removeChild(link)
 }
+
