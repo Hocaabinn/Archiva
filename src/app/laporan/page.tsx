@@ -241,7 +241,7 @@ function LaporanContent() {
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 rounded-full border border-[#1E3A5F]/20 bg-white/80 px-3 py-1 text-xs font-semibold text-[#1E3A5F]">
               <FileSpreadsheet className="h-3.5 w-3.5" />
-              Modul Inventarisasi &amp; Rekapitulasi Fisik (R.03)
+              Modul Inventarisasi &amp; Rekapitulasi
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-[#1F2333]">
               Laporan Rekapitulasi Arsip per Lokasi
