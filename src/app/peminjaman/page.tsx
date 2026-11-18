@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, usePathname } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { UserRole, PeminjamanStatus } from '@/types'
 import {
@@ -87,6 +87,7 @@ interface InactiveDocOption {
 }
 
 function PeminjamanContent() {
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const preselectedDocId = searchParams.get('dokumen_id')
 
@@ -452,10 +453,14 @@ function PeminjamanContent() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h1 className="text-2xl font-bold tracking-tight text-[#1F2333] sm:text-[28px]">
-              Peminjaman Dokumen Inaktif
+              {pathname.includes('peminjaman-saya') || currentUserRole === 'staff'
+                ? 'Peminjaman Saya'
+                : 'Peminjaman Dokumen Inaktif'}
             </h1>
             <p className="mt-1 text-sm text-[#4B5163]">
-              Ajukan, verifikasi, dan pantau peminjaman berkas dari Gudang Inaktif. Dokumen yang dipinjam tetap berstatus Inaktif.
+              {pathname.includes('peminjaman-saya') || currentUserRole === 'staff'
+                ? 'Ajukan dan pantau status peminjaman berkas fisik dari Record Center / Gudang Inaktif.'
+                : 'Ajukan, verifikasi, dan pantau peminjaman berkas dari Gudang Inaktif. Dokumen yang dipinjam tetap berstatus Inaktif.'}
             </p>
           </div>
           <button
@@ -471,9 +476,24 @@ function PeminjamanContent() {
         {/* Kartu ringkasan */}
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {[
-            { label: 'Total Peminjaman', value: counts.semua, color: 'text-[#1F2333]', bar: 'bg-[#3BA4E8]' },
-            { label: 'Menunggu Verifikasi', value: counts.diajukan, color: 'text-[#B06000]', bar: 'bg-[#FBBC04]' },
-            { label: 'Sedang Dipinjam', value: counts.dipinjam, color: 'text-[#1E86C8]', bar: 'bg-[#7CC4F2]' },
+            {
+              label: pathname.includes('peminjaman-saya') || currentUserRole === 'staff' ? 'Total Pengajuan Saya' : 'Total Peminjaman',
+              value: counts.semua,
+              color: 'text-[#1F2333]',
+              bar: 'bg-[#3BA4E8]',
+            },
+            {
+              label: pathname.includes('peminjaman-saya') || currentUserRole === 'staff' ? 'Menunggu Persetujuan' : 'Menunggu Verifikasi',
+              value: counts.diajukan,
+              color: 'text-[#B06000]',
+              bar: 'bg-[#FBBC04]',
+            },
+            {
+              label: pathname.includes('peminjaman-saya') || currentUserRole === 'staff' ? 'Sedang Saya Pinjam' : 'Sedang Dipinjam',
+              value: counts.dipinjam,
+              color: 'text-[#1E86C8]',
+              bar: 'bg-[#7CC4F2]',
+            },
             { label: 'Sudah Dikembalikan', value: counts.dikembalikan, color: 'text-[#137333]', bar: 'bg-[#34A853]' },
           ].map((s) => (
             <div

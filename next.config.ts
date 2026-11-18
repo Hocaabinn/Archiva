@@ -16,6 +16,14 @@ const nextConfig: NextConfig = {
         source: "/peminjaman-inaktif",
         destination: "/peminjaman",
       },
+      {
+        source: "/peminjaman-saya",
+        destination: "/peminjaman",
+      },
+      {
+        source: "/daftar-dokumen",
+        destination: "/dokumen",
+      },
     ];
   },
 };
