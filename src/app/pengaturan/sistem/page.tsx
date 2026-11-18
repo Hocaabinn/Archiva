@@ -224,7 +224,7 @@ export default function PengaturanSistemPage() {
                   <Clock className="h-5 w-5" />
                 </span>
                 <div>
-                  <h2 className="text-base font-bold text-[#1F2333]">Parameter Siklus Hidup Arsip (M8 — R.03)</h2>
+                  <h2 className="text-base font-bold text-[#1F2333]">Parameter Siklus Hidup Arsip</h2>
                   <p className="text-xs text-[#6B7185] mt-0.5">
                     Masa retensi aktif standar dan mekanisme pemindahan otomatis ke gudang inaktif.
                   </p>

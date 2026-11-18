@@ -32,7 +32,6 @@ import {
   X,
   FileText,
   ShieldAlert,
-  Sparkles,
   ArrowUpRight,
   Activity,
   Check,
@@ -647,17 +646,80 @@ export default function MasterDataPage() {
     }
   }, [rawLokasi, occupancyMap])
 
-  // Aksi Klik Card Rekomendasi: Langsung Filter & Sorot Rak di Diagram
+  // Aksi Klik Card Rekomendasi: Langsung Filter & Sorot Rak di Diagram (Otomatis Scroll ke Bawah & Geser ke Kanan)
   const handleFocusRak = (item: RecommendationItem) => {
+    if (lokasiViewMode !== 'diagram') {
+      setLokasiViewMode('diagram')
+    }
     setSelectedGedungFilter(item.gedungId || 'all')
     setHighlightedRakId(item.rakId)
-    // Pastikan tidak collapsed
+
+    // Buka node parent gedung & ruangan jika sedang tertutup (collapsed)
     setCollapsedDiagramNodes((prev) => {
       const next = new Set(prev)
       if (item.gedungId) next.delete(item.gedungId)
       if (item.ruanganId) next.delete(item.ruanganId)
       return next
     })
+    setCollapsedNodes((prev) => {
+      const next = new Set(prev)
+      if (item.gedungId) next.delete(item.gedungId)
+      if (item.ruanganId) next.delete(item.ruanganId)
+      return next
+    })
+
+    // Pengarah scroll otomatis langsung ke rak tanpa repot scroll manual
+    const scrollToTarget = () => {
+      const targetEl =
+        document.getElementById(`rak-node-${item.rakId}`) ||
+        document.getElementById(`rak-table-row-${item.rakId}`)
+
+      if (!targetEl) return false
+
+      // 1. Scroll halaman (vertikal) agar kontainer diagram dan elemen langsung berada di tengah layar
+      targetEl.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'center',
+      })
+
+      // 2. Geser horizontal kanvas diagram secara presisi ke posisi rak
+      const container = document.getElementById('diagram-canvas-container')
+      if (container) {
+        const containerRect = container.getBoundingClientRect()
+        const targetRect = targetEl.getBoundingClientRect()
+        const deltaX =
+          targetRect.left -
+          containerRect.left -
+          containerRect.width / 2 +
+          targetRect.width / 2
+        const deltaY =
+          targetRect.top -
+          containerRect.top -
+          containerRect.height / 2 +
+          targetRect.height / 2
+
+        container.scrollBy({
+          left: deltaX,
+          top: deltaY,
+          behavior: 'smooth',
+        })
+      }
+
+      return true
+    }
+
+    // Jalankan segera setelah DOM diperbarui oleh React
+    requestAnimationFrame(() => {
+      if (!scrollToTarget()) {
+        setTimeout(() => {
+          if (!scrollToTarget()) {
+            setTimeout(scrollToTarget, 120)
+          }
+        }, 60)
+      }
+    })
+
     setTimeout(() => {
       setHighlightedRakId(null)
     }, 4500)
@@ -1212,57 +1274,47 @@ export default function MasterDataPage() {
                   )}
 
                   {/* ========================================================================= */}
-                  {/* BANNER REKOMENDASI PENEMPATAN DOKUMEN (REAL-TIME STATUS & WARNINGS)      */}
+                  {/* REKOMENDASI PENEMPATAN DOKUMEN (STATUS KAPASITAS & ALOKASI RAK)           */}
                   {/* ========================================================================= */}
-                  <div className="rounded-xl border border-[#BAE6FD] bg-gradient-to-b from-[#F0F9FF] to-white p-4 sm:p-5 shadow-xs space-y-4">
-                    {/* Header Banner Real-Time */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E0F2FE] pb-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="p-2 bg-[#0284C7] text-white rounded-lg shadow-2xs shrink-0">
-                          <Sparkles className="h-4 w-4" />
+                  <div className="rounded-lg border border-[#CBD7E3] bg-white p-4 sm:p-5 shadow-2xs space-y-4">
+                    {/* Header Rekomendasi Kedinasan */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#ECEEF5] pb-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-[#F0F5FA] text-[#1E3A5F] border border-[#CBD7E3] rounded-md shrink-0">
+                          <Archive className="h-4 w-4" />
                         </div>
                         <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="text-sm font-bold text-[#0369A1]">
-                              Rekomendasi Penempatan Dokumen (Real-Time)
-                            </h3>
-                            {/* Real-time pulse indicator */}
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] shadow-2xs">
-                              <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10B981] opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#059669]"></span>
-                              </span>
-                              <span>Real-time Sync</span>
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-[#64748B] mt-0.5">
-                            Deteksi kapasitas real-time untuk penempatan berkas baru &amp; peringatan dini lokasi yang hampir penuh.
+                          <h3 className="text-sm font-bold text-[#111827]">
+                            Rekomendasi Penempatan Dokumen
+                          </h3>
+                          <p className="text-[11px] text-[#4B5E76] mt-0.5">
+                            Panduan alokasi rak untuk pengarsipan berkas baru dan pemantauan kapasitas penyimpanan fisik.
                             {lastRealtimeUpdate && (
-                              <span className="ml-1.5 text-[#0369A1] font-mono font-medium">
-                                (Sinkronisasi: {lastRealtimeUpdate.toLocaleTimeString('id-ID')})
+                              <span className="ml-1.5 text-[#6B7185] font-mono text-[10px]">
+                                • Pembaruan: {lastRealtimeUpdate.toLocaleTimeString('id-ID')}
                               </span>
                             )}
                           </p>
                         </div>
                       </div>
 
-                      {/* Ringkasan Status Pill Cepat */}
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] font-semibold">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
-                          <span>{recommendations.stats.totalKosong} Kosong (Rekomendasi)</span>
-                        </span>
+                      {/* Ringkasan Status / Cap Indikator */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border border-[#CBD7E3] bg-[#F7F8FC] text-[#111827]">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#4B5E76]">Rak Siap Diisi:</span>
+                          <span className="font-mono font-bold text-[#137333]">{recommendations.stats.totalKosong}</span>
+                        </div>
                         {recommendations.stats.totalHampirPenuh > 0 && (
-                          <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A] font-semibold animate-pulse">
-                            <AlertTriangle className="h-3 w-3 text-[#D97706]" />
-                            <span>{recommendations.stats.totalHampirPenuh} Hampir Penuh</span>
-                          </span>
+                          <div className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border border-[#FEEFC3] bg-[#FEF7E0] text-[#B06000]">
+                            <span className="text-[10px] font-bold uppercase tracking-wider">Hampir Penuh:</span>
+                            <span className="font-mono font-bold">{recommendations.stats.totalHampirPenuh}</span>
+                          </div>
                         )}
                         {recommendations.stats.totalPenuh > 0 && (
-                          <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA] font-semibold">
-                            <AlertCircle className="h-3 w-3 text-[#DC2626]" />
-                            <span>{recommendations.stats.totalPenuh} Penuh</span>
-                          </span>
+                          <div className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border border-[#FECDCA] bg-[#FEF3F2] text-[#B42318]">
+                            <span className="text-[10px] font-bold uppercase tracking-wider">Penuh:</span>
+                            <span className="font-mono font-bold">{recommendations.stats.totalPenuh}</span>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1270,52 +1322,62 @@ export default function MasterDataPage() {
                     {/* Grid 2 Kolom: Rekomendasi Rak Kosong vs Pengawasan Hampir Penuh */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                       {/* Kolom 1: Rekomendasi Rak Kosong (Paling Siap Diisi Dokumen Baru) */}
-                      <div className="rounded-xl border border-[#A7F3D0] bg-[#F0FDF4]/70 p-3.5 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-[#059669]">
-                            <CheckCircle2 className="h-4 w-4 text-[#059669]" />
+                      <div className="rounded-lg border border-[#CBD7E3] bg-white overflow-hidden flex flex-col">
+                        {/* Sub-header Kolom 1 */}
+                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-[#F7F8FC] border-b border-[#ECEEF5]">
+                          <div className="flex items-center gap-2 text-xs font-bold text-[#111827]">
+                            <CheckCircle2 className="h-4 w-4 text-[#137333]" />
                             <span>Lokasi Rak Paling Kosong (Siap Diisi)</span>
                           </div>
-                          <span className="text-[10px] text-[#059669] bg-white border border-[#A7F3D0] px-2 py-0.5 rounded-full font-semibold">
-                            Prioritas Alokasi
+                          <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-[#CEEAD6] bg-[#E6F4EA] text-[#137333]">
+                            Siap Alokasi
                           </span>
                         </div>
 
-                        <div className="space-y-2">
+                        {/* Daftar Item Rak Kosong */}
+                        <div className="divide-y divide-[#ECEEF5] flex-1">
                           {recommendations.emptyRecommendations.length === 0 ? (
-                            <p className="text-xs text-[#64748B] italic py-2">
-                              Belum ada data rak yang terdaftar.
-                            </p>
+                            <div className="p-4 text-center">
+                              <p className="text-xs text-[#6B7185] italic">
+                                Belum ada data rak yang terdaftar.
+                              </p>
+                            </div>
                           ) : (
                             recommendations.emptyRecommendations.map((item) => (
                               <div
                                 key={item.rakId}
                                 onClick={() => handleFocusRak(item)}
-                                className="group flex items-center justify-between gap-2 p-2.5 bg-white rounded-lg border border-[#A7F3D0] hover:border-[#059669] hover:shadow-xs cursor-pointer transition-all"
+                                className="group flex items-center justify-between gap-3 p-3 hover:bg-[#F0F5FA]/80 cursor-pointer transition-colors"
                                 title="Klik untuk menyorot lokasi ini pada diagram"
                               >
-                                <div className="min-w-0">
+                                <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-xs font-bold text-[#1F2333] group-hover:text-[#059669] transition-colors">
+                                    <span className="text-xs font-bold text-[#111827] group-hover:text-[#1E3A5F] transition-colors">
                                       {item.rakNama}
                                     </span>
-                                    <span className="text-[9.5px] font-mono text-[#64748B] bg-[#F1F5F9] px-1.5 py-0.2 rounded font-semibold">
+                                    <span className="text-[10px] font-mono text-[#4B5E76] bg-[#F0F5FA] border border-[#CBD7E3] px-1.5 py-0.5 rounded font-semibold">
                                       {item.rakKode}
                                     </span>
-                                    <span className="text-[9.5px] px-2 py-0.2 rounded-full font-bold bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]">
-                                      {item.countBoks === 0 ? '100% Kosong (500 lbr)' : `Sisa ${item.sisaLembar} lbr`}
+                                    <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded border border-[#CEEAD6] bg-[#E6F4EA] text-[#137333]">
+                                      {item.countBoks === 0 ? 'Kapasitas 100% (500 lbr)' : `Sisa ${item.sisaLembar} lbr`}
                                     </span>
                                   </div>
-                                  <p className="text-[11px] text-[#64748B] truncate mt-0.5">
-                                    {item.gedungNama} &rarr; {item.ruanganNama}
+                                  <p className="text-[11px] text-[#4B5E76] mt-1 flex items-center gap-1">
+                                    <span>{item.gedungNama}</span>
+                                    <span className="text-[#8C95A6]">›</span>
+                                    <span>{item.ruanganNama}</span>
                                   </p>
                                 </div>
 
                                 <button
                                   type="button"
-                                  className="shrink-0 text-[11px] font-semibold text-[#059669] group-hover:text-[#047857] flex items-center gap-0.5"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleFocusRak(item)
+                                  }}
+                                  className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-[#1E3A5F] group-hover:text-white bg-[#F0F5FA] group-hover:bg-[#1E3A5F] border border-[#CBD7E3] rounded transition-colors"
                                 >
-                                  <span>Fokus</span>
+                                  <span>Sorot</span>
                                   <ArrowUpRight className="h-3 w-3" />
                                 </button>
                               </div>
@@ -1325,27 +1387,31 @@ export default function MasterDataPage() {
                       </div>
 
                       {/* Kolom 2: Pengawasan Lokasi Hampir Penuh (Peringatan Kapasitas) */}
-                      <div className="rounded-xl border border-[#FDE68A] bg-[#FFFBEB]/70 p-3.5 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-[#D97706]">
-                            <AlertTriangle className="h-4 w-4 text-[#D97706]" />
+                      <div className="rounded-lg border border-[#CBD7E3] bg-white overflow-hidden flex flex-col">
+                        {/* Sub-header Kolom 2 */}
+                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-[#F7F8FC] border-b border-[#ECEEF5]">
+                          <div className="flex items-center gap-2 text-xs font-bold text-[#111827]">
+                            <AlertTriangle className="h-4 w-4 text-[#B06000]" />
                             <span>Pengawasan Kapasitas (Hampir Penuh &amp; Penuh)</span>
                           </div>
-                          <span className="text-[10px] text-[#D97706] bg-white border border-[#FDE68A] px-2 py-0.5 rounded-full font-semibold">
+                          <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-[#FEEFC3] bg-[#FEF7E0] text-[#B06000]">
                             {recommendations.warningList.length} Lokasi Perhatian
                           </span>
                         </div>
 
-                        <div className="space-y-2">
+                        {/* Daftar Item Peringatan Kapasitas */}
+                        <div className="divide-y divide-[#ECEEF5] flex-1">
                           {recommendations.warningList.length === 0 ? (
-                            <div className="flex items-center gap-2.5 p-3 bg-white rounded-lg border border-[#FDE68A]">
-                              <Check className="h-4 w-4 text-[#059669] shrink-0" />
+                            <div className="flex items-center gap-3 p-4 bg-[#F7F8FC]/50">
+                              <div className="p-1.5 rounded-full bg-[#E6F4EA] text-[#137333] shrink-0">
+                                <Check className="h-4 w-4" />
+                              </div>
                               <div>
-                                <p className="text-xs font-semibold text-[#1F2333]">
-                                  Kapasitas Seluruh Lokasi Aman &amp; Optimal
+                                <p className="text-xs font-semibold text-[#111827]">
+                                  Kapasitas Seluruh Lokasi Normal
                                 </p>
-                                <p className="text-[11px] text-[#64748B] mt-0.5">
-                                  Tidak ada rak yang mencapai ambang batas &ge;80% atau penuh saat ini.
+                                <p className="text-[11px] text-[#4B5E76] mt-0.5">
+                                  Tidak ada rak yang melampaui ambang batas &ge;80% atau berstatus penuh saat ini.
                                 </p>
                               </div>
                             </div>
@@ -1354,37 +1420,63 @@ export default function MasterDataPage() {
                               <div
                                 key={item.rakId}
                                 onClick={() => handleFocusRak(item)}
-                                className="group flex items-center justify-between gap-2 p-2.5 bg-white rounded-lg border border-[#FDE68A] hover:border-[#D97706] hover:shadow-xs cursor-pointer transition-all"
+                                className="group flex items-center justify-between gap-3 p-3 hover:bg-[#F0F5FA]/80 cursor-pointer transition-colors"
                                 title="Klik untuk menyorot lokasi ini pada diagram"
                               >
-                                <div className="min-w-0">
+                                <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-xs font-bold text-[#1F2333] group-hover:text-[#D97706] transition-colors">
+                                    <span className="text-xs font-bold text-[#111827] group-hover:text-[#B06000] transition-colors">
                                       {item.rakNama}
                                     </span>
-                                    <span className="text-[9.5px] font-mono text-[#64748B] bg-[#F1F5F9] px-1.5 py-0.2 rounded font-semibold">
+                                    <span className="text-[10px] font-mono text-[#4B5E76] bg-[#F0F5FA] border border-[#CBD7E3] px-1.5 py-0.5 rounded font-semibold">
                                       {item.rakKode}
                                     </span>
                                     <span
-                                      className={`text-[9.5px] px-2 py-0.2 rounded-full font-bold ${
+                                      className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${
                                         item.status === 'penuh'
-                                          ? 'bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA]'
-                                          : 'bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]'
+                                          ? 'border-[#FECDCA] bg-[#FEF3F2] text-[#B42318]'
+                                          : 'border-[#FEEFC3] bg-[#FEF7E0] text-[#B06000]'
                                       }`}
                                     >
                                       {item.status === 'penuh' ? 'Penuh (100%)' : `Hampir Penuh (${item.persentase}%)`}
                                     </span>
                                   </div>
-                                  <p className="text-[11px] text-[#64748B] truncate mt-0.5">
-                                    {item.gedungNama} &rarr; {item.ruanganNama} (Sisa {item.sisaLembar} lbr)
+
+                                  {/* Meter Bar Kapasitas Ramping */}
+                                  <div className="mt-1.5 flex items-center gap-2 max-w-[260px]">
+                                    <div className="flex-1 bg-[#ECEEF5] rounded-full h-1.5 overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full ${
+                                          item.status === 'penuh' ? 'bg-[#B42318]' : 'bg-[#B06000]'
+                                        }`}
+                                        style={{ width: `${Math.min(100, item.persentase)}%` }}
+                                      />
+                                    </div>
+                                    <span className="text-[10px] font-mono text-[#4B5E76] shrink-0">
+                                      Sisa {item.sisaLembar} lbr
+                                    </span>
+                                  </div>
+
+                                  <p className="text-[11px] text-[#4B5E76] mt-1 flex items-center gap-1">
+                                    <span>{item.gedungNama}</span>
+                                    <span className="text-[#8C95A6]">›</span>
+                                    <span>{item.ruanganNama}</span>
                                   </p>
                                 </div>
 
                                 <button
                                   type="button"
-                                  className="shrink-0 text-[11px] font-semibold text-[#D97706] group-hover:text-[#B45309] flex items-center gap-0.5"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleFocusRak(item)
+                                  }}
+                                  className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold border rounded transition-colors ${
+                                    item.status === 'penuh'
+                                      ? 'text-[#B42318] group-hover:text-white bg-[#FEF3F2] group-hover:bg-[#B42318] border-[#FECDCA]'
+                                      : 'text-[#B06000] group-hover:text-white bg-[#FEF7E0] group-hover:bg-[#B06000] border-[#FEEFC3]'
+                                  }`}
                                 >
-                                  <span>Fokus</span>
+                                  <span>Sorot</span>
                                   <ArrowUpRight className="h-3 w-3" />
                                 </button>
                               </div>
@@ -1529,7 +1621,10 @@ export default function MasterDataPage() {
                       /* MODE 1: DIAGRAM POHON BERCABANG KOMPAK, RESPONSIF & ZOOMABLE      */
                       /* Ukuran ringkas, kurva kurung kurawal presisi, collapsible per node */
                       /* ================================================================ */
-                      <div className="relative overflow-auto max-h-[720px] p-2.5 sm:p-5 bg-[#F8FAFC] bg-[radial-gradient(#CBD5E1_1px,transparent_1px)] [background-size:16px_16px] rounded-b-xl border border-t-0 border-[#BAE6FD]">
+                      <div
+                        id="diagram-canvas-container"
+                        className="relative overflow-auto max-h-[720px] p-2.5 sm:p-5 bg-[#F8FAFC] bg-[radial-gradient(#CBD5E1_1px,transparent_1px)] [background-size:16px_16px] rounded-b-xl border border-t-0 border-[#BAE6FD] scroll-smooth"
+                      >
                         {/* Baris Tips & Status Zoom */}
                         <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#64748B] mb-3 px-1">
                           <div className="flex items-center gap-2">
@@ -1879,9 +1974,10 @@ export default function MasterDataPage() {
                                                           return (
                                                             <div
                                                               key={rak.id}
-                                                              className={`rounded-full px-3 py-1 border shadow-2xs flex items-center gap-1.5 transition-all ${
+                                                              id={`rak-node-${rak.id}`}
+                                                              className={`rounded-full px-3 py-1 border shadow-2xs flex items-center gap-1.5 transition-all duration-300 ${
                                                                 isHighlighted
-                                                                  ? 'ring-2 ring-[#0284C7] ring-offset-1 scale-105 bg-[#E0F2FE]'
+                                                                  ? 'ring-4 ring-[#1E3A5F] ring-offset-2 scale-110 shadow-md z-10 bg-white font-bold'
                                                                   : 'hover:bg-[#E0F2FE]'
                                                               } ${
                                                                 occ?.status === 'hampir_penuh'
@@ -1921,7 +2017,7 @@ export default function MasterDataPage() {
                                                                 >
                                                                   {occ.status === 'kosong' ? (
                                                                     <>
-                                                                      <Sparkles className="h-2.5 w-2.5 shrink-0" />
+                                                                      <Check className="h-2.5 w-2.5 shrink-0" />
                                                                       <span>
                                                                         {occ.countBoks === 0 ? 'Kosong' : `Sisa ${occ.sisaLembar} lbr`}
                                                                       </span>
@@ -1991,8 +2087,18 @@ export default function MasterDataPage() {
                               const displayTingkat = isGudang ? 'Gudang' : row.tingkat
                               const occ = occupancyMap.get(row.id)
 
+                              const isHighlighted = highlightedRakId === row.id
+
                               return (
-                                <tr key={row.id} className="hover:bg-[#F8FAFC] transition-colors">
+                                <tr
+                                  key={row.id}
+                                  id={`rak-table-row-${row.id}`}
+                                  className={`transition-colors duration-300 ${
+                                    isHighlighted
+                                      ? 'bg-[#EAF5FD] ring-2 ring-[#1E3A5F]'
+                                      : 'hover:bg-[#F8FAFC]'
+                                  }`}
+                                >
                                   {/* Nama / Hierarki dengan Desain Kurva Cabang Halus & Dropdown Collapsible */}
                                   <td className="px-5 py-3.5 text-[#1F2333]">
                                     <div className="flex items-center gap-1.5">
@@ -2187,7 +2293,7 @@ export default function MasterDataPage() {
                                           >
                                             {occ.status === 'kosong' ? (
                                               <>
-                                                <Sparkles className="h-2.5 w-2.5 shrink-0" />
+                                                <Check className="h-2.5 w-2.5 shrink-0" />
                                                 <span>
                                                   {row.tingkat === 'Rak' && occ.countBoks === 0
                                                     ? 'Kosong (Rekomendasi)'
