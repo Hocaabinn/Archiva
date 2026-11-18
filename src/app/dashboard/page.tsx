@@ -1474,222 +1474,224 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
         </div>
       </div>
 
-      {/* 4. Widget Monitoring Kapasitas Fasilitas & Rak Fisik */}
-      <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#ECEEF5] pb-3">
-          <div>
-            <h2 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
-              <Warehouse className="h-5 w-5 text-[#3BA4E8]" />
-              <span>
+      {/* 4. Widget Monitoring Kapasitas Fasilitas & Rak Fisik (Disembunyikan pada Atasan Aktif karena sudah ada widget ringkasan okupansi unit di atas) */}
+      {!isAtasanAktif && (
+        <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#ECEEF5] pb-3">
+            <div>
+              <h2 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
+                <Warehouse className="h-5 w-5 text-[#3BA4E8]" />
+                <span>
+                  {isSuperadmin
+                    ? 'Monitoring Kapasitas Fasilitas Fisik (Aktif & Inaktif)'
+                    : 'Okupansi Rak Fisik Aktif (Ruang Arsip Aktif)'}
+                </span>
+              </h2>
+              <p className="text-xs text-[#6B7185] mt-0.5">
                 {isSuperadmin
-                  ? 'Monitoring Kapasitas Fasilitas Fisik (Aktif & Inaktif)'
-                  : 'Okupansi Rak Fisik Aktif (Ruang Arsip Aktif)'}
-              </span>
-            </h2>
-            <p className="text-xs text-[#6B7185] mt-0.5">
-              {isSuperadmin
-                ? 'Keterisian fisik rak di Ruang Arsip Aktif (Gedung A) dan Ruang Simpan Inaktif (Record Center). Standar kapasitas 500 lembar per boks.'
-                : 'Keterisian fisik rak di Ruang Arsip Aktif unit. Standar kapasitas maksimal 500 lembar per boks.'}
-            </p>
+                  ? 'Keterisian fisik rak di Ruang Arsip Aktif (Gedung A) dan Ruang Simpan Inaktif (Record Center). Standar kapasitas 500 lembar per boks.'
+                  : 'Keterisian fisik rak di Ruang Arsip Aktif unit. Standar kapasitas maksimal 500 lembar per boks.'}
+              </p>
+            </div>
+            <span className="text-xs text-[#8A90A2]">
+              Total: <strong>{rakOccupancyList.length} rak</strong>
+            </span>
           </div>
-          <span className="text-xs text-[#8A90A2]">
-            Total: <strong>{rakOccupancyList.length} rak</strong>
-          </span>
-        </div>
 
-        {/* Khusus Superadmin: Tampilkan Ringkasan 2 Fasilitas Utama (Gedung A & Gedung Inaktif) */}
-        {isSuperadmin && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-2">
-            {/* Fasilitas 1: Ruang Arsip Aktif (Gedung A) */}
-            <div className="rounded-xl border border-[#ECEEF5] bg-[#F7F8FC] p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="p-1.5 rounded-lg bg-[#E0F2FE] text-[#0284C7]">
-                    <Layers className="h-4 w-4" />
-                  </span>
-                  <div>
-                    <p className="text-xs font-bold text-[#1F2333]">{fasilitasUtama.aktif.nama}</p>
-                    <p className="text-[11px] text-[#6B7185]">{fasilitasUtama.aktif.gedung}</p>
+          {/* Khusus Superadmin: Tampilkan Ringkasan 2 Fasilitas Utama (Gedung A & Gedung Inaktif) */}
+          {isSuperadmin && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-2">
+              {/* Fasilitas 1: Ruang Arsip Aktif (Gedung A) */}
+              <div className="rounded-xl border border-[#ECEEF5] bg-[#F7F8FC] p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-[#E0F2FE] text-[#0284C7]">
+                      <Layers className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <p className="text-xs font-bold text-[#1F2333]">{fasilitasUtama.aktif.nama}</p>
+                      <p className="text-[11px] text-[#6B7185]">{fasilitasUtama.aktif.gedung}</p>
+                    </div>
                   </div>
-                </div>
-                <span
-                  className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
-                    fasilitasUtama.aktif.persen >= 90
-                      ? 'bg-[#FDECEC] text-[#D64545] border border-[#FECACA]'
-                      : fasilitasUtama.aktif.persen >= 75
-                      ? 'bg-[#FEF7E0] text-[#B06000] border border-[#FEEFC3]'
-                      : 'bg-[#E7F6EC] text-[#2F9E5B]'
-                  }`}
-                >
-                  {fasilitasUtama.aktif.persen}% Kapasitas
-                </span>
-              </div>
-              <div className="space-y-1">
-                <div className="h-2 w-full rounded-full bg-[#E5E7EB] overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${
+                  <span
+                    className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
                       fasilitasUtama.aktif.persen >= 90
-                        ? 'bg-[#D64545]'
+                        ? 'bg-[#FDECEC] text-[#D64545] border border-[#FECACA]'
                         : fasilitasUtama.aktif.persen >= 75
-                        ? 'bg-[#E37400]'
-                        : 'bg-[#2F9E5B]'
+                        ? 'bg-[#FEF7E0] text-[#B06000] border border-[#FEEFC3]'
+                        : 'bg-[#E7F6EC] text-[#2F9E5B]'
                     }`}
-                    style={{ width: `${fasilitasUtama.aktif.persen}%` }}
-                  />
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-[#6B7185]">
-                  <span>{fasilitasUtama.aktif.totalBoks} Boks Aktif</span>
-                  <span>
-                    {fasilitasUtama.aktif.totalLembar.toLocaleString('id-ID')} /{' '}
-                    {fasilitasUtama.aktif.kapasitasMaks.toLocaleString('id-ID')} lbr
+                  >
+                    {fasilitasUtama.aktif.persen}% Kapasitas
                   </span>
                 </div>
-              </div>
-            </div>
-
-            {/* Fasilitas 2: Ruang Simpan Inaktif (Gedung Inaktif) */}
-            <div className="rounded-xl border border-[#ECEEF5] bg-[#F7F8FC] p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="p-1.5 rounded-lg bg-[#EDE9FE] text-[#6D28D9]">
-                    <Warehouse className="h-4 w-4" />
-                  </span>
-                  <div>
-                    <p className="text-xs font-bold text-[#1F2333]">{fasilitasUtama.inaktif.nama}</p>
-                    <p className="text-[11px] text-[#6B7185]">{fasilitasUtama.inaktif.gedung}</p>
+                <div className="space-y-1">
+                  <div className="h-2 w-full rounded-full bg-[#E5E7EB] overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        fasilitasUtama.aktif.persen >= 90
+                          ? 'bg-[#D64545]'
+                          : fasilitasUtama.aktif.persen >= 75
+                          ? 'bg-[#E37400]'
+                          : 'bg-[#2F9E5B]'
+                      }`}
+                      style={{ width: `${fasilitasUtama.aktif.persen}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-[#6B7185]">
+                    <span>{fasilitasUtama.aktif.totalBoks} Boks Aktif</span>
+                    <span>
+                      {fasilitasUtama.aktif.totalLembar.toLocaleString('id-ID')} /{' '}
+                      {fasilitasUtama.aktif.kapasitasMaks.toLocaleString('id-ID')} lbr
+                    </span>
                   </div>
                 </div>
-                <span
-                  className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
-                    fasilitasUtama.inaktif.persen >= 90
-                      ? 'bg-[#FDECEC] text-[#D64545] border border-[#FECACA]'
-                      : fasilitasUtama.inaktif.persen >= 75
-                      ? 'bg-[#FEF7E0] text-[#B06000] border border-[#FEEFC3]'
-                      : 'bg-[#E7F6EC] text-[#2F9E5B]'
-                  }`}
-                >
-                  {fasilitasUtama.inaktif.persen}% Kapasitas
-                </span>
               </div>
-              <div className="space-y-1">
-                <div className="h-2 w-full rounded-full bg-[#E5E7EB] overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${
+
+              {/* Fasilitas 2: Ruang Simpan Inaktif (Gedung Inaktif) */}
+              <div className="rounded-xl border border-[#ECEEF5] bg-[#F7F8FC] p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-[#EDE9FE] text-[#6D28D9]">
+                      <Warehouse className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <p className="text-xs font-bold text-[#1F2333]">{fasilitasUtama.inaktif.nama}</p>
+                      <p className="text-[11px] text-[#6B7185]">{fasilitasUtama.inaktif.gedung}</p>
+                    </div>
+                  </div>
+                  <span
+                    className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
                       fasilitasUtama.inaktif.persen >= 90
-                        ? 'bg-[#D64545]'
+                        ? 'bg-[#FDECEC] text-[#D64545] border border-[#FECACA]'
                         : fasilitasUtama.inaktif.persen >= 75
-                        ? 'bg-[#E37400]'
-                        : 'bg-[#2F9E5B]'
+                        ? 'bg-[#FEF7E0] text-[#B06000] border border-[#FEEFC3]'
+                        : 'bg-[#E7F6EC] text-[#2F9E5B]'
                     }`}
-                    style={{ width: `${fasilitasUtama.inaktif.persen}%` }}
-                  />
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-[#6B7185]">
-                  <span>{fasilitasUtama.inaktif.totalBoks} Boks Inaktif</span>
-                  <span>
-                    {fasilitasUtama.inaktif.totalLembar.toLocaleString('id-ID')} /{' '}
-                    {fasilitasUtama.inaktif.kapasitasMaks.toLocaleString('id-ID')} lbr
+                  >
+                    {fasilitasUtama.inaktif.persen}% Kapasitas
                   </span>
                 </div>
+                <div className="space-y-1">
+                  <div className="h-2 w-full rounded-full bg-[#E5E7EB] overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        fasilitasUtama.inaktif.persen >= 90
+                          ? 'bg-[#D64545]'
+                          : fasilitasUtama.inaktif.persen >= 75
+                          ? 'bg-[#E37400]'
+                          : 'bg-[#2F9E5B]'
+                      }`}
+                      style={{ width: `${fasilitasUtama.inaktif.persen}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-[#6B7185]">
+                    <span>{fasilitasUtama.inaktif.totalBoks} Boks Inaktif</span>
+                    <span>
+                      {fasilitasUtama.inaktif.totalLembar.toLocaleString('id-ID')} /{' '}
+                      {fasilitasUtama.inaktif.kapasitasMaks.toLocaleString('id-ID')} lbr
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Peringatan Kapasitas Melebihi 80% */}
-        {(() => {
-          const raksOver80 = rakOccupancyList.filter((r) => r.persenTerpakai >= 80)
-          if (raksOver80.length === 0) return null
-          return (
-            <div className="flex items-start gap-3 rounded-xl border border-[#FCA5A5] bg-[#FEF2F2] p-3.5 text-xs text-[#991B1B] shadow-2xs">
-              <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-[#DC2626]" />
-              <div className="space-y-0.5">
-                <p className="font-bold text-[#B91C1C]">
-                  Peringatan Kapasitas (Keterisian &ge; 80%): Terdapat {raksOver80.length} rak yang hampir penuh!
-                </p>
-                <p className="text-[11px] text-[#7F1D1D]">
-                  Lokasi:{' '}
-                  <strong>
-                    {raksOver80
-                      .map((r) => `${r.rakNama} (${r.ruanganNama} — ${r.persenTerpakai}%)`)
-                      .join(', ')}
-                  </strong>
-                  . Segera persiapkan penambahan boks baru atau alokasikan dokumen ke rak yang masih kosong.
-                </p>
+          {/* Peringatan Kapasitas Melebihi 80% */}
+          {(() => {
+            const raksOver80 = rakOccupancyList.filter((r) => r.persenTerpakai >= 80)
+            if (raksOver80.length === 0) return null
+            return (
+              <div className="flex items-start gap-3 rounded-xl border border-[#FCA5A5] bg-[#FEF2F2] p-3.5 text-xs text-[#991B1B] shadow-2xs">
+                <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-[#DC2626]" />
+                <div className="space-y-0.5">
+                  <p className="font-bold text-[#B91C1C]">
+                    Peringatan Kapasitas (Keterisian &ge; 80%): Terdapat {raksOver80.length} rak yang hampir penuh!
+                  </p>
+                  <p className="text-[11px] text-[#7F1D1D]">
+                    Lokasi:{' '}
+                    <strong>
+                      {raksOver80
+                        .map((r) => `${r.rakNama} (${r.ruanganNama} — ${r.persenTerpakai}%)`)
+                        .join(', ')}
+                    </strong>
+                    . Segera persiapkan penambahan boks baru atau alokasikan dokumen ke rak yang masih kosong.
+                  </p>
+                </div>
               </div>
-            </div>
-          )
-        })()}
+            )
+          })()}
 
-        {rakOccupancyList.length === 0 ? (
-          <p className="text-xs text-[#8A90A2] py-4 text-center">Belum ada master rak terdaftar.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {rakOccupancyList.map((rak) => {
-              // Indikator visual sesuai spesifikasi:
-              // hijau jika < 75%, kuning jika 75-89%, merah/alert jika >= 90%
-              let progressColor = 'bg-[#2F9E5B]' // hijau < 75%
-              let badgeColor = 'text-[#2F9E5B] bg-[#E7F6EC]'
-              const isAlert90 = rak.persenTerpakai >= 90
-              const isWarn75 = rak.persenTerpakai >= 75 && rak.persenTerpakai < 90
+          {rakOccupancyList.length === 0 ? (
+            <p className="text-xs text-[#8A90A2] py-4 text-center">Belum ada master rak terdaftar.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {rakOccupancyList.map((rak) => {
+                // Indikator visual sesuai spesifikasi:
+                // hijau jika < 75%, kuning jika 75-89%, merah/alert jika >= 90%
+                let progressColor = 'bg-[#2F9E5B]' // hijau < 75%
+                let badgeColor = 'text-[#2F9E5B] bg-[#E7F6EC]'
+                const isAlert90 = rak.persenTerpakai >= 90
+                const isWarn75 = rak.persenTerpakai >= 75 && rak.persenTerpakai < 90
 
-              if (isAlert90) {
-                progressColor = 'bg-[#D64545]' // merah >= 90%
-                badgeColor = 'text-[#D64545] bg-[#FDECEC] border border-[#FECACA]'
-              } else if (isWarn75) {
-                progressColor = 'bg-[#E37400]' // kuning/oranye 75-89%
-                badgeColor = 'text-[#B06000] bg-[#FEF7E0] border border-[#FEEFC3]'
-              }
+                if (isAlert90) {
+                  progressColor = 'bg-[#D64545]' // merah >= 90%
+                  badgeColor = 'text-[#D64545] bg-[#FDECEC] border border-[#FECACA]'
+                } else if (isWarn75) {
+                  progressColor = 'bg-[#E37400]' // kuning/oranye 75-89%
+                  badgeColor = 'text-[#B06000] bg-[#FEF7E0] border border-[#FEEFC3]'
+                }
 
-              return (
-                <div
-                  key={rak.rakId}
-                  className={`rounded-xl border p-4 flex flex-col justify-between gap-3 transition-colors ${
-                    isAlert90
-                      ? 'border-[#FCA5A5] bg-[#FFF8F8] hover:border-[#F87171]'
-                      : isWarn75
-                      ? 'border-[#FEEFC3] bg-[#FFFCF5] hover:border-[#F29900]/40'
-                      : 'border-[#ECEEF5] bg-[#F7F8FC] hover:border-[#3BA4E8]/40'
-                  }`}
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        {isAlert90 && <AlertTriangle className="h-3.5 w-3.5 text-[#DC2626] shrink-0" />}
-                        <span className={`text-xs font-bold ${isAlert90 ? 'text-[#991B1B]' : 'text-[#1F2333]'}`}>
-                          {rak.rakNama}
+                return (
+                  <div
+                    key={rak.rakId}
+                    className={`rounded-xl border p-4 flex flex-col justify-between gap-3 transition-colors ${
+                      isAlert90
+                        ? 'border-[#FCA5A5] bg-[#FFF8F8] hover:border-[#F87171]'
+                        : isWarn75
+                        ? 'border-[#FEEFC3] bg-[#FFFCF5] hover:border-[#F29900]/40'
+                        : 'border-[#ECEEF5] bg-[#F7F8FC] hover:border-[#3BA4E8]/40'
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          {isAlert90 && <AlertTriangle className="h-3.5 w-3.5 text-[#DC2626] shrink-0" />}
+                          <span className={`text-xs font-bold ${isAlert90 ? 'text-[#991B1B]' : 'text-[#1F2333]'}`}>
+                            {rak.rakNama}
+                          </span>
+                        </div>
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${badgeColor}`}>
+                          {rak.persenTerpakai}% Kapasitas
                         </span>
                       </div>
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${badgeColor}`}>
-                        {rak.persenTerpakai}% Kapasitas
-                      </span>
+                      <p className="text-[11px] text-[#6B7185]">
+                        {rak.gedungNama} &bull; {rak.ruanganNama}
+                      </p>
                     </div>
-                    <p className="text-[11px] text-[#6B7185]">
-                      {rak.gedungNama} &bull; {rak.ruanganNama}
-                    </p>
-                  </div>
 
-                  {/* Progress Bar Okupansi */}
-                  <div className="space-y-1.5">
-                    <div className="h-2 w-full rounded-full bg-[#E5E7EB] overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${progressColor} transition-all duration-500`}
-                        style={{ width: `${rak.persenTerpakai}%` }}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between text-[11px] text-[#6B7185]">
-                      <span>{rak.totalBoks} Boks Aktif</span>
-                      <span>
-                        {rak.totalLembar} / {rak.kapasitasMaksLembar} lbr
-                      </span>
+                    {/* Progress Bar Okupansi */}
+                    <div className="space-y-1.5">
+                      <div className="h-2 w-full rounded-full bg-[#E5E7EB] overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${progressColor} transition-all duration-500`}
+                          style={{ width: `${rak.persenTerpakai}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-[#6B7185]">
+                        <span>{rak.totalBoks} Boks Aktif</span>
+                        <span>
+                          {rak.totalLembar} / {rak.kapasitasMaksLembar} lbr
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 5. Tindakan & Monitoring: Log Audit (Superadmin) VS Approval (Atasan) VS Prioritas (PIC) */}
       {isSuperadmin ? (
