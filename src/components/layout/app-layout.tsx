@@ -26,6 +26,7 @@ import {
   Archive,
   Building2,
   FileSpreadsheet,
+  Clock,
 } from 'lucide-react'
 import { UserRole } from '@/types'
 import { createClient } from '@/lib/supabase/client'
@@ -274,13 +275,19 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
       label: 'Peminjaman Inaktif',
       href: '/peminjaman',
       icon: BookOpenCheck,
-      roles: ['pic_inaktif', 'atasan_inaktif', 'pic_aktif', 'staff'],
+      roles: ['pic_inaktif', 'atasan_inaktif', 'pic_aktif'],
+    },
+    {
+      label: 'Peminjaman Saya',
+      href: '/peminjaman-saya',
+      icon: Clock,
+      roles: ['staff'],
     },
     {
       label: 'Laporan Rekapitulasi',
       href: '/laporan',
       icon: FileSpreadsheet,
-      roles: ['pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif', 'staff'],
+      roles: ['pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif'],
     },
     {
       label: 'Log Riwayat',

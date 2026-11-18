@@ -157,7 +157,7 @@ export default function PengaturanSistemPage() {
                     <span className="text-sm font-bold text-[#6B7185]">MB / Dokumen</span>
                   </div>
                   <p className="text-xs text-[#8A90A2] mt-2">
-                    Nilai awal acuan BLUEPRINT.md adalah <strong>25 MB</strong> per dokumen. Anda dapat menyesuaikannya bila instansi memerlukan berkas lampiran berukuran lebih besar.
+                    Nilai awal standar sistem adalah <strong>25 MB</strong> per dokumen. Anda dapat menyesuaikannya bila instansi memerlukan berkas lampiran berukuran lebih besar.
                   </p>
                 </div>
 

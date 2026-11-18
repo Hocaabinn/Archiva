@@ -15,7 +15,7 @@ Dokumen ini adalah lembar panduan bagi penguji / dosen untuk mencoba autentikasi
 | 3 | **Atasan Arsip Aktif** (`atasan_aktif`) | `atasan@example.com` | `password123` | Persetujuan entri PIC unitnya, pembatalan dokumen aktif (alasan wajib), persetujuan hapus |
 | 4 | **PIC Arsip Inaktif** (`pic_inaktif`) | `pic.inaktif@example.com` | `password123` | Kelola gudang inaktif, layanan peminjaman inaktif, pantau kapasitas gudang |
 | 5 | **Atasan Arsip Inaktif** (`atasan_inaktif`) | `atasan.inaktif@example.com` | `password123` | Pengawasan berkas inaktif, kapasitas gudang inaktif, tindak lanjut retensi |
-| 6 | **Staff** (`staff`) | `accounting@example.com` | `password123` | Melihat dan mengunduh seluruh dokumen resmi (tidak bisa entri, edit, hapus, approve) |
+| 6 | **Staff** (`staff`) | `staff@example.com` | `password123` | Melihat dan mengunduh seluruh dokumen resmi (tidak bisa entri, edit, hapus, approve) |
 | 7 | **Staff (Alternatif)** (`staff`) | `viewer@example.com` | `password123` | Melihat dan mengunduh seluruh dokumen resmi |
 | 8 | **PIC Arsip Aktif (Pengaju)** (`pic_aktif`) | `pengaju@example.com` | `password123` | Entri dokumen unit Keuangan |
 
