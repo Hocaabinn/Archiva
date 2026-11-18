@@ -858,6 +858,20 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
     })
   }, [lokasiList, boksList])
 
+  // Filter rak untuk tampilan widget okupansi (Superadmin melihat semua, PIC/Atasan Aktif hanya melihat rak aktif)
+  const displayedRakList = useMemo(() => {
+    if (isSuperadmin) return rakOccupancyList
+    // Kecualikan rak inaktif / gudang inaktif / record center dari widget Ruang Arsip Aktif
+    return rakOccupancyList.filter((rak) => {
+      const isRecordCenter =
+        rak.ruanganNama.toLowerCase().includes('inaktif') ||
+        rak.gedungNama.toLowerCase().includes('inaktif') ||
+        rak.rakNama.toLowerCase().includes('inaktif') ||
+        rak.gedungNama.toLowerCase().includes('record')
+      return !isRecordCenter
+    })
+  }, [rakOccupancyList, isSuperadmin])
+
   // Hitung Okupansi Global (Fasilitas Fisik Seluruh Perusahaan untuk Superadmin)
   const totalGlobalLembar = useMemo(
     () => boksList.reduce((acc, b) => acc + (b.jumlah_lembar_terisi || 0), 0),
@@ -2019,7 +2033,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               </p>
             </div>
             <span className="text-xs text-[#8A90A2]">
-              Total: <strong>{rakOccupancyList.length} rak</strong>
+              Total: <strong>{displayedRakList.length} rak</strong>
             </span>
           </div>
 
@@ -2124,7 +2138,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
 
           {/* Peringatan Kapasitas Melebihi 80% */}
           {(() => {
-            const raksOver80 = rakOccupancyList.filter((r) => r.persenTerpakai >= 80)
+            const raksOver80 = displayedRakList.filter((r) => r.persenTerpakai >= 80)
             if (raksOver80.length === 0) return null
             return (
               <div className="flex items-start gap-3 rounded-xl border border-[#FCA5A5] bg-[#FEF2F2] p-3.5 text-xs text-[#991B1B] shadow-2xs">
@@ -2147,11 +2161,11 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
             )
           })()}
 
-          {rakOccupancyList.length === 0 ? (
+          {displayedRakList.length === 0 ? (
             <p className="text-xs text-[#8A90A2] py-4 text-center">Belum ada master rak terdaftar.</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {rakOccupancyList.map((rak) => {
+              {displayedRakList.map((rak) => {
                 // Indikator visual sesuai spesifikasi:
                 // hijau jika < 75%, kuning jika 75-89%, merah/alert jika >= 90%
                 let progressColor = 'bg-[#2F9E5B]' // hijau < 75%
