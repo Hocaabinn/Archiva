@@ -387,7 +387,7 @@ function TransferArsipContent() {
                   : 'text-[#6B7185] hover:text-[#1F2333]'
               }`}
             >
-              Semua Dokumen Aktif (Mode Uji Coba)
+              Semua Dokumen Aktif
             </button>
           </div>
 
@@ -438,7 +438,7 @@ function TransferArsipContent() {
             </p>
             <p className="text-xs text-[#8A90A2] max-w-md mx-auto">
               {filterTab === 'retensi'
-                ? 'Seluruh dokumen aktif berada dalam masa retensi aman (> 90 hari). Anda dapat beralih ke tab "Semua Dokumen Aktif (Mode Uji Coba)" untuk mencoba transfer.'
+                ? 'Seluruh dokumen aktif berada dalam masa retensi aman (> 90 hari). Anda dapat beralih ke tab "Semua Dokumen Aktif" untuk memilih dokumen.'
                 : 'Tidak ada dokumen aktif yang terdaftar di unit Anda.'}
             </p>
           </div>
