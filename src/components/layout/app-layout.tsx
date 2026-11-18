@@ -278,7 +278,7 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
       roles: ['pic_inaktif', 'atasan_inaktif', 'pic_aktif'],
     },
     {
-      label: 'Peminjaman Saya',
+      label: 'Peminjam',
       href: '/peminjaman-saya',
       icon: Clock,
       roles: ['staff'],

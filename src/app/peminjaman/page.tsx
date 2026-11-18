@@ -454,7 +454,7 @@ function PeminjamanContent() {
           <div className="min-w-0">
             <h1 className="text-2xl font-bold tracking-tight text-[#1F2333] sm:text-[28px]">
               {pathname.includes('peminjaman-saya') || currentUserRole === 'staff'
-                ? 'Peminjaman Saya'
+                ? 'Peminjam'
                 : 'Peminjaman Dokumen Inaktif'}
             </h1>
             <p className="mt-1 text-sm text-[#4B5163]">

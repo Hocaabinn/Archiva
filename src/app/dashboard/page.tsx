@@ -1552,7 +1552,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
                 className="inline-flex items-center gap-1.5 rounded-xl border border-[#D5D9E2] bg-white px-3.5 py-2 text-xs font-semibold text-[#1F2333] shadow-2xs hover:bg-[#F7F8FC] hover:border-[#0284C7] transition-all"
               >
                 <Clock className="h-3.5 w-3.5 text-[#0284C7]" />
-                <span>Peminjaman Saya</span>
+                <span>Peminjam</span>
                 {myPinjamanAktif.length > 0 && (
                   <span className="ml-1 rounded-full bg-[#E0F2FE] text-[#0284C7] px-1.5 py-0.2 text-[10px] font-bold">
                     {myPinjamanAktif.length}
@@ -3602,7 +3602,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
             <div>
               <h2 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
                 <BookOpenCheck className="h-5 w-5 text-[#0284C7]" />
-                <span>Status Peminjaman Berjalan (Pinjaman Saya)</span>
+                <span>Status Peminjaman Berjalan</span>
               </h2>
               <p className="text-xs text-[#6B7185] mt-0.5">
                 Pantau berkas fisik inaktif yang sedang Anda pinjam dari Record Center beserta batas waktu pengembaliannya.

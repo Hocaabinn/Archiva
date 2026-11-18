@@ -3,7 +3,7 @@
 import PeminjamanPage from '@/app/peminjaman/page'
 
 /**
- * Halaman Peminjaman Saya (Role Staff & Pengguna Umum)
+ * Halaman Peminjam (Role Staff & Pengguna Umum)
  * Rute: /peminjaman-saya
  * Mengarahkan dan merender modul peminjaman dengan konteks personal peminjam.
  */
