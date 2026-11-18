@@ -788,6 +788,77 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
     }
   }, [rakOccupancyList])
 
+  // Data Khusus Widget "Kapasitas & Okupansi Ruang Arsip Unit" untuk Atasan Arsip Aktif
+  const okupansiRuangUnit = useMemo(() => {
+    // 1. Identifikasi nama ruangan unit Atasan
+    const cleanUnit = (userUnitName || '').replace(/^(departemen|divisi|unit)\s+/i, '').trim()
+    const matchRoom = lokasiList.find(
+      (l) => l.tingkat === 'Ruangan' && cleanUnit && l.nama.toLowerCase().includes(cleanUnit.toLowerCase())
+    )
+
+    let subjudul = 'Gedung A • Ruang Arsip Aktif'
+    if (matchRoom) {
+      const parentGedung = matchRoom.parent_id ? lokasiList.find((l) => l.id === matchRoom.parent_id) : undefined
+      subjudul = `${parentGedung?.nama || 'Gedung A'} • ${matchRoom.nama}`
+    } else if (userUnitName) {
+      subjudul = `Gedung A • Ruang Arsip ${userUnitName}`
+    }
+
+    // 2. Filter rak dan boks milik unit
+    const unitRakIds = new Set<string>()
+    if (matchRoom) {
+      lokasiList.filter((l) => l.tingkat === 'Rak' && l.parent_id === matchRoom.id).forEach((r) => unitRakIds.add(r.id))
+    }
+
+    let boksUnit = boksList.filter((b) => unitRakIds.has(b.rak_id))
+
+    // Fallback bila boks belum ditautkan ke rak ruangan spesifik: kaitkan via boks_id pada dokumen unit
+    if (boksUnit.length === 0) {
+      const docBoksIds = new Set<string>()
+      documents.forEach((d) => {
+        if (d.boks_id) docBoksIds.add(d.boks_id)
+        if (d.boks_ids) d.boks_ids.forEach((id) => docBoksIds.add(id))
+      })
+      boksUnit = boksList.filter((b) => docBoksIds.has(b.id))
+    }
+
+    // Fallback kedua bila boks masih kosong: filter seluruh boks aktif non-inaktif
+    if (boksUnit.length === 0) {
+      boksUnit = boksList.filter((b) => {
+        const rak = lokasiList.find((l) => l.id === b.rak_id)
+        const room = rak?.parent_id ? lokasiList.find((r) => r.id === rak.parent_id) : undefined
+        return !(room?.nama || '').toLowerCase().includes('inaktif')
+      })
+    }
+
+    // 3. Hitung total lembar terisi dan kapasitas standar (500 lembar per boks)
+    let totalLembar = boksUnit.reduce((sum, b) => sum + (b.jumlah_lembar_terisi || 0), 0)
+    let totalKapasitas = boksUnit.reduce((sum, b) => sum + (Number(b.kapasitas_maks_lembar) || 500), 0)
+
+    // Jika boks belum tercatat lembar terisinya, gunakan akumulasi dari dokumen unit yang ada
+    if (totalLembar === 0) {
+      totalLembar = documents.reduce((sum, d) => sum + (d.jumlah_halaman || 1), 0)
+    }
+    if (totalKapasitas === 0) {
+      totalKapasitas = Math.max(2500, Math.ceil((totalLembar || 1) / 500) * 500)
+    }
+
+    const persen = totalKapasitas > 0 ? Math.min(100, Math.round((totalLembar / totalKapasitas) * 100)) : 0
+
+    // 4. Hitung rincian boks aktif vs penuh
+    const boksAktif = boksUnit.filter((b) => (b.status || 'Aktif').toLowerCase() === 'aktif').length
+    const boksPenuh = boksUnit.filter((b) => (b.status || '').toLowerCase() === 'penuh').length
+
+    return {
+      subjudul,
+      totalLembar,
+      totalKapasitas,
+      persen,
+      boksAktif: boksAktif || Math.max(1, boksUnit.length - boksPenuh),
+      boksPenuh,
+    }
+  }, [lokasiList, boksList, documents, userUnitName])
+
   // Tren Arsip Tahunan
   const trenTahunanData = useMemo(() => {
     const yearsMap = new Map<number, { berkasMasuk: number; boksMasuk: Set<string>; inaktifBerkas: number }>()
@@ -1275,9 +1346,131 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
           </div>
         </div>
 
-        {/* Donut Kategori */}
-        <div className="xl:col-span-4">
-          <CategoryDonut documents={documents} />
+        {/* Donut Kategori ATAU Widget Okupansi Ruang Arsip Unit (Khusus Atasan Aktif) */}
+        <div className="xl:col-span-4 flex flex-col">
+          {isAtasanAktif ? (
+            <div className="h-full bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 flex flex-col justify-between">
+              {/* Header Widget */}
+              <div>
+                <div className="flex items-start justify-between gap-2 border-b border-[#ECEEF5] pb-3">
+                  <div className="min-w-0">
+                    <h3 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
+                      <Warehouse className="h-5 w-5 text-[#3BA4E8] shrink-0" />
+                      <span className="truncate">Okupansi Ruang Simpan Aktif</span>
+                    </h3>
+                    <p className="text-xs text-[#6B7185] mt-0.5 truncate" title={okupansiRuangUnit.subjudul}>
+                      {okupansiRuangUnit.subjudul}
+                    </p>
+                  </div>
+                  <span
+                    className={`shrink-0 inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md border ${
+                      okupansiRuangUnit.persen >= 90
+                        ? 'bg-[#FDECEC] text-[#D64545] border-[#FCA5A5]'
+                        : okupansiRuangUnit.persen >= 75
+                        ? 'bg-[#FEF7E0] text-[#B06000] border-[#FDE68A]'
+                        : 'bg-[#E7F6EC] text-[#2F9E5B] border-[#A7F3D0]'
+                    }`}
+                  >
+                    {okupansiRuangUnit.persen >= 90 ? (
+                      <AlertTriangle className="h-3 w-3 shrink-0" />
+                    ) : okupansiRuangUnit.persen >= 75 ? (
+                      <Clock className="h-3 w-3 shrink-0" />
+                    ) : (
+                      <CheckCircle2 className="h-3 w-3 shrink-0" />
+                    )}
+                    <span>{okupansiRuangUnit.persen}%</span>
+                  </span>
+                </div>
+
+                {/* Progress Bar & Keterisian Lembar */}
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-baseline justify-between">
+                    <div>
+                      <span className="text-xs font-medium text-[#6B7185] block">Keterisian Lembar Fisik</span>
+                      <p className="text-xl font-bold tracking-tight text-[#1F2333] mt-0.5">
+                        {okupansiRuangUnit.totalLembar.toLocaleString('id-ID')}{' '}
+                        <span className="text-xs font-semibold text-[#8A90A2]">
+                          / {okupansiRuangUnit.totalKapasitas.toLocaleString('id-ID')} Lembar
+                        </span>
+                      </p>
+                    </div>
+                    {okupansiRuangUnit.persen >= 90 && (
+                      <span className="text-[10px] font-bold text-[#D64545] bg-[#FDECEC] px-1.5 py-0.5 rounded border border-[#FECACA]">
+                        Hampir Penuh
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Bar Keterisian dengan Pewarnaan Dinamis */}
+                  <div className="space-y-1.5">
+                    <div className="h-3 w-full rounded-full bg-[#ECEEF5] overflow-hidden p-0.5">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          okupansiRuangUnit.persen >= 90
+                            ? 'bg-[#D64545]'
+                            : okupansiRuangUnit.persen >= 75
+                            ? 'bg-[#E37400]'
+                            : 'bg-[#2F9E5B]'
+                        }`}
+                        style={{ width: `${okupansiRuangUnit.persen}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-[#8A90A2]">
+                      <span>Standar 500 lembar per boks</span>
+                      <span>
+                        {okupansiRuangUnit.persen >= 90
+                          ? 'Peringatan Ruang Hampir Penuh'
+                          : `Sisa: ${(okupansiRuangUnit.totalKapasitas - okupansiRuangUnit.totalLembar).toLocaleString('id-ID')} lbr`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Rincian Boks: Status Aktif vs Boks Penuh */}
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="rounded-xl border border-[#ECEEF5] bg-[#F8FAFC] p-3">
+                      <div className="flex items-center gap-1.5 text-xs text-[#6B7185]">
+                        <span className="h-2 w-2 rounded-full bg-[#2F9E5B]" />
+                        <span className="font-medium">Boks Aktif</span>
+                      </div>
+                      <p className="mt-1 text-lg font-bold text-[#1F2333]">
+                        {okupansiRuangUnit.boksAktif}{' '}
+                        <span className="text-xs font-normal text-[#8A90A2]">Boks</span>
+                      </p>
+                      <span className="text-[10px] text-[#6B7185] block mt-0.5">Tersedia pengisian</span>
+                    </div>
+
+                    <div className="rounded-xl border border-[#ECEEF5] bg-[#F8FAFC] p-3">
+                      <div className="flex items-center gap-1.5 text-xs text-[#6B7185]">
+                        <span className="h-2 w-2 rounded-full bg-[#B06000]" />
+                        <span className="font-medium">Boks Penuh</span>
+                      </div>
+                      <p className="mt-1 text-lg font-bold text-[#1F2333]">
+                        {okupansiRuangUnit.boksPenuh}{' '}
+                        <span className="text-xs font-normal text-[#8A90A2]">Boks</span>
+                      </p>
+                      <span className="text-[10px] text-[#6B7185] block mt-0.5">Kapasitas 500 lbr</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tombol Link ke Laporan Rekapitulasi */}
+              <div className="pt-4 border-t border-[#ECEEF5] mt-4">
+                <Link
+                  href="/laporan"
+                  className="w-full flex items-center justify-between rounded-lg border border-[#CBD7E3] bg-[#F8FAFC] px-3.5 py-2.5 text-xs font-semibold text-[#1F2333] hover:bg-[#EEF7FD] hover:text-[#1E86C8] hover:border-[#3BA4E8] transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-[#1E86C8]" />
+                    <span>Lihat Detail di Laporan Rekapitulasi</span>
+                  </span>
+                  <ArrowRight className="h-4 w-4 text-[#6B7185]" />
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <CategoryDonut documents={documents} />
+          )}
         </div>
       </div>
 
