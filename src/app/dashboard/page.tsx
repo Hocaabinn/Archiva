@@ -36,6 +36,12 @@ import {
   AlertCircle,
   FileEdit,
   ExternalLink,
+  Stamp,
+  ShieldCheck,
+  Eye,
+  X,
+  Inbox,
+  FileCheck,
 } from 'lucide-react'
 
 type DocStatus = DokumenStatus
@@ -45,9 +51,11 @@ interface DocumentItem {
   kode_arsip: string
   judul: string
   nomor_surat: string
+  nomor_ppl: string | null
   kategori: string
   status: DocStatus
   pemegang: string
+  pengentri_nama: string
   waktu: string
   sisa_hari: number | null
   ukuran_file: string
@@ -60,6 +68,8 @@ interface DocumentItem {
   boks_id: string | null
   boks_ids?: string[]
   jumlah_halaman: number
+  file_path?: string | null
+  bucket?: string | null
 }
 
 interface BoksItem {
@@ -111,6 +121,7 @@ function StatCard({
   note,
   href,
   unitLabel,
+  highlight = false,
 }: {
   title: string
   subtitle?: string
@@ -120,33 +131,60 @@ function StatCard({
   note: string
   href: string
   unitLabel?: string
+  highlight?: boolean
 }) {
   return (
-    <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden flex flex-col">
+    <div
+      className={`rounded-xl border shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden flex flex-col transition-all ${
+        highlight
+          ? 'border-[#F59E0B] bg-gradient-to-br from-[#FFFBEB] to-[#FEF3C7]/40 ring-2 ring-[#F59E0B]/20'
+          : 'border-[#ECEEF5] bg-white'
+      }`}
+    >
       <div className="p-5 flex-1">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
-            <span className="block text-sm text-[#4B5163] font-medium">{title}</span>
-            {subtitle && <span className="block text-[11px] text-[#9AA0B2]">{subtitle}</span>}
+            <span className={`block text-sm font-semibold ${highlight ? 'text-[#92400E]' : 'text-[#4B5163]'}`}>
+              {title}
+            </span>
+            {subtitle && (
+              <span className={`block text-[11px] ${highlight ? 'text-[#B45309]' : 'text-[#9AA0B2]'}`}>
+                {subtitle}
+              </span>
+            )}
           </div>
           {unitLabel && (
-            <span className="inline-flex items-center gap-1 rounded-md bg-[#F4F5FA] px-2 py-0.5 text-[10px] font-semibold uppercase text-[#6B7185]">
+            <span
+              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${
+                highlight ? 'bg-[#FDE68A] text-[#92400E]' : 'bg-[#F4F5FA] text-[#6B7185]'
+              }`}
+            >
               {unitLabel}
             </span>
           )}
         </div>
-        <p className="mt-3 text-[26px] font-bold text-[#1F2333] tracking-tight">{value}</p>
+        <p className={`mt-3 text-[26px] font-bold tracking-tight ${highlight ? 'text-[#B45309]' : 'text-[#1F2333]'}`}>
+          {value}
+        </p>
         <div className="mt-2 flex items-center gap-2 text-xs">
-          <span className={`flex items-center gap-0.5 font-medium ${trendUp ? 'text-[#2F9E5B]' : 'text-[#D64545]'}`}>
+          <span
+            className={`flex items-center gap-0.5 font-bold ${
+              highlight ? 'text-[#D97706]' : trendUp ? 'text-[#2F9E5B]' : 'text-[#D64545]'
+            }`}
+          >
             {trendUp ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />}
             {trend}
           </span>
-          <span className="text-[#6B7185]">{note}</span>
+          <span className={highlight ? 'text-[#92400E]' : 'text-[#6B7185]'}>{note}</span>
         </div>
       </div>
       <Link
         href={href}
-        className="px-5 py-3 bg-[#F7F8FC] border-t border-[#ECEEF5] flex items-center justify-between text-sm text-[#4B5163] hover:text-[#1E86C8] transition-colors"
+        className={`px-5 py-3 border-t flex items-center justify-between text-sm font-semibold transition-colors ${
+          highlight
+            ? 'bg-[#FEF3C7] border-[#FDE68A] text-[#92400E] hover:text-[#78350F]'
+            : 'bg-[#F7F8FC] border-[#ECEEF5] text-[#4B5163] hover:text-[#1E86C8]'
+        }`}
       >
         <span>Lihat Rincian</span>
         <ArrowRight className="w-4 h-4" />
@@ -228,8 +266,10 @@ function getInitials(name: string) {
 // ============================================================
 // HALAMAN DASHBOARD
 // ============================================================
-function DashboardBody() {
-  const { name, role: userRole } = useAppUser()
+function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
+  const { name, role: sessionRole } = useAppUser()
+  const userRole = overrideRole || sessionRole
+  const isAtasanAktif = userRole === 'atasan_aktif'
   const firstName = name.split(' ')[0] || name
 
   const [supabase] = useState(() => createClient())
@@ -238,7 +278,7 @@ function DashboardBody() {
   const [boksList, setBoksList] = useState<BoksItem[]>([])
   const [lokasiList, setLokasiList] = useState<LokasiItem[]>([])
   const [userUnitName, setUserUnitName] = useState<string>('Departemen Keuangan')
-  const [userFullName, setUserFullName] = useState<string>(name || 'PIC Arsip')
+  const [userFullName, setUserFullName] = useState<string>(name || (isAtasanAktif ? 'Atasan Arsip' : 'PIC Arsip'))
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
@@ -247,6 +287,20 @@ function DashboardBody() {
 
   // Tab Tindakan Prioritas (Priority Action Table)
   const [priorityTab, setPriorityTab] = useState<'ditolak' | 'siap_transfer'>('ditolak')
+
+  // State Aksi Approval & Preview Cepat (Khusus Atasan Aktif)
+  const [approvalModal, setApprovalModal] = useState<{
+    item: DocumentItem
+    type: 'approve' | 'reject' | 'preview'
+  } | null>(null)
+  const [rejectAlasan, setRejectAlasan] = useState<string>('')
+  const [isActionLoading, setIsActionLoading] = useState<boolean>(false)
+  const [actionToast, setActionToast] = useState<{ type: 'success' | 'reject'; text: string } | null>(null)
+
+  const showActionToast = (type: 'success' | 'reject', text: string) => {
+    setActionToast({ type, text })
+    setTimeout(() => setActionToast(null), 4500)
+  }
 
   // Filter status dokumen untuk tabel umum
   const defaultStatusFilter = useMemo<'semua' | DocStatus>(() => {
@@ -297,6 +351,7 @@ function DashboardBody() {
           id,
           kode_arsip,
           nomor_dokumen,
+          nomor_ppl,
           judul,
           status,
           ukuran_file,
@@ -308,6 +363,8 @@ function DashboardBody() {
           lokasi_saat_ini,
           alasan_penolakan,
           jumlah_halaman,
+          file_path,
+          bucket,
           kategori_dokumen ( nama ),
           dokumen_boks ( boks_id ),
           pemegang:profiles!dokumen_pemegang_saat_ini_fkey ( nama_lengkap, email ),
@@ -399,9 +456,11 @@ function DashboardBody() {
           kode_arsip: d.kode_arsip,
           judul: d.judul,
           nomor_surat: d.nomor_dokumen || '-',
+          nomor_ppl: d.nomor_ppl || null,
           kategori: d.kategori_dokumen?.nama || 'Keuangan',
           status: d.status as DocStatus,
           pemegang: pemegangNama,
+          pengentri_nama: d.pemilik?.nama_lengkap || d.pemilik?.email || 'PIC Arsip',
           waktu: waktuStr,
           sisa_hari: diff,
           ukuran_file: sizeStr,
@@ -414,6 +473,8 @@ function DashboardBody() {
           boks_id: d.boks_id || (boksIds[0] || null),
           boks_ids: boksIds,
           jumlah_halaman: d.jumlah_halaman || 1,
+          file_path: d.file_path || null,
+          bucket: d.bucket || null,
         }
       }
 
@@ -484,6 +545,7 @@ function DashboardBody() {
     [documents]
   )
   const docsDitolak = useMemo(() => documents.filter((d) => d.status === 'ditolak'), [documents])
+  const docsDibatalkan = useMemo(() => documents.filter((d) => d.status === 'dibatalkan'), [documents])
 
   const totalAktif = docsAktif.length
   const totalAktifBoks = countBoxesForDocs(docsAktif)
@@ -494,9 +556,69 @@ function DashboardBody() {
   const totalAkanKadaluarsa = docsAkanKadaluarsa.length
   const totalAkanKadaluarsaBoks = countBoxesForDocs(docsAkanKadaluarsa)
 
+  const totalDibatalkan = docsDibatalkan.length
+  const totalDibatalkanBoks = countBoxesForDocs(docsDibatalkan)
+
   // Card 4: Dokumen Inaktif dari Record Center
   const totalInaktif = inaktifDocuments.length
   const totalInaktifBoks = countBoxesForDocs(inaktifDocuments)
+
+  // Handler Approval & Reject untuk Atasan Aktif
+  const handleApproveAction = async (doc: DocumentItem) => {
+    setIsActionLoading(true)
+    try {
+      const res = await fetch(`/api/dokumen/${doc.id}/approve`, {
+        method: 'POST',
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Gagal menyetujui dokumen.')
+
+      showActionToast(
+        'success',
+        `Dokumen ${doc.kode_arsip} berhasil disahkan menjadi Aktif (+3 Tahun) dan QR label diterbitkan.`
+      )
+      setApprovalModal(null)
+      await loadData()
+    } catch (err: unknown) {
+      console.error('Error saat menyetujui dokumen:', err)
+      const msg = err instanceof Error ? err.message : 'Gagal menyetujui dokumen.'
+      showActionToast('reject', msg)
+    } finally {
+      setIsActionLoading(false)
+    }
+  }
+
+  const handleRejectAction = async () => {
+    if (!approvalModal?.item) return
+    const doc = approvalModal.item
+    const alasan = rejectAlasan.trim()
+    if (!alasan) {
+      showActionToast('reject', 'Alasan penolakan wajib diisi.')
+      return
+    }
+
+    setIsActionLoading(true)
+    try {
+      const res = await fetch(`/api/dokumen/${doc.id}/tolak`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alasan }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Gagal menolak dokumen.')
+
+      showActionToast('reject', `Dokumen ${doc.kode_arsip} telah ditolak dan dikembalikan ke PIC Arsip Aktif.`)
+      setApprovalModal(null)
+      setRejectAlasan('')
+      await loadData()
+    } catch (err: unknown) {
+      console.error('Error saat menolak dokumen:', err)
+      const msg = err instanceof Error ? err.message : 'Gagal menolak dokumen.'
+      showActionToast('reject', msg)
+    } finally {
+      setIsActionLoading(false)
+    }
+  }
 
   // Hitung Okupansi / Kapasitas per Ruangan & Rak
   const rakOccupancyList: RakOccupancy[] = useMemo(() => {
@@ -613,22 +735,33 @@ function DashboardBody() {
       {/* 1. Header & Quick Actions */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-2xl border border-[#ECEEF5] shadow-xs">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#3BA4E8]/30 bg-[#F0F8FF] px-3 py-1 text-xs font-semibold text-[#1E86C8] mb-2">
-            <Layers className="h-3.5 w-3.5" />
-            Dashboard Arsip Aktif
-          </div>
+          {isAtasanAktif ? (
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#0284C7]/30 bg-[#F0F9FF] px-3 py-1 text-xs font-semibold text-[#0284C7] mb-2">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span>Dashboard Pengawasan &amp; Persetujuan Arsip</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#3BA4E8]/30 bg-[#F0F8FF] px-3 py-1 text-xs font-semibold text-[#1E86C8] mb-2">
+              <Layers className="h-3.5 w-3.5" />
+              <span>Dashboard Arsip Aktif</span>
+            </div>
+          )}
           <h1 className="text-2xl font-bold tracking-tight text-[#1F2333]">
             Halo, {userFullName}!
           </h1>
           <p className="text-sm text-[#4B5163] mt-0.5 flex items-center gap-2">
-            <span>Unit Pengolah: <strong>{userUnitName}</strong></span>
+            <span>
+              {isAtasanAktif ? 'Unit Pengawasan' : 'Unit Pengolah'}: <strong>{userUnitName}</strong>
+            </span>
             <span className="text-[#8A90A2]">•</span>
-            <span className="capitalize text-[#1E86C8] font-medium">{userRole.replace('_', ' ')}</span>
+            <span className="capitalize text-[#0284C7] font-medium">
+              {isAtasanAktif ? 'Atasan Arsip Aktif' : userRole.replace('_', ' ')}
+            </span>
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Switcher Satuan: Berkas/Lembar vs Boks */}
+          {/* Switcher Satuan: Berkas/Lembar vs Satuan Boks Fisik */}
           <div className="flex items-center rounded-xl border border-[#D5D9E2] bg-[#F7F8FC] p-1 shadow-2xs">
             <button
               type="button"
@@ -640,7 +773,7 @@ function DashboardBody() {
               }`}
             >
               <FileText className="h-3.5 w-3.5" />
-              <span>Tampilkan Berkas / Lembar</span>
+              <span>{isAtasanAktif ? 'Berkas / Lembar' : 'Tampilkan Berkas / Lembar'}</span>
             </button>
             <button
               type="button"
@@ -652,103 +785,200 @@ function DashboardBody() {
               }`}
             >
               <Package className="h-3.5 w-3.5" />
-              <span>Tampilkan Satuan Boks</span>
+              <span>{isAtasanAktif ? 'Satuan Boks Fisik' : 'Tampilkan Satuan Boks'}</span>
             </button>
           </div>
 
-          {/* Tombol Sekunder: Transfer Dokumen */}
-          <Link
-            href="/transfer-dokumen"
-            className="inline-flex items-center gap-2 rounded-xl border border-[#D5D9E2] bg-white px-4 py-2 text-xs font-semibold text-[#1F2333] shadow-2xs hover:bg-[#F7F8FC] transition-colors"
-          >
-            <Send className="h-3.5 w-3.5 text-[#3BA4E8]" />
-            <span>Transfer Dokumen</span>
-          </Link>
-
-          {/* Tombol Primer: + Entri Dokumen Baru */}
-          <Link
-            href="/dokumen/upload"
-            className="inline-flex items-center gap-2 rounded-xl bg-[#3BA4E8] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#2A93D7] transition-all"
-          >
-            <Plus className="h-4 w-4" />
-            <span>+ Entri Dokumen Baru</span>
-          </Link>
+          {/* Quick Action Khusus Peran */}
+          {isAtasanAktif ? (
+            /* Atasan Aktif: Tombol Primer "Tinjau Antrean Persetujuan" (Sembunyikan tombol + Entri Dokumen Baru) */
+            <a
+              href="#antrean-persetujuan"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#0284C7] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#0369A1] transition-all"
+            >
+              <Stamp className="h-4 w-4" />
+              <span>Tinjau Antrean Persetujuan</span>
+              {totalMenunggu > 0 && (
+                <span className="ml-1 rounded-full bg-white text-[#0284C7] px-2 py-0.5 text-[10px] font-extrabold shadow-2xs">
+                  {totalMenunggu}
+                </span>
+              )}
+            </a>
+          ) : (
+            /* PIC Arsip Aktif: Tombol Transfer & + Entri Dokumen Baru */
+            <>
+              <Link
+                href="/transfer-dokumen"
+                className="inline-flex items-center gap-2 rounded-xl border border-[#D5D9E2] bg-white px-4 py-2 text-xs font-semibold text-[#1F2333] shadow-2xs hover:bg-[#F7F8FC] transition-colors"
+              >
+                <Send className="h-3.5 w-3.5 text-[#3BA4E8]" />
+                <span>Transfer Dokumen</span>
+              </Link>
+              <Link
+                href="/dokumen/upload"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#3BA4E8] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#2A93D7] transition-all"
+              >
+                <Plus className="h-4 w-4" />
+                <span>+ Entri Dokumen Baru</span>
+              </Link>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Alert Kedaluwarsa Gabungan */}
-      {totalAkanKadaluarsa > 0 && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#FEEFC3] bg-[#FEF7E0] p-4 text-[#B06000] shadow-xs">
-          <div className="flex items-start gap-3">
-            <AlarmClock className="h-5 w-5 shrink-0 mt-0.5 text-[#E37400]" />
-            <div>
-              <p className="font-bold text-sm text-[#8C4600]">
-                Peringatan Siklus Retensi: {totalAkanKadaluarsa} Berkas ({totalAkanKadaluarsaBoks} Boks) Mendekati / Lewat Masa Aktif 3 Tahun
-              </p>
-              <p className="text-xs text-[#B06000] mt-0.5">
-                Segera terbitkan Berita Acara Penyerahan Arsip (BAST) untuk diserahkan ke Gudang Inaktif.
-              </p>
+      {/* Banner Notifikasi / Peringatan Tindakan */}
+      {isAtasanAktif ? (
+        totalMenunggu > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#FEEFC3] bg-[#FEF7E0] p-4 text-[#B06000] shadow-xs">
+            <div className="flex items-start gap-3">
+              <Clock className="h-5 w-5 shrink-0 mt-0.5 text-[#E37400]" />
+              <div>
+                <p className="font-bold text-sm text-[#8C4600]">
+                  Perhatian Atasan: Terdapat {totalMenunggu} Berkas ({totalMenungguBoks} Boks) Menunggu Persetujuan Anda
+                </p>
+                <p className="text-xs text-[#B06000] mt-0.5">
+                  Segera verifikasi berkas yang diajukan PIC unit {userUnitName} untuk menerbitkan QR label dan mengaktifkan masa retensi 3 tahun.
+                </p>
+              </div>
             </div>
+            <a
+              href="#antrean-persetujuan"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#E37400] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#C96400] transition-colors whitespace-nowrap self-start sm:self-auto"
+            >
+              <span>Tinjau Sekarang</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </a>
           </div>
-          <Link
-            href="/transfer-dokumen"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[#E37400] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#C96400] transition-colors whitespace-nowrap self-start sm:self-auto"
-          >
-            <span>Transfer Dokumen Sekarang</span>
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
+        )
+      ) : (
+        totalAkanKadaluarsa > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#FEEFC3] bg-[#FEF7E0] p-4 text-[#B06000] shadow-xs">
+            <div className="flex items-start gap-3">
+              <AlarmClock className="h-5 w-5 shrink-0 mt-0.5 text-[#E37400]" />
+              <div>
+                <p className="font-bold text-sm text-[#8C4600]">
+                  Peringatan Siklus Retensi: {totalAkanKadaluarsa} Berkas ({totalAkanKadaluarsaBoks} Boks) Mendekati / Lewat Masa Aktif 3 Tahun
+                </p>
+                <p className="text-xs text-[#B06000] mt-0.5">
+                  Segera terbitkan Berita Acara Penyerahan Arsip (BAST) untuk diserahkan ke Gudang Inaktif.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/transfer-dokumen"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#E37400] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#C96400] transition-colors whitespace-nowrap self-start sm:self-auto"
+            >
+              <span>Transfer Dokumen Sekarang</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        )
       )}
 
       {/* 2. Kartu Ringkasan (Metric Cards) 4 Kuadran */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Card 1: Arsip Aktif */}
-        <StatCard
-          title="Arsip Aktif"
-          subtitle={`Unit ${userUnitName}`}
-          unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
-          value={unitMode === 'berkas' ? `${totalAktif} berkas` : `${totalAktifBoks} boks`}
-          trend="+18%"
-          trendUp
-          note="tersimpan di unit"
-          href="/dokumen?status=aktif"
-        />
+        {isAtasanAktif ? (
+          <>
+            {/* Card 1 (Highlight/Warna Menarik): Butuh Persetujuan */}
+            <StatCard
+              title="Butuh Persetujuan"
+              subtitle="Menunggu Verifikasi Atasan"
+              unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
+              value={unitMode === 'berkas' ? `${totalMenunggu} berkas` : `${totalMenungguBoks} boks`}
+              trend={totalMenunggu > 0 ? 'Prioritas Tindakan' : 'Selesai'}
+              trendUp={totalMenunggu === 0}
+              note="antrean verifikasi unit"
+              href="#antrean-persetujuan"
+              highlight={true}
+            />
 
-        {/* Card 2: Menunggu Persetujuan */}
-        <StatCard
-          title="Menunggu Persetujuan"
-          subtitle="Ditinjau Atasan Aktif"
-          unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
-          value={unitMode === 'berkas' ? `${totalMenunggu} berkas` : `${totalMenungguBoks} boks`}
-          trend="+5%"
-          trendUp
-          note="antrean verifikasi"
-          href="/dokumen?status=menunggu_persetujuan"
-        />
+            {/* Card 2: Arsip Aktif */}
+            <StatCard
+              title="Arsip Aktif"
+              subtitle={`Unit ${userUnitName}`}
+              unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
+              value={unitMode === 'berkas' ? `${totalAktif} berkas` : `${totalAktifBoks} boks`}
+              trend="+18%"
+              trendUp
+              note="sedang berjalan retensi 3 thn"
+              href="/dokumen?status=aktif"
+            />
 
-        {/* Card 3: Akan Kedaluwarsa (< 90 Hari) */}
-        <StatCard
-          title="Akan Kedaluwarsa (< 90 Hari)"
-          subtitle="Batas Retensi Aktif 3 Thn"
-          unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
-          value={unitMode === 'berkas' ? `${totalAkanKadaluarsa} berkas` : `${totalAkanKadaluarsaBoks} boks`}
-          trend={totalAkanKadaluarsa > 0 ? "Perlu Transfer" : "Aman"}
-          trendUp={totalAkanKadaluarsa === 0}
-          note="siap transfer inaktif"
-          href="/transfer-dokumen"
-        />
+            {/* Card 3: Dokumen Dibatalkan */}
+            <StatCard
+              title="Dokumen Dibatalkan"
+              subtitle="Pembatalan Resmi Atasan"
+              unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
+              value={unitMode === 'berkas' ? `${totalDibatalkan} berkas` : `${totalDibatalkanBoks} boks`}
+              trend={totalDibatalkan > 0 ? `${totalDibatalkan} berkas` : '0 berkas'}
+              trendUp={false}
+              note="alasan pembatalan tercatat"
+              href="/dokumen?status=dibatalkan"
+            />
 
-        {/* Card 4: Gudang Inaktif */}
-        <StatCard
-          title="Gudang Inaktif"
-          subtitle="Record Center"
-          unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
-          value={unitMode === 'berkas' ? `${totalInaktif} berkas` : `${totalInaktifBoks} boks`}
-          trend="Tersedia"
-          trendUp
-          note="referensi peminjaman"
-          href="/peminjaman"
-        />
+            {/* Card 4: Mendekati Kedaluwarsa (< 90 Hari) */}
+            <StatCard
+              title="Mendekati Kedaluwarsa (< 90 Hari)"
+              subtitle="Batas Retensi Aktif 3 Thn"
+              unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
+              value={unitMode === 'berkas' ? `${totalAkanKadaluarsa} berkas` : `${totalAkanKadaluarsaBoks} boks`}
+              trend={totalAkanKadaluarsa > 0 ? 'Perlu Transfer' : 'Aman'}
+              trendUp={totalAkanKadaluarsa === 0}
+              note="siap transfer inaktif"
+              href="/transfer-dokumen"
+            />
+          </>
+        ) : (
+          <>
+            {/* Card 1: Arsip Aktif */}
+            <StatCard
+              title="Arsip Aktif"
+              subtitle={`Unit ${userUnitName}`}
+              unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
+              value={unitMode === 'berkas' ? `${totalAktif} berkas` : `${totalAktifBoks} boks`}
+              trend="+18%"
+              trendUp
+              note="tersimpan di unit"
+              href="/dokumen?status=aktif"
+            />
+
+            {/* Card 2: Menunggu Persetujuan */}
+            <StatCard
+              title="Menunggu Persetujuan"
+              subtitle="Ditinjau Atasan Aktif"
+              unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
+              value={unitMode === 'berkas' ? `${totalMenunggu} berkas` : `${totalMenungguBoks} boks`}
+              trend="+5%"
+              trendUp
+              note="antrean verifikasi"
+              href="/dokumen?status=menunggu_persetujuan"
+            />
+
+            {/* Card 3: Akan Kedaluwarsa (< 90 Hari) */}
+            <StatCard
+              title="Akan Kedaluwarsa (< 90 Hari)"
+              subtitle="Batas Retensi Aktif 3 Thn"
+              unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
+              value={unitMode === 'berkas' ? `${totalAkanKadaluarsa} berkas` : `${totalAkanKadaluarsaBoks} boks`}
+              trend={totalAkanKadaluarsa > 0 ? 'Perlu Transfer' : 'Aman'}
+              trendUp={totalAkanKadaluarsa === 0}
+              note="siap transfer inaktif"
+              href="/transfer-dokumen"
+            />
+
+            {/* Card 4: Gudang Inaktif */}
+            <StatCard
+              title="Gudang Inaktif"
+              subtitle="Record Center"
+              unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
+              value={unitMode === 'berkas' ? `${totalInaktif} berkas` : `${totalInaktifBoks} boks`}
+              trend="Tersedia"
+              trendUp
+              note="referensi peminjaman"
+              href="/peminjaman"
+            />
+          </>
+        )}
       </div>
 
       {/* 3. Grafik Tren Arsip Tahunan + Donut Kategori */}
@@ -933,149 +1163,193 @@ function DashboardBody() {
         )}
       </div>
 
-      {/* 5. Tabel Tindakan Prioritas (Priority Action Table) */}
-      <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#ECEEF5] pb-3">
-          <div>
-            <h2 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-[#E37400]" />
-              Tabel Tindakan Prioritas
-            </h2>
-            <p className="text-xs text-[#6B7185] mt-0.5">
-              Daftar dokumen yang memerlukan perhatian segera oleh PIC Arsip Aktif: perbaikan berkas ditolak &amp; berkas siap transfer.
-            </p>
+      {/* 5. Tindakan Prioritas: Antrean Persetujuan Cepat (Atasan) VS Tabel Prioritas (PIC) */}
+      {isAtasanAktif ? (
+        /* Antrean Persetujuan Cepat Khusus Atasan Aktif */
+        <div id="antrean-persetujuan" className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#ECEEF5] pb-3">
+            <div>
+              <h2 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
+                <Stamp className="h-5 w-5 text-[#0284C7]" />
+                <span>Antrean Persetujuan Cepat (Butuh Tindakan Atasan)</span>
+              </h2>
+              <p className="text-xs text-[#6B7185] mt-0.5">
+                Daftar berkas unit {userUnitName} berstatus <strong>Menunggu Persetujuan</strong>. Atasan dapat langsung meninjau preview dokumen, menyetujui (+3 tahun retensi), atau menolak.
+              </p>
+            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FEF7E0] border border-[#FEEFC3] text-[#B06000] px-3 py-1 text-xs font-bold self-start sm:self-auto">
+              <Clock className="w-3.5 h-3.5" />
+              <span>{docsMenunggu.length} Berkas Menunggu</span>
+            </span>
           </div>
 
-          {/* Tab Switcher: Perlu Perbaikan (Ditolak) vs Siap Transfer (Expired) */}
-          <div className="inline-flex rounded-xl bg-[#F0F2F7] p-1 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setPriorityTab('ditolak')}
-              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all ${
-                priorityTab === 'ditolak'
-                  ? 'bg-white text-[#D64545] shadow-xs'
-                  : 'text-[#6B7185] hover:text-[#1F2333]'
-              }`}
-            >
-              <span>Perlu Perbaikan (Ditolak)</span>
-              {docsDitolak.length > 0 && (
-                <span className="rounded-full bg-[#FDECEC] text-[#D64545] px-1.5 py-0.2 text-[10px] font-bold">
-                  {docsDitolak.length}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setPriorityTab('siap_transfer')}
-              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all ${
-                priorityTab === 'siap_transfer'
-                  ? 'bg-white text-[#E37400] shadow-xs'
-                  : 'text-[#6B7185] hover:text-[#1F2333]'
-              }`}
-            >
-              <span>Siap Transfer (Expired)</span>
-              {docsAkanKadaluarsa.length > 0 && (
-                <span className="rounded-full bg-[#FEF7E0] text-[#B06000] px-1.5 py-0.2 text-[10px] font-bold">
-                  {docsAkanKadaluarsa.length}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Isi Tab 1: Perlu Perbaikan (Ditolak) */}
-        {priorityTab === 'ditolak' && (
-          <div className="overflow-x-auto">
-            {docsDitolak.length === 0 ? (
-              <div className="py-12 text-center text-xs text-[#8A90A2] space-y-1">
-                <CheckCircle2 className="h-8 w-8 mx-auto text-[#2F9E5B] stroke-[1.5]" />
-                <p className="font-semibold text-[#1F2333]">Tidak Ada Berkas Ditolak</p>
-                <p>Seluruh berkas yang diajukan dalam kondisi baik atau telah disetujui Atasan Aktif.</p>
-              </div>
-            ) : (
-              <table className="w-full text-left text-sm">
+          {docsMenunggu.length === 0 ? (
+            <div className="py-12 text-center text-xs text-[#8A90A2] space-y-2">
+              <CheckCircle2 className="h-9 w-9 mx-auto text-[#2F9E5B] stroke-[1.5]" />
+              <p className="font-bold text-sm text-[#1F2333]">Semua Berkas Telah Diverifikasi</p>
+              <p className="text-xs text-[#6B7185]">Tidak ada berkas yang menunggu persetujuan dari unit {userUnitName}.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="text-xs text-[#4B5163] border-b border-[#ECEEF5] bg-[#F7F8FC]">
-                    <th className="py-2.5 px-3 font-semibold">Kode Arsip &amp; Judul</th>
-                    <th className="py-2.5 px-3 font-semibold">Kategori &amp; Lembar</th>
-                    <th className="py-2.5 px-3 font-semibold">Waktu Penolakan</th>
-                    <th className="py-2.5 px-3 font-semibold">Alasan Penolakan</th>
-                    <th className="py-2.5 px-3 text-right font-semibold">Aksi Cepat</th>
+                  <tr className="border-b border-[#ECEEF5] bg-[#F7F8FC] text-[#4B5163]">
+                    <th className="py-2.5 px-3 font-semibold w-12 text-center">No</th>
+                    <th className="py-2.5 px-3 font-semibold">Nomor Payment</th>
+                    <th className="py-2.5 px-3 font-semibold">Kode Arsip SIG</th>
+                    <th className="py-2.5 px-3 font-semibold">Judul Dokumen</th>
+                    <th className="py-2.5 px-3 font-semibold">Pengentri (PIC)</th>
+                    <th className="py-2.5 px-3 font-semibold text-center">Lembar</th>
+                    <th className="py-2.5 px-3 font-semibold">Tanggal Masuk</th>
+                    <th className="py-2.5 px-3 font-semibold text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#ECEEF5]">
-                  {docsDitolak.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-[#F7F8FC] transition-colors">
-                      <td className="py-3 px-3">
-                        <KodeArsip kode={doc.kode_arsip} className="text-xs" />
-                        <p className="font-semibold text-[#1F2333] line-clamp-1 mt-0.5">{doc.judul}</p>
-                        <p className="text-xs text-[#6B7185]">No. Dok: <span className="font-mono">{doc.nomor_surat}</span></p>
+                  {docsMenunggu.map((doc, idx) => (
+                    <tr key={doc.id} className="hover:bg-[#F0F9FF]/40 transition-colors">
+                      <td className="py-3 px-3 text-center text-[#6B7185] font-semibold">{idx + 1}</td>
+                      <td className="py-3 px-3 font-mono font-bold text-[#0284C7] whitespace-nowrap">
+                        {doc.nomor_ppl || doc.nomor_surat || '-'}
                       </td>
-                      <td className="py-3 px-3">
-                        <span className="inline-block rounded bg-[#EEF0F4] px-2 py-0.5 text-xs text-[#4B5163]">
-                          {doc.kategori}
-                        </span>
-                        <p className="text-xs text-[#8A90A2] mt-0.5">{doc.jumlah_halaman} lembar</p>
-                      </td>
-                      <td className="py-3 px-3 text-xs text-[#4B5163]">
-                        {doc.waktu}
+                      <td className="py-3 px-3 min-w-[140px]">
+                        <KodeArsip kode={doc.kode_arsip} className="text-[11px]" />
                       </td>
                       <td className="py-3 px-3 max-w-xs">
-                        <div className="rounded-lg border border-[#FAD2CF] bg-[#FDECEC] p-2 text-xs text-[#D64545]">
-                          <strong className="block text-[11px] uppercase tracking-wider">Catatan Atasan:</strong>
-                          <p className="line-clamp-2 mt-0.5">{doc.alasan_penolakan || 'Perlu perbaikan metadata / lampiran berkas.'}</p>
-                        </div>
+                        <span className="font-semibold text-[#1F2333] line-clamp-1">{doc.judul}</span>
+                        <span className="text-[11px] text-[#8A90A2]">
+                          {doc.kategori} &bull; {doc.lokasi_saat_ini}
+                        </span>
                       </td>
-                      <td className="py-3 px-3 text-right">
-                        <Link
-                          href={`/dokumen/${doc.id}`}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-[#3BA4E8] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#2A93D7] transition-all shadow-2xs"
-                        >
-                          <FileEdit className="h-3.5 w-3.5" />
-                          <span>Revisi &amp; Ajukan Ulang</span>
-                        </Link>
+                      <td className="py-3 px-3 text-[#4B5163] font-medium whitespace-nowrap">
+                        {doc.pengentri_nama}
+                      </td>
+                      <td className="py-3 px-3 text-center whitespace-nowrap">
+                        <span className="inline-block rounded bg-[#E6F4EA] border border-[#CEEAD6] px-2 py-0.5 font-bold text-[#137333]">
+                          {doc.jumlah_halaman} lbr
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-[#6B7185] whitespace-nowrap">{doc.waktu}</td>
+                      <td className="py-3 px-3 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setApprovalModal({ item: doc, type: 'preview' })}
+                            className="inline-flex items-center gap-1 rounded-lg border border-[#BAE6FD] bg-[#F0F9FF] px-2.5 py-1.5 text-xs font-semibold text-[#0284C7] hover:bg-[#E0F2FE] transition-colors"
+                            title="Lihat Berkas Dokumen"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Lihat</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setApprovalModal({ item: doc, type: 'reject' })
+                              setRejectAlasan('')
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-[#FAD2CF] bg-[#FFF5F5] px-2.5 py-1.5 text-xs font-semibold text-[#DC2626] hover:bg-[#FDECEC] transition-colors"
+                            title="Tolak Dokumen"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>Tolak</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setApprovalModal({ item: doc, type: 'approve' })}
+                            className="inline-flex items-center gap-1 rounded-lg bg-[#0284C7] px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-[#0369A1] transition-all"
+                            title="Setujui Dokumen"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Setujui</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            )}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Tabel Tindakan Prioritas Khusus PIC Arsip Aktif */
+        <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#ECEEF5] pb-3">
+            <div>
+              <h2 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-[#E37400]" />
+                Tabel Tindakan Prioritas
+              </h2>
+              <p className="text-xs text-[#6B7185] mt-0.5">
+                Daftar dokumen yang memerlukan perhatian segera oleh PIC Arsip Aktif: perbaikan berkas ditolak &amp; berkas siap transfer.
+              </p>
+            </div>
+
+            {/* Tab Switcher: Perlu Perbaikan (Ditolak) vs Siap Transfer (Expired) */}
+            <div className="inline-flex rounded-xl bg-[#F0F2F7] p-1 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setPriorityTab('ditolak')}
+                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all ${
+                  priorityTab === 'ditolak'
+                    ? 'bg-white text-[#D64545] shadow-xs'
+                    : 'text-[#6B7185] hover:text-[#1F2333]'
+                }`}
+              >
+                <span>Perlu Perbaikan (Ditolak)</span>
+                {docsDitolak.length > 0 && (
+                  <span className="rounded-full bg-[#FDECEC] text-[#D64545] px-1.5 py-0.2 text-[10px] font-bold">
+                    {docsDitolak.length}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPriorityTab('siap_transfer')}
+                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all ${
+                  priorityTab === 'siap_transfer'
+                    ? 'bg-white text-[#E37400] shadow-xs'
+                    : 'text-[#6B7185] hover:text-[#1F2333]'
+                }`}
+              >
+                <span>Siap Transfer (Expired)</span>
+                {docsAkanKadaluarsa.length > 0 && (
+                  <span className="rounded-full bg-[#FEF7E0] text-[#B06000] px-1.5 py-0.2 text-[10px] font-bold">
+                    {docsAkanKadaluarsa.length}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
-        )}
 
-        {/* Isi Tab 2: Siap Transfer (Expired) */}
-        {priorityTab === 'siap_transfer' && (
-          <div className="overflow-x-auto">
-            {docsAkanKadaluarsa.length === 0 ? (
-              <div className="py-12 text-center text-xs text-[#8A90A2] space-y-1">
-                <CheckCircle2 className="h-8 w-8 mx-auto text-[#2F9E5B] stroke-[1.5]" />
-                <p className="font-semibold text-[#1F2333]">Masa Retensi Aman</p>
-                <p>Tidak ada berkas aktif yang mendekati atau telah melampaui batas retensi 3 tahun.</p>
-              </div>
-            ) : (
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="text-xs text-[#4B5163] border-b border-[#ECEEF5] bg-[#F7F8FC]">
-                    <th className="py-2.5 px-3 font-semibold">Kode Arsip &amp; Judul</th>
-                    <th className="py-2.5 px-3 font-semibold">Kategori &amp; Lembar</th>
-                    <th className="py-2.5 px-3 font-semibold">Lokasi Saat Ini</th>
-                    <th className="py-2.5 px-3 font-semibold">Sisa Retensi</th>
-                    <th className="py-2.5 px-3 text-right font-semibold">Aksi Cepat</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#ECEEF5]">
-                  {docsAkanKadaluarsa.map((doc) => {
-                    const sisa = doc.sisa_hari ?? 0
-                    let badgeClass = 'bg-[#FEF7E0] text-[#B06000] border-[#FEEFC3]'
-                    if (sisa <= 7) badgeClass = 'bg-[#FDECEC] text-[#D64545] border-[#FAD2CF]'
-                    else if (sisa <= 30) badgeClass = 'bg-[#FEF7E0] text-[#B06000] border-[#FEEFC3]'
-
-                    return (
+          {/* Isi Tab 1: Perlu Perbaikan (Ditolak) */}
+          {priorityTab === 'ditolak' && (
+            <div className="overflow-x-auto">
+              {docsDitolak.length === 0 ? (
+                <div className="py-12 text-center text-xs text-[#8A90A2] space-y-1">
+                  <CheckCircle2 className="h-8 w-8 mx-auto text-[#2F9E5B] stroke-[1.5]" />
+                  <p className="font-semibold text-[#1F2333]">Tidak Ada Berkas Ditolak</p>
+                  <p>Seluruh berkas yang diajukan dalam kondisi baik atau telah disetujui Atasan Aktif.</p>
+                </div>
+              ) : (
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="text-xs text-[#4B5163] border-b border-[#ECEEF5] bg-[#F7F8FC]">
+                      <th className="py-2.5 px-3 font-semibold">Kode Arsip &amp; Judul</th>
+                      <th className="py-2.5 px-3 font-semibold">Kategori &amp; Lembar</th>
+                      <th className="py-2.5 px-3 font-semibold">Waktu Penolakan</th>
+                      <th className="py-2.5 px-3 font-semibold">Alasan Penolakan</th>
+                      <th className="py-2.5 px-3 text-right font-semibold">Aksi Cepat</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#ECEEF5]">
+                    {docsDitolak.map((doc) => (
                       <tr key={doc.id} className="hover:bg-[#F7F8FC] transition-colors">
                         <td className="py-3 px-3">
                           <KodeArsip kode={doc.kode_arsip} className="text-xs" />
                           <p className="font-semibold text-[#1F2333] line-clamp-1 mt-0.5">{doc.judul}</p>
-                          <p className="text-xs text-[#6B7185]">No. Dok: <span className="font-mono">{doc.nomor_surat}</span></p>
+                          <p className="text-xs text-[#6B7185]">
+                            No. Dok: <span className="font-mono">{doc.nomor_surat}</span>
+                          </p>
                         </td>
                         <td className="py-3 px-3">
                           <span className="inline-block rounded bg-[#EEF0F4] px-2 py-0.5 text-xs text-[#4B5163]">
@@ -1083,33 +1357,104 @@ function DashboardBody() {
                           </span>
                           <p className="text-xs text-[#8A90A2] mt-0.5">{doc.jumlah_halaman} lembar</p>
                         </td>
-                        <td className="py-3 px-3 text-xs text-[#4B5163]">
-                          {doc.lokasi_saat_ini}
-                        </td>
-                        <td className="py-3 px-3">
-                          <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${badgeClass}`}>
-                            <Clock className="h-3 w-3" />
-                            {sisa <= 0 ? 'Kedaluwarsa' : `${sisa} hari (H-${sisa <= 7 ? 7 : sisa <= 30 ? 30 : 90})`}
-                          </span>
+                        <td className="py-3 px-3 text-xs text-[#4B5163]">{doc.waktu}</td>
+                        <td className="py-3 px-3 max-w-xs">
+                          <div className="rounded-lg border border-[#FAD2CF] bg-[#FDECEC] p-2 text-xs text-[#D64545]">
+                            <strong className="block text-[11px] uppercase tracking-wider">Catatan Atasan:</strong>
+                            <p className="line-clamp-2 mt-0.5">
+                              {doc.alasan_penolakan || 'Perlu perbaikan metadata / lampiran berkas.'}
+                            </p>
+                          </div>
                         </td>
                         <td className="py-3 px-3 text-right">
                           <Link
-                            href="/transfer-dokumen"
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-[#E37400] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#C96400] transition-all shadow-2xs"
+                            href={`/dokumen/${doc.id}`}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-[#3BA4E8] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#2A93D7] transition-all shadow-2xs"
                           >
-                            <Send className="h-3.5 w-3.5" />
-                            <span>Pindahkan ke Inaktif</span>
+                            <FileEdit className="h-3.5 w-3.5" />
+                            <span>Revisi &amp; Ajukan Ulang</span>
                           </Link>
                         </td>
                       </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
-      </div>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
+          {/* Isi Tab 2: Siap Transfer (Expired) */}
+          {priorityTab === 'siap_transfer' && (
+            <div className="overflow-x-auto">
+              {docsAkanKadaluarsa.length === 0 ? (
+                <div className="py-12 text-center text-xs text-[#8A90A2] space-y-1">
+                  <CheckCircle2 className="h-8 w-8 mx-auto text-[#2F9E5B] stroke-[1.5]" />
+                  <p className="font-semibold text-[#1F2333]">Masa Retensi Aman</p>
+                  <p>Tidak ada berkas aktif yang mendekati atau telah melampaui batas retensi 3 tahun.</p>
+                </div>
+              ) : (
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="text-xs text-[#4B5163] border-b border-[#ECEEF5] bg-[#F7F8FC]">
+                      <th className="py-2.5 px-3 font-semibold">Kode Arsip &amp; Judul</th>
+                      <th className="py-2.5 px-3 font-semibold">Kategori &amp; Lembar</th>
+                      <th className="py-2.5 px-3 font-semibold">Lokasi Saat Ini</th>
+                      <th className="py-2.5 px-3 font-semibold">Sisa Retensi</th>
+                      <th className="py-2.5 px-3 text-right font-semibold">Aksi Cepat</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#ECEEF5]">
+                    {docsAkanKadaluarsa.map((doc) => {
+                      const sisa = doc.sisa_hari ?? 0
+                      let badgeClass = 'bg-[#FEF7E0] text-[#B06000] border-[#FEEFC3]'
+                      if (sisa <= 7) badgeClass = 'bg-[#FDECEC] text-[#D64545] border-[#FAD2CF]'
+                      else if (sisa <= 30) badgeClass = 'bg-[#FEF7E0] text-[#B06000] border-[#FEEFC3]'
+
+                      return (
+                        <tr key={doc.id} className="hover:bg-[#F7F8FC] transition-colors">
+                          <td className="py-3 px-3">
+                            <KodeArsip kode={doc.kode_arsip} className="text-xs" />
+                            <p className="font-semibold text-[#1F2333] line-clamp-1 mt-0.5">{doc.judul}</p>
+                            <p className="text-xs text-[#6B7185]">
+                              No. Dok: <span className="font-mono">{doc.nomor_surat}</span>
+                            </p>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="inline-block rounded bg-[#EEF0F4] px-2 py-0.5 text-xs text-[#4B5163]">
+                              {doc.kategori}
+                            </span>
+                            <p className="text-xs text-[#8A90A2] mt-0.5">{doc.jumlah_halaman} lembar</p>
+                          </td>
+                          <td className="py-3 px-3 text-xs text-[#4B5163]">{doc.lokasi_saat_ini}</td>
+                          <td className="py-3 px-3">
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${badgeClass}`}
+                            >
+                              <Clock className="h-3 w-3" />
+                              {sisa <= 0
+                                ? 'Kedaluwarsa'
+                                : `${sisa} hari (H-${sisa <= 7 ? 7 : sisa <= 30 ? 30 : 90})`}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <Link
+                              href="/transfer-dokumen"
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-[#E37400] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#C96400] transition-all shadow-2xs"
+                            >
+                              <Send className="h-3.5 w-3.5" />
+                              <span>Pindahkan ke Inaktif</span>
+                            </Link>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 6. Daftar Dokumen Unit & Status Umum */}
       <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5">
@@ -1221,6 +1566,304 @@ function DashboardBody() {
           </table>
         </div>
       </div>
+
+      {/* ============================================================ */}
+      {/* MODAL & DIALOG KHUSUS TINDAKAN ATASAN ARSIP AKTIF */}
+      {/* ============================================================ */}
+
+      {/* 1. Modal Setujui Dokumen */}
+      {approvalModal?.type === 'approve' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-2xl border border-[#BAE6FD] bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[#ECEEF5] pb-3">
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-[#E0F2FE] text-[#0284C7]">
+                  <Check className="h-5 w-5" />
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-[#1F2333]">Pengesahan Penerbitan Arsip</h3>
+                  <p className="text-xs text-[#6B7185]">Verifikasi &amp; aktifkan retensi 3 tahun</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setApprovalModal(null)}
+                disabled={isActionLoading}
+                className="text-[#8A90A2] hover:text-[#1F2333] p-1.5 rounded-lg hover:bg-[#F7F8FC]"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="rounded-xl border border-[#BAE6FD] bg-[#F0F9FF] p-3.5 space-y-2 text-[#0369A1]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-[#0284C7]">KODE ARSIP SIG:</span>
+                  <KodeArsip kode={approvalModal.item.kode_arsip} className="text-xs" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-semibold text-[#0284C7] block">JUDUL DOKUMEN:</span>
+                  <p className="font-bold text-[#0F172A] mt-0.5">{approvalModal.item.judul}</p>
+                </div>
+                <div className="flex items-center justify-between text-[11px] pt-1 border-t border-[#BAE6FD]/60">
+                  <span>No. Payment: <strong>{approvalModal.item.nomor_ppl || approvalModal.item.nomor_surat || '-'}</strong></span>
+                  <span>Pengentri: <strong>{approvalModal.item.pengentri_nama}</strong></span>
+                  <span>Halaman: <strong>{approvalModal.item.jumlah_halaman} Lembar</strong></span>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[#ECEEF5] bg-[#F7F8FC] p-3 space-y-1.5 text-[#4B5163]">
+                <p className="font-semibold text-[#1F2333] flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-[#0284C7]" />
+                  <span>Ketentuan Siklus Hidup Arsip (R.03):</span>
+                </p>
+                <ul className="list-disc list-inside space-y-0.5 text-[11px] text-[#6B7185]">
+                  <li>Status berkas beralih menjadi <strong>AKTIF</strong>.</li>
+                  <li>Masa retensi aktif berlaku selama <strong>3 tahun</strong> sejak tanggal disetujui.</li>
+                  <li>Sistem otomatis menerbitkan label stempel QR resmi untuk ditempel pada berkas fisik.</li>
+                  <li>Persetujuan ini dicatat permanen dalam buku log aktivitas audit trail.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#ECEEF5]">
+              <button
+                type="button"
+                onClick={() => setApprovalModal(null)}
+                disabled={isActionLoading}
+                className="rounded-xl border border-[#D5D9E2] px-4 py-2 text-xs font-semibold text-[#4B5163] hover:bg-[#F7F8FC]"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApproveAction(approvalModal.item)}
+                disabled={isActionLoading}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#0284C7] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#0369A1] transition-all disabled:opacity-50"
+              >
+                {isActionLoading ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Mengesahkan...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-3.5 w-3.5" />
+                    <span>Konfirmasi Setujui (Aktif 3 Thn)</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Modal Tolak Dokumen */}
+      {approvalModal?.type === 'reject' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-2xl border border-[#FAD2CF] bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[#ECEEF5] pb-3">
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-[#FDECEC] text-[#DC2626]">
+                  <X className="h-5 w-5" />
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-[#1F2333]">Tolak Pengajuan Dokumen</h3>
+                  <p className="text-xs text-[#6B7185]">Kembalikan ke PIC Arsip Aktif untuk perbaikan</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setApprovalModal(null)}
+                disabled={isActionLoading}
+                className="text-[#8A90A2] hover:text-[#1F2333] p-1.5 rounded-lg hover:bg-[#F7F8FC]"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="rounded-xl border border-[#FAD2CF] bg-[#FFF5F5] p-3 text-[#991B1B] space-y-1">
+                <p className="font-semibold">{approvalModal.item.judul}</p>
+                <p className="text-[11px] text-[#B91C1C]">
+                  Kode: <span className="font-mono">{approvalModal.item.kode_arsip}</span> &bull; Pengentri: {approvalModal.item.pengentri_nama}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#1F2333] mb-1.5">
+                  Alasan Penolakan <span className="text-[#DC2626]">* (Wajib Diisi)</span>
+                </label>
+                <textarea
+                  value={rejectAlasan}
+                  onChange={(e) => setRejectAlasan(e.target.value)}
+                  placeholder="Jelaskan kekurangan berkas, kesalahan nomor payment, atau lampiran yang belum sesuai..."
+                  rows={4}
+                  className="w-full rounded-xl border border-[#D5D9E2] p-3 text-xs text-[#1F2333] focus:border-[#DC2626] focus:ring-1 focus:ring-[#DC2626] outline-hidden placeholder:text-[#8A90A2]"
+                />
+                <p className="text-[11px] text-[#6B7185] mt-1">
+                  Catatan ini akan langsung tampil pada dasbor PIC Arsip Aktif agar dapat direvisi dan diajukan ulang.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#ECEEF5]">
+              <button
+                type="button"
+                onClick={() => setApprovalModal(null)}
+                disabled={isActionLoading}
+                className="rounded-xl border border-[#D5D9E2] px-4 py-2 text-xs font-semibold text-[#4B5163] hover:bg-[#F7F8FC]"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleRejectAction}
+                disabled={isActionLoading || !rejectAlasan.trim()}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#DC2626] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#B91C1C] transition-all disabled:opacity-50"
+              >
+                {isActionLoading ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Mengirim Penolakan...</span>
+                  </>
+                ) : (
+                  <>
+                    <X className="h-3.5 w-3.5" />
+                    <span>Tolak &amp; Kembalikan</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Modal Preview Berkas Dokumen PDF */}
+      {approvalModal?.type === 'preview' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-6 backdrop-blur-xs">
+          <div className="w-full max-w-5xl h-[90vh] rounded-2xl border border-[#ECEEF5] bg-white flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-[#ECEEF5] px-5 py-3.5 bg-[#F7F8FC]">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="p-2 rounded-xl bg-[#E0F2FE] text-[#0284C7] shrink-0">
+                  <FileText className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm font-bold text-[#1F2333] truncate max-w-md">
+                      {approvalModal.item.judul}
+                    </h3>
+                    <KodeArsip kode={approvalModal.item.kode_arsip} className="text-xs" />
+                  </div>
+                  <p className="text-xs text-[#6B7185] mt-0.5 flex items-center gap-2">
+                    <span>No. Payment: <strong className="font-mono text-[#0284C7]">{approvalModal.item.nomor_ppl || approvalModal.item.nomor_surat || '-'}</strong></span>
+                    <span>&bull;</span>
+                    <span>Pengentri: <strong>{approvalModal.item.pengentri_nama}</strong></span>
+                    <span>&bull;</span>
+                    <span>Jumlah: <strong>{approvalModal.item.jumlah_halaman} Lembar</strong></span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/dokumen/${approvalModal.item.id}`}
+                  className="hidden sm:inline-flex items-center gap-1 rounded-lg border border-[#D5D9E2] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#4B5163] hover:bg-[#F7F8FC]"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  <span>Detail Lengkap</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setApprovalModal(null)}
+                  className="text-[#8A90A2] hover:text-[#1F2333] p-1.5 rounded-lg hover:bg-white"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body: PDF Preview Viewer */}
+            <div className="flex-1 bg-[#475569]/10 relative p-2">
+              <iframe
+                src={`/api/dokumen/${approvalModal.item.id}/download?preview=true`}
+                className="w-full h-full rounded-xl border border-[#D5D9E2] bg-white shadow-inner"
+                title={`Preview ${approvalModal.item.judul}`}
+              />
+            </div>
+
+            {/* Modal Footer: Action Bar */}
+            <div className="flex items-center justify-between border-t border-[#ECEEF5] px-5 py-3 bg-white">
+              <div className="text-xs text-[#6B7185] flex items-center gap-2">
+                <span className="font-semibold text-[#1F2333]">Lokasi Fisik:</span>
+                <span>{approvalModal.item.lokasi_saat_ini}</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setApprovalModal(null)}
+                  className="rounded-xl border border-[#D5D9E2] px-4 py-2 text-xs font-semibold text-[#4B5163] hover:bg-[#F7F8FC]"
+                >
+                  Tutup Preview
+                </button>
+
+                {approvalModal.item.status === 'menunggu_persetujuan' && isAtasanAktif && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const it = approvalModal.item
+                        setApprovalModal({ item: it, type: 'reject' })
+                        setRejectAlasan('')
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-[#FAD2CF] bg-[#FFF5F5] px-4 py-2 text-xs font-bold text-[#DC2626] hover:bg-[#FDECEC]"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      <span>Tolak Berkas</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApproveAction(approvalModal.item)}
+                      disabled={isActionLoading}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-[#0284C7] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#0369A1] transition-all"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      <span>Setujui (Aktif 3 Thn)</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Toast Notifikasi Aksi */}
+      {actionToast && (
+        <div
+          className={`fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-2xl px-5 py-3.5 text-xs font-semibold shadow-xl border animate-in slide-in-from-bottom-5 duration-200 ${
+            actionToast.type === 'success'
+              ? 'bg-[#E7F6EC] text-[#1E7E34] border-[#B7E4C7]'
+              : 'bg-[#FDECEC] text-[#D64545] border-[#FAD2CF]'
+          }`}
+        >
+          {actionToast.type === 'success' ? (
+            <Check className="h-4 w-4 shrink-0" />
+          ) : (
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+          )}
+          <span>{actionToast.text}</span>
+          <button
+            type="button"
+            onClick={() => setActionToast(null)}
+            className="ml-2 text-current opacity-70 hover:opacity-100"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -1231,7 +1874,7 @@ function DashboardContent() {
 
   return (
     <AppLayout currentRole={roleParam || undefined}>
-      <DashboardBody />
+      <DashboardBody overrideRole={roleParam || undefined} />
     </AppLayout>
   )
 }
