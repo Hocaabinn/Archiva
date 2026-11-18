@@ -925,8 +925,7 @@ export default function SerahTerimaPage() {
                       <th className="py-3 px-3">Pihak Penyerah</th>
                       <th className="py-3 px-3">Pihak Penerima</th>
                       <th className="py-3 px-3">Lokasi Baru</th>
-                      <th className="py-3 px-3">Status</th>
-                      <th className="py-3 px-3 text-right">Bukti BAST</th>
+                      <th className="py-3 px-3 text-right">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E2E8F0]">
@@ -964,9 +963,9 @@ export default function SerahTerimaPage() {
                         <td className="py-3 px-3 text-[#4B5E76] whitespace-nowrap">
                           {item.ke_lokasi}
                         </td>
-                        <td className="py-3 px-3 whitespace-nowrap">
+                        <td className="py-3 px-3 text-right whitespace-nowrap">
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
                               item.status_serah === 'Diterima'
                                 ? 'bg-[#E7F6EC] text-[#2F9E5B]'
                                 : item.status_serah === 'Ditolak'
@@ -976,21 +975,6 @@ export default function SerahTerimaPage() {
                           >
                             {item.status_serah}
                           </span>
-                        </td>
-                        <td className="py-3 px-3 text-right whitespace-nowrap">
-                          {item.status_serah === 'Diterima' ? (
-                            <a
-                              href={`/api/serah-terima/${item.id}/bukti-pdf`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 rounded bg-[#1E3A5F] px-2.5 py-1 text-[11px] font-medium text-white hover:bg-[#162A45]"
-                            >
-                              <Download className="h-3 w-3" />
-                              <span>PDF</span>
-                            </a>
-                          ) : (
-                            <span className="text-[#94A3B8]">-</span>
-                          )}
                         </td>
                       </tr>
                     ))}
