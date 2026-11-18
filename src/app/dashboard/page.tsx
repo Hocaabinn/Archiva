@@ -170,57 +170,43 @@ function StatCard({
   highlight?: boolean
 }) {
   return (
-    <div
-      className={`rounded-xl border shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden flex flex-col transition-all ${
-        highlight
-          ? 'border-[#F59E0B] bg-gradient-to-br from-[#FFFBEB] to-[#FEF3C7]/40 ring-2 ring-[#F59E0B]/20'
-          : 'border-[#ECEEF5] bg-white'
-      }`}
-    >
+    <div className="rounded-xl border border-[#ECEEF5] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden flex flex-col transition-all">
       <div className="p-5 flex-1">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
-            <span className={`block text-sm font-semibold ${highlight ? 'text-[#92400E]' : 'text-[#4B5163]'}`}>
+            <span className="block text-sm font-semibold text-[#4B5163]">
               {title}
             </span>
             {subtitle && (
-              <span className={`block text-[11px] ${highlight ? 'text-[#B45309]' : 'text-[#9AA0B2]'}`}>
+              <span className="block text-[11px] text-[#9AA0B2]">
                 {subtitle}
               </span>
             )}
           </div>
           {unitLabel && (
-            <span
-              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${
-                highlight ? 'bg-[#FDE68A] text-[#92400E]' : 'bg-[#F4F5FA] text-[#6B7185]'
-              }`}
-            >
+            <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase bg-[#F4F5FA] text-[#6B7185]">
               {unitLabel}
             </span>
           )}
         </div>
-        <p className={`mt-3 text-[26px] font-bold tracking-tight ${highlight ? 'text-[#B45309]' : 'text-[#1F2333]'}`}>
+        <p className="mt-3 text-[26px] font-bold tracking-tight text-[#1F2333]">
           {value}
         </p>
         <div className="mt-2 flex items-center gap-2 text-xs">
           <span
             className={`flex items-center gap-0.5 font-bold ${
-              highlight ? 'text-[#D97706]' : trendUp ? 'text-[#2F9E5B]' : 'text-[#D64545]'
+              trendUp ? 'text-[#2F9E5B]' : 'text-[#D64545]'
             }`}
           >
             {trendUp ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />}
             {trend}
           </span>
-          <span className={highlight ? 'text-[#92400E]' : 'text-[#6B7185]'}>{note}</span>
+          <span className="text-[#6B7185]">{note}</span>
         </div>
       </div>
       <Link
         href={href}
-        className={`px-5 py-3 border-t flex items-center justify-between text-sm font-semibold transition-colors ${
-          highlight
-            ? 'bg-[#FEF3C7] border-[#FDE68A] text-[#92400E] hover:text-[#78350F]'
-            : 'bg-[#F7F8FC] border-[#ECEEF5] text-[#4B5163] hover:text-[#1E86C8]'
-        }`}
+        className="px-5 py-3 border-t border-[#ECEEF5] bg-[#F7F8FC] flex items-center justify-between text-sm font-semibold text-[#4B5163] hover:text-[#1E86C8] transition-colors"
       >
         <span>Lihat Rincian</span>
         <ArrowRight className="w-4 h-4" />
@@ -2456,12 +2442,12 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
                       </span>
                       <span className="text-[9px] text-[#8A90A2]">Terisi</span>
                     </div>
-                    <div className="rounded-lg border border-[#FEEFC3] bg-[#FFFCF5] p-2 text-center">
-                      <span className="text-[10px] text-[#B06000] block">Boks Penuh</span>
-                      <span className="text-sm font-bold text-[#B06000] block mt-0.5 font-mono">
+                    <div className="rounded-lg border border-[#ECEEF5] bg-[#F8FAFC] p-2 text-center">
+                      <span className="text-[10px] text-[#64748B] block">Boks Penuh</span>
+                      <span className="text-sm font-bold text-[#1F2333] block mt-0.5 font-mono">
                         {statusSirkulasiInaktif.boksPenuh}
                       </span>
-                      <span className="text-[9px] text-[#B06000]/80">500 lembar</span>
+                      <span className="text-[9px] text-[#8A90A2]">500 lembar</span>
                     </div>
                     <div className="rounded-lg border border-[#CEEAD6] bg-[#F4FBF6] p-2 text-center">
                       <span className="text-[10px] text-[#137333] block">Boks Terbuka</span>
