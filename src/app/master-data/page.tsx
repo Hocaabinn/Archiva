@@ -1235,9 +1235,9 @@ export default function MasterDataPage() {
                                 <option key={opt.id} value={opt.id}>
                                   {opt.tingkat === 'Gedung'
                                     ? isOptGudang
-                                      ? '🏬 [Gudang] '
-                                      : '🏢 [Gedung] '
-                                    : '🚪 [Ruangan] '}
+                                      ? '[Gudang] '
+                                      : '[Gedung] '
+                                    : '[Ruangan] '}
                                   {opt.label}
                                 </option>
                               )

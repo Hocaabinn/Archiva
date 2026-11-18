@@ -327,7 +327,7 @@ export function LokasiCascadeSelect({
             <div className="p-2.5 bg-[#F0F7FF] border border-[#BAE6FD] rounded-md flex items-center justify-between text-xs font-mono">
               <span className="text-[#0369A1] font-semibold flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-[#0284C7] shrink-0" />
-                <span>📍 {selectedLocString}</span>
+                <span>{selectedLocString}</span>
               </span>
               <span className="text-[10px] bg-[#E0F2FE] text-[#0369A1] px-2 py-0.5 rounded font-bold border border-[#BAE6FD]">
                 TERDAFTAR DI MASTER
