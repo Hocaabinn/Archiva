@@ -304,6 +304,8 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
   const isSuperadmin = userRole === 'superadmin'
   const isAtasanAktif = userRole === 'atasan_aktif'
   const isPicInaktif = userRole === 'pic_inaktif'
+  const isAtasanInaktif = userRole === 'atasan_inaktif'
+  const isInaktifRole = isPicInaktif || isAtasanInaktif
   const firstName = name.split(' ')[0] || name
 
   const [supabase] = useState(() => createClient())
@@ -313,7 +315,16 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
   const [lokasiList, setLokasiList] = useState<LokasiItem[]>([])
   const [userUnitName, setUserUnitName] = useState<string>('Departemen Keuangan')
   const [userFullName, setUserFullName] = useState<string>(
-    name || (isSuperadmin ? 'Superadmin System' : isAtasanAktif ? 'Atasan Arsip' : isPicInaktif ? 'PIC Arsip Inaktif' : 'PIC Arsip')
+    name ||
+      (isSuperadmin
+        ? 'Superadmin System'
+        : isAtasanAktif
+        ? 'Atasan Arsip'
+        : isPicInaktif
+        ? 'PIC Arsip Inaktif'
+        : isAtasanInaktif
+        ? 'Atasan Arsip Inaktif'
+        : 'PIC Arsip')
   )
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -426,21 +437,26 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
       // Role efektif (mendukung demo_role switcher)
       const effectiveRole = overrideRole || profile?.role || userRole
 
-      if (effectiveRole === 'pic_inaktif') {
+      if (effectiveRole === 'pic_inaktif' || effectiveRole === 'atasan_inaktif') {
         setUserUnitName('Gudang Sentral / Record Center')
-        setUserFullName(profile?.nama_lengkap || profile?.email || name || 'PIC Arsip Inaktif')
+        setUserFullName(
+          profile?.nama_lengkap ||
+            profile?.email ||
+            name ||
+            (effectiveRole === 'atasan_inaktif' ? 'Atasan Arsip Inaktif' : 'PIC Arsip Inaktif')
+        )
       }
 
       // RLS per unit organisasi: Khusus pic_aktif & atasan_aktif
       // Untuk superadmin: TIDAK difilter unit (data global agregat seluruh perusahaan)
-      // Untuk pic_inaktif: Hanya dokumen inaktif yang tersimpan di Record Center
+      // Untuk pic_inaktif & atasan_inaktif: Hanya dokumen inaktif yang tersimpan di Record Center
       if (effectiveRole === 'pic_aktif' || effectiveRole === 'atasan_aktif') {
         if (profile?.unit_id) {
           docQuery = docQuery.or(`unit_id.eq.${profile.unit_id},pemilik_id.eq.${user.id}`)
         } else {
           docQuery = docQuery.eq('pemilik_id', user.id)
         }
-      } else if (effectiveRole === 'pic_inaktif') {
+      } else if (effectiveRole === 'pic_inaktif' || effectiveRole === 'atasan_inaktif') {
         docQuery = docQuery.eq('status', 'inaktif')
       }
 
@@ -503,8 +519,8 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
         }
       }
 
-      // 6. Data khusus PIC Arsip Inaktif (Antrean Transfer Masuk & Peminjaman Berjalan)
-      if (effectiveRole === 'pic_inaktif') {
+      // 6. Data khusus PIC Arsip Inaktif & Atasan Arsip Inaktif (Antrean Transfer Masuk & Peminjaman Berjalan)
+      if (effectiveRole === 'pic_inaktif' || effectiveRole === 'atasan_inaktif') {
         try {
           const res = await fetch('/api/transfer-arsip/antrean')
           if (res.ok) {
@@ -673,8 +689,8 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
   const totalDibatalkanBoks = countBoxesForDocs(docsDibatalkan)
 
   // Card 4: Dokumen Inaktif dari Record Center
-  const totalInaktif = isPicInaktif ? (documents.length || inaktifDocuments.length) : inaktifDocuments.length
-  const totalInaktifBoks = isPicInaktif ? (countBoxesForDocs(documents) || countBoxesForDocs(inaktifDocuments)) : countBoxesForDocs(inaktifDocuments)
+  const totalInaktif = isInaktifRole ? (documents.length || inaktifDocuments.length) : inaktifDocuments.length
+  const totalInaktifBoks = isInaktifRole ? (countBoxesForDocs(documents) || countBoxesForDocs(inaktifDocuments)) : countBoxesForDocs(inaktifDocuments)
 
   // Metrik Khusus PIC Arsip Inaktif
   const totalTransferMenunggu = transferAntrean.length
@@ -1103,10 +1119,10 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
       yearsMap.set(yr, { berkasMasuk: 0, boksMasuk: new Set(), inaktifBerkas: 0 })
     }
 
-    const docSource = isPicInaktif && documents.length === 0 ? inaktifDocuments : documents
+    const docSource = isInaktifRole && documents.length === 0 ? inaktifDocuments : documents
 
     docSource.forEach((d) => {
-      const dateRef = isPicInaktif ? (d.tanggal_kadaluarsa || d.created_at) : d.created_at
+      const dateRef = isInaktifRole ? (d.tanggal_kadaluarsa || d.created_at) : d.created_at
       if (dateRef) {
         const y = new Date(dateRef).getFullYear()
         if (yearsMap.has(y)) {
@@ -1127,8 +1143,8 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
       }
     })
 
-    // Untuk PIC Inaktif: sertakan juga catatan peminjaman
-    if (isPicInaktif) {
+    // Untuk PIC & Atasan Inaktif: sertakan juga catatan peminjaman
+    if (isInaktifRole) {
       peminjamanList.forEach((p) => {
         if (p.tanggal_pinjam || p.created_at) {
           const y = new Date(p.tanggal_pinjam || p.created_at).getFullYear()
@@ -1147,7 +1163,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
         boks: val.boksMasuk.size || (val.berkasMasuk > 0 ? 1 : 0),
         inaktif: val.inaktifBerkas,
       }))
-  }, [documents, inaktifDocuments, isPicInaktif, peminjamanList])
+  }, [documents, inaktifDocuments, isInaktifRole, peminjamanList])
 
   const maxTren = useMemo(() => {
     const vals = trenTahunanData.map((t) => (unitMode === 'berkas' ? t.berkas : t.boks))
@@ -1201,6 +1217,11 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               <Shield className="h-3.5 w-3.5" />
               <span>Dashboard Sistem &amp; Infrastruktur Arsip</span>
             </div>
+          ) : isAtasanInaktif ? (
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#0284C7]/30 bg-[#F0F9FF] px-3 py-1 text-xs font-semibold text-[#0284C7] mb-2">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span>Dashboard Pengawasan Gudang Arsip Inaktif</span>
+            </div>
           ) : isAtasanAktif ? (
             <div className="inline-flex items-center gap-2 rounded-full border border-[#0284C7]/30 bg-[#F0F9FF] px-3 py-1 text-xs font-semibold text-[#0284C7] mb-2">
               <ShieldCheck className="h-3.5 w-3.5" />
@@ -1224,6 +1245,8 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
             <span>
               {isSuperadmin
                 ? 'Peran: Superadmin'
+                : isAtasanInaktif
+                ? 'Peran: Atasan Arsip Inaktif • Pengawasan Record Center'
                 : isAtasanAktif
                 ? `Unit Pengawasan: ${userUnitName}`
                 : isPicInaktif
@@ -1233,11 +1256,13 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
             <span className="text-[#8A90A2]">•</span>
             <span
               className={`capitalize font-semibold ${
-                isSuperadmin ? 'text-[#4F46E5]' : isAtasanAktif || isPicInaktif ? 'text-[#0284C7]' : 'text-[#1E86C8]'
+                isSuperadmin ? 'text-[#4F46E5]' : isAtasanAktif || isInaktifRole ? 'text-[#0284C7]' : 'text-[#1E86C8]'
               }`}
             >
               {isSuperadmin
                 ? 'Akses: Penuh / System Maintainer'
+                : isAtasanInaktif
+                ? 'Supervisor Record Center'
                 : isAtasanAktif
                 ? 'Atasan Arsip Aktif'
                 : isPicInaktif
@@ -1260,7 +1285,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               }`}
             >
               <FileText className="h-3.5 w-3.5" />
-              <span>{isSuperadmin || isAtasanAktif || isPicInaktif ? 'Berkas / Lembar' : 'Tampilkan Berkas / Lembar'}</span>
+              <span>{isSuperadmin || isAtasanAktif || isInaktifRole ? 'Berkas / Lembar' : 'Tampilkan Berkas / Lembar'}</span>
             </button>
             <button
               type="button"
@@ -1272,7 +1297,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               }`}
             >
               <Package className="h-3.5 w-3.5" />
-              <span>{isSuperadmin || isAtasanAktif || isPicInaktif ? 'Satuan Boks Fisik' : 'Tampilkan Satuan Boks'}</span>
+              <span>{isSuperadmin || isAtasanAktif || isInaktifRole ? 'Satuan Boks Fisik' : 'Tampilkan Satuan Boks'}</span>
             </button>
           </div>
 
@@ -1293,6 +1318,29 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               >
                 <Users className="h-3.5 w-3.5 text-[#4F46E5]" />
                 <span>Kelola Pengguna</span>
+              </Link>
+            </>
+          ) : isAtasanInaktif ? (
+            /* Atasan Arsip Inaktif: Tombol Aksi Cepat Manajerial (Laporan Rekapitulasi Gudang & Monitoring Peminjaman) */
+            <>
+              <Link
+                href="/laporan"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#D5D9E2] bg-white px-3.5 py-2 text-xs font-semibold text-[#1F2333] shadow-2xs hover:bg-[#F7F8FC] hover:border-[#0284C7] transition-all"
+              >
+                <FileText className="h-3.5 w-3.5 text-[#0284C7]" />
+                <span>Laporan Rekapitulasi Gudang</span>
+              </Link>
+              <Link
+                href="/peminjaman"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#D5D9E2] bg-white px-3.5 py-2 text-xs font-semibold text-[#1F2333] shadow-2xs hover:bg-[#F7F8FC] hover:border-[#0284C7] transition-all"
+              >
+                <Clock className="h-3.5 w-3.5 text-[#0284C7]" />
+                <span>Monitoring Peminjaman</span>
+                {totalDipinjam > 0 && (
+                  <span className="ml-0.5 rounded-full bg-[#E0F2FE] text-[#0284C7] px-1.5 py-0.2 text-[10px] font-bold">
+                    {totalDipinjam}
+                  </span>
+                )}
               </Link>
             </>
           ) : isAtasanAktif ? (
@@ -1378,6 +1426,50 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
             </a>
           </div>
         )
+      ) : isAtasanInaktif ? (
+        totalJatuhTempo > 0 ? (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#FAD2CF] bg-[#FFF5F5] p-4 text-[#DC2626] shadow-xs">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-[#DC2626]" />
+              <div>
+                <p className="font-bold text-sm text-[#991B1B]">
+                  Peringatan Jatuh Tempo: Terdapat {totalJatuhTempo} Berkas Pinjaman Melewati Batas Waktu Pengembalian
+                </p>
+                <p className="text-xs text-[#DC2626] mt-0.5">
+                  Lakukan koordinasi pengawasan dengan PIC Inaktif agar unit peminjam segera mengembalikan berkas fisik ke Record Center.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/peminjaman"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#B91C1C] transition-colors whitespace-nowrap self-start sm:self-auto"
+            >
+              <span>Monitoring Peminjaman</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        ) : okupansiGudangInaktif.persen >= 90 ? (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#FAD2CF] bg-[#FFF5F5] p-4 text-[#DC2626] shadow-xs">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-[#DC2626]" />
+              <div>
+                <p className="font-bold text-sm text-[#991B1B]">
+                  Peringatan Kapasitas Gudang: Okupansi Record Center Mencapai {okupansiGudangInaktif.persen}% (Kapasitas Kritis)
+                </p>
+                <p className="text-xs text-[#DC2626] mt-0.5">
+                  Fasilitas Gudang Inaktif mendekati batas maksimal. Rencanakan penambahan rak/boks inaktif baru atau usulkan retensi pemusnahan berkas kadaluarsa.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/laporan"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#B91C1C] transition-colors whitespace-nowrap self-start sm:self-auto"
+            >
+              <span>Lihat Detail Laporan</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        ) : null
       ) : isPicInaktif ? (
         totalTransferMenunggu > 0 ? (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#BAE6FD] bg-[#F0F9FF] p-4 text-[#0369A1] shadow-xs">
@@ -1548,6 +1640,64 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               trendUp={totalAkanKadaluarsa === 0}
               note="siap transfer inaktif"
               href="/transfer-dokumen"
+            />
+          </>
+        ) : isAtasanInaktif ? (
+          <>
+            {/* Card 1: Total Arsip Inaktif */}
+            <StatCard
+              title="Total Arsip Inaktif"
+              subtitle="Record Center / Seluruh Unit"
+              unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
+              value={unitMode === 'berkas' ? `${totalInaktif} berkas` : `${totalInaktifBoks} boks`}
+              trend="Tersimpan"
+              trendUp={true}
+              note="akumulasi seluruh departemen"
+              href="/dokumen?status=inaktif"
+            />
+
+            {/* Card 2: Okupansi Gudang Inaktif */}
+            <StatCard
+              title="Okupansi Gudang Inaktif"
+              subtitle="Kapasitas Terpakai Fasilitas"
+              unitLabel="% Kapasitas"
+              value={`${okupansiGudangInaktif.persen}%`}
+              trend={
+                okupansiGudangInaktif.persen >= 90
+                  ? 'Mendekati Penuh'
+                  : okupansiGudangInaktif.persen >= 75
+                  ? 'Waspada'
+                  : 'Optimal'
+              }
+              trendUp={okupansiGudangInaktif.persen < 90}
+              note={`${okupansiGudangInaktif.totalLembar.toLocaleString('id-ID')} / ${okupansiGudangInaktif.totalKapasitas.toLocaleString('id-ID')} lbr`}
+              href="/laporan"
+              highlight={okupansiGudangInaktif.persen >= 90}
+            />
+
+            {/* Card 3: Dokumen Sedang Dipinjam */}
+            <StatCard
+              title="Dokumen Sedang Dipinjam"
+              subtitle="Sirkulasi di Luar Gudang"
+              unitLabel="Berkas"
+              value={`${totalDipinjam} berkas`}
+              trend={totalDipinjam > 0 ? `${totalDipinjam} Berjalan` : 'Nihil'}
+              trendUp={true}
+              note="berkas fisik keluar"
+              href="/peminjaman"
+            />
+
+            {/* Card 4 (Alert Merah jika ada keterlambatan): Peminjaman Jatuh Tempo */}
+            <StatCard
+              title="Peminjaman Jatuh Tempo"
+              subtitle="Batas Waktu Pinjam Lewat"
+              unitLabel="Peringatan"
+              value={`${totalJatuhTempo} berkas`}
+              trend={totalJatuhTempo > 0 ? 'Jatuh Tempo' : 'Tepat Waktu'}
+              trendUp={totalJatuhTempo === 0}
+              note={totalJatuhTempo > 0 ? 'segera lakukan penagihan' : 'tidak ada keterlambatan'}
+              href="/peminjaman"
+              highlight={totalJatuhTempo > 0}
             />
           </>
         ) : isPicInaktif ? (
@@ -2433,6 +2583,220 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               </table>
             </div>
           )}
+        </div>
+      ) : isAtasanInaktif ? (
+        /* Komponen Pengawasan Operasional Khusus Atasan Arsip Inaktif (Supervisor Record Center) */
+        <div className="space-y-6">
+          {/* Widget 1: Monitoring Sirkulasi Peminjaman Berkas */}
+          <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#ECEEF5] pb-3">
+              <div>
+                <h2 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-[#0284C7]" />
+                  <span>Monitoring Sirkulasi Peminjaman Berkas Inaktif</span>
+                </h2>
+                <p className="text-xs text-[#6B7185] mt-0.5">
+                  Pengawasan berkas fisik Record Center yang sedang beredar dipinjam oleh unit kerja.
+                </p>
+              </div>
+              <Link
+                href="/peminjaman"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#D5D9E2] bg-[#F8FAFC] px-3.5 py-1.5 text-xs font-semibold text-[#1F2333] hover:bg-[#EEF7FD] hover:text-[#0284C7] hover:border-[#0284C7] transition-all self-start sm:self-auto"
+              >
+                <span>Lihat Seluruh Peminjaman</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            <div className="overflow-x-auto">
+              {peminjamanList.length === 0 ? (
+                <div className="py-10 text-center text-xs text-[#8A90A2] space-y-2">
+                  <CheckCircle2 className="h-8 w-8 mx-auto text-[#2F9E5B] stroke-[1.5]" />
+                  <p className="font-bold text-sm text-[#1F2333]">Tidak Ada Dokumen Inaktif Sedang Dipinjam</p>
+                  <p className="text-xs text-[#6B7185]">Seluruh berkas inaktif tersimpan lengkap di fasilitas Gudang Record Center.</p>
+                </div>
+              ) : (
+                <table className="w-full text-left text-xs min-w-[700px]">
+                  <thead>
+                    <tr className="border-b border-[#ECEEF5] bg-[#F7F8FC] text-[#4B5163]">
+                      <th className="py-2.5 px-3 font-semibold w-12 text-center">No</th>
+                      <th className="py-2.5 px-3 font-semibold">Kode Arsip SIG</th>
+                      <th className="py-2.5 px-3 font-semibold">Judul Dokumen</th>
+                      <th className="py-2.5 px-3 font-semibold">Peminjam / Unit</th>
+                      <th className="py-2.5 px-3 font-semibold">Tanggal Pinjam</th>
+                      <th className="py-2.5 px-3 font-semibold">Batas Pengembalian</th>
+                      <th className="py-2.5 px-3 font-semibold text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#ECEEF5]">
+                    {peminjamanList.slice(0, 10).map((pj, idx) => {
+                      const peminjamNama = pj.peminjam?.nama_lengkap || pj.peminjam?.email || 'Pegawai'
+                      const isOverdue = pj.status === 'Dipinjam' && pj.tanggal_kembali && new Date(pj.tanggal_kembali) < new Date()
+                      const tglPinjam = pj.tanggal_pinjam ? formatLogDate(pj.tanggal_pinjam) : '-'
+                      const tglKembali = pj.tanggal_kembali ? formatLogDate(pj.tanggal_kembali) : '-'
+
+                      return (
+                        <tr key={pj.id} className="hover:bg-[#F0F9FF]/40 transition-colors">
+                          <td className="py-3 px-3 text-center text-[#6B7185] font-semibold">{idx + 1}</td>
+                          <td className="py-3 px-3 min-w-[140px]">
+                            <KodeArsip kode={pj.dokumen?.kode_arsip || '-'} className="text-[11px]" />
+                          </td>
+                          <td className="py-3 px-3 max-w-xs">
+                            <span className="font-semibold text-[#1F2333] line-clamp-1">{pj.dokumen?.judul || '-'}</span>
+                            <span className="text-[11px] text-[#8A90A2]">
+                              Keperluan: {pj.keperluan || 'Keperluan dinas'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-[#4B5163] font-medium whitespace-nowrap">
+                            <div>{peminjamNama}</div>
+                            <div className="text-[10px] text-[#8A90A2]">{pj.peminjam?.jabatan || 'Unit Kerja'}</div>
+                          </td>
+                          <td className="py-3 px-3 text-[#6B7185] whitespace-nowrap">{tglPinjam}</td>
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              <span className={isOverdue ? 'text-[#DC2626] font-bold' : 'text-[#6B7185]'}>
+                                {tglKembali}
+                              </span>
+                              {isOverdue && (
+                                <span className="rounded bg-[#FDECEC] border border-[#FECACA] px-1.5 py-0.2 text-[9px] font-bold text-[#DC2626]">
+                                  Terlambat
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 text-center whitespace-nowrap">
+                            <span
+                              className={`inline-block rounded px-2.5 py-0.5 text-[11px] font-bold border ${
+                                pj.status === 'Dipinjam'
+                                  ? isOverdue
+                                    ? 'bg-[#FDECEC] text-[#DC2626] border-[#FECACA]'
+                                    : 'bg-[#F0F9FF] text-[#0284C7] border-[#BAE6FD]'
+                                  : pj.status === 'Dikembalikan'
+                                  ? 'bg-[#E7F6EC] text-[#2F9E5B] border-[#BBF7D0]'
+                                  : 'bg-[#FEF7E0] text-[#B06000] border-[#FDE68A]'
+                              }`}
+                            >
+                              {isOverdue ? 'Terlambat' : pj.status}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+
+          {/* Widget 2: Riwayat Penerimaan BAST Transfer Terkini */}
+          <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#ECEEF5] pb-3">
+              <div>
+                <h2 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
+                  <Inbox className="h-5 w-5 text-[#0284C7]" />
+                  <span>Riwayat Penerimaan BAST Transfer Terkini</span>
+                </h2>
+                <p className="text-xs text-[#6B7185] mt-0.5">
+                  Rekapitulasi Berita Acara Serah Terima (BAST) fisik dari unit pengolah yang dialihkan ke Record Center.
+                </p>
+              </div>
+              <Link
+                href="/laporan"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#D5D9E2] bg-[#F8FAFC] px-3.5 py-1.5 text-xs font-semibold text-[#1F2333] hover:bg-[#EEF7FD] hover:text-[#0284C7] hover:border-[#0284C7] transition-all self-start sm:self-auto"
+              >
+                <span>Lihat Seluruh Rekapitulasi Transfer</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            <div className="overflow-x-auto">
+              {transferAntrean.length === 0 ? (
+                <div className="py-10 text-center text-xs text-[#8A90A2] space-y-2">
+                  <Package className="h-8 w-8 mx-auto text-[#8A90A2] stroke-[1.5]" />
+                  <p className="font-bold text-sm text-[#1F2333]">Belum Ada Riwayat BAST Transfer Masuk</p>
+                  <p className="text-xs text-[#6B7185]">Penerimaan berkas transfer dari unit pengolah akan otomatis tercatat di sini.</p>
+                </div>
+              ) : (
+                <table className="w-full text-left text-xs min-w-[700px]">
+                  <thead>
+                    <tr className="border-b border-[#ECEEF5] bg-[#F7F8FC] text-[#4B5163]">
+                      <th className="py-2.5 px-3 font-semibold w-12 text-center">No</th>
+                      <th className="py-2.5 px-3 font-semibold">Nomor BAST</th>
+                      <th className="py-2.5 px-3 font-semibold">Unit Asal Pengirim</th>
+                      <th className="py-2.5 px-3 font-semibold">Tanggal Masuk</th>
+                      <th className="py-2.5 px-3 font-semibold text-center">Total Berkas</th>
+                      <th className="py-2.5 px-3 font-semibold text-center">Status</th>
+                      <th className="py-2.5 px-3 font-semibold text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#ECEEF5]">
+                    {transferAntrean.slice(0, 10).map((st, idx) => {
+                      const nomorBa = st.keterangan?.includes('TRANSFER_INAKTIF')
+                        ? st.keterangan.split('|')[1]?.trim() || 'BAST-TRANSFER'
+                        : st.keterangan || '-'
+                      const unitAsal = st.dari_lokasi?.includes('>') ? st.dari_lokasi.split('>')[0]?.trim() : 'Unit Pengolah'
+                      const tglMasuk = st.tanggal_terima
+                        ? formatLogDate(st.tanggal_terima)
+                        : st.tanggal_serah
+                        ? formatLogDate(st.tanggal_serah)
+                        : formatLogDate(st.created_at)
+
+                      const isDiterima = (st.status_serah || '').toLowerCase() === 'diterima'
+
+                      return (
+                        <tr key={st.id} className="hover:bg-[#F0F9FF]/40 transition-colors">
+                          <td className="py-3 px-3 text-center text-[#6B7185] font-semibold">{idx + 1}</td>
+                          <td className="py-3 px-3 font-mono font-bold text-[#0284C7] whitespace-nowrap">
+                            {nomorBa}
+                          </td>
+                          <td className="py-3 px-3 font-medium text-[#1F2333]">
+                            <div>{unitAsal}</div>
+                            {st.dokumen?.judul && (
+                              <div className="text-[11px] text-[#64748B] line-clamp-1 mt-0.5">
+                                {st.dokumen.judul}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-3 px-3 text-[#6B7185] whitespace-nowrap">{tglMasuk}</td>
+                          <td className="py-3 px-3 text-center whitespace-nowrap">
+                            <span className="inline-block rounded bg-[#F1F5F9] border border-[#CBD5E1] px-2 py-0.5 font-bold text-[#334155]">
+                              {st.dokumen?.jumlah_halaman ? `${st.dokumen.jumlah_halaman} lbr` : '1 berkas'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-center whitespace-nowrap">
+                            <span
+                              className={`inline-block rounded px-2.5 py-0.5 text-[11px] font-bold border ${
+                                isDiterima
+                                  ? 'bg-[#E7F6EC] text-[#2F9E5B] border-[#BBF7D0]'
+                                  : 'bg-[#F0F9FF] text-[#0284C7] border-[#BAE6FD]'
+                              }`}
+                            >
+                              {st.status_serah || 'Diproses'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right whitespace-nowrap">
+                            {st.bukti_pdf_path ? (
+                              <a
+                                href={`/api/transfer-arsip/ba-pdf?path=${encodeURIComponent(st.bukti_pdf_path)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 rounded-lg border border-[#CBD7E3] bg-[#F8FAFC] px-3 py-1.5 text-xs font-semibold text-[#1F2333] hover:bg-[#EEF7FD] hover:text-[#0284C7] hover:border-[#0284C7] transition-all"
+                              >
+                                <FileText className="h-3.5 w-3.5 text-[#0284C7]" />
+                                <span>Lihat Bukti BAST PDF</span>
+                              </a>
+                            ) : (
+                              <span className="text-[11px] text-[#8A90A2] italic">Tidak ada berkas</span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
         </div>
       ) : isPicInaktif ? (
         /* Widget Antrean Operasional Cepat Khusus PIC Arsip Inaktif (2 Tab: Transfer Masuk & Peminjaman Berjalan) */
