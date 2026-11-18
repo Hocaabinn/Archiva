@@ -42,6 +42,9 @@ import {
   X,
   Inbox,
   FileCheck,
+  Users,
+  Shield,
+  Activity,
 } from 'lucide-react'
 
 type DocStatus = DokumenStatus
@@ -108,6 +111,35 @@ const statusPill: Record<DocStatus, { label: string; className: string }> = {
 }
 
 const DONUT_COLORS = ['#3BA4E8', '#86C8F2', '#C4E4FA', '#E6F3FD']
+
+const aksiLogBadges: Record<string, { label: string; className: string }> = {
+  upload: { label: 'Upload Berkas', className: 'bg-[#EEF7FD] text-[#0284C7] border-[#BAE6FD]' },
+  verifikasi: { label: 'Verifikasi PIC', className: 'bg-[#FFF4DE] text-[#C98A1B] border-[#FDE68A]' },
+  approve: { label: 'Approve Atasan', className: 'bg-[#E7F6EC] text-[#2F9E5B] border-[#BBF7D0]' },
+  tolak: { label: 'Ditolak', className: 'bg-[#FDECEC] text-[#D64545] border-[#FECACA]' },
+  download: { label: 'Unduh Berkas', className: 'bg-[#F0FDF4] text-[#15803D] border-[#DCFCE7]' },
+  pindah_inaktif: { label: 'Pindah Inaktif', className: 'bg-[#F3F4F6] text-[#4B5563] border-[#E5E7EB]' },
+  peminjaman: { label: 'Peminjaman', className: 'bg-[#FDF4FF] text-[#A21CAF] border-[#F5D0FE]' },
+  serah_terima: { label: 'Serah Terima', className: 'bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]' },
+  pembatalan: { label: 'Pembatalan', className: 'bg-[#FEF2F2] text-[#991B1B] border-[#FECACA]' },
+  login: { label: 'Login Sistem', className: 'bg-[#EEF2FF] text-[#4F46E5] border-[#C7D2FE]' },
+  master_data: { label: 'Master Data', className: 'bg-[#F5F3FF] text-[#7C3AED] border-[#DDD6FE]' },
+}
+
+function formatLogDate(dateStr?: string | null) {
+  if (!dateStr) return '-'
+  try {
+    return new Date(dateStr).toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return dateStr
+  }
+}
 
 // ============================================================
 // KOMPONEN KECIL
@@ -269,6 +301,7 @@ function getInitials(name: string) {
 function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
   const { name, role: sessionRole } = useAppUser()
   const userRole = overrideRole || sessionRole
+  const isSuperadmin = userRole === 'superadmin'
   const isAtasanAktif = userRole === 'atasan_aktif'
   const firstName = name.split(' ')[0] || name
 
@@ -278,9 +311,15 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
   const [boksList, setBoksList] = useState<BoksItem[]>([])
   const [lokasiList, setLokasiList] = useState<LokasiItem[]>([])
   const [userUnitName, setUserUnitName] = useState<string>('Departemen Keuangan')
-  const [userFullName, setUserFullName] = useState<string>(name || (isAtasanAktif ? 'Atasan Arsip' : 'PIC Arsip'))
+  const [userFullName, setUserFullName] = useState<string>(
+    name || (isSuperadmin ? 'Superadmin System' : isAtasanAktif ? 'Atasan Arsip' : 'PIC Arsip')
+  )
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  // State khusus Superadmin: Total User Terdaftar & Log Aktivitas Terbaru
+  const [totalUsers, setTotalUsers] = useState<number>(0)
+  const [recentLogs, setRecentLogs] = useState<any[]>([])
 
   // Toggle satuan metrik: berkas/lembar vs boks
   const [unitMode, setUnitMode] = useState<'berkas' | 'boks'>('berkas')
@@ -372,8 +411,12 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
         `)
         .order('created_at', { ascending: false })
 
-      // RLS per unit organisasi PIC Aktif
-      if (profile?.role === 'pic_aktif' || profile?.role === 'atasan_aktif') {
+      // Role efektif (mendukung demo_role switcher)
+      const effectiveRole = overrideRole || profile?.role || userRole
+
+      // RLS per unit organisasi: Khusus pic_aktif & atasan_aktif
+      // Untuk superadmin: TIDAK difilter unit (data global agregat seluruh perusahaan)
+      if (effectiveRole === 'pic_aktif' || effectiveRole === 'atasan_aktif') {
         if (profile?.unit_id) {
           docQuery = docQuery.or(`unit_id.eq.${profile.unit_id},pemilik_id.eq.${user.id}`)
         } else {
@@ -412,6 +455,33 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
         .select('id, nama, tingkat, parent_id')
 
       if (lokError) console.error('Error lokasi:', lokError)
+
+      // 5. Data khusus Superadmin (Total Pengguna & Log Audit Aktivitas Terbaru)
+      if (effectiveRole === 'superadmin') {
+        try {
+          const { count: uCount, data: uList } = await supabase
+            .from('profiles')
+            .select('id', { count: 'exact' })
+          setTotalUsers(uCount ?? (uList?.length || 0))
+        } catch (uErr) {
+          console.error('Error load users count:', uErr)
+        }
+
+        try {
+          const { data: logsData } = await supabase
+            .from('log_aktivitas')
+            .select(`
+              id, aksi, keterangan, created_at,
+              dokumen:dokumen_id ( id, kode_arsip, judul ),
+              user:user_id ( id, nama_lengkap, email, role, jabatan )
+            `)
+            .order('created_at', { ascending: false })
+            .limit(10)
+          setRecentLogs(logsData || [])
+        } catch (lErr) {
+          console.error('Error load recent logs:', lErr)
+        }
+      }
 
       setBoksList(boksData || [])
       setLokasiList(lokData || [])
@@ -649,6 +719,75 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
     })
   }, [lokasiList, boksList])
 
+  // Hitung Okupansi Global (Fasilitas Fisik Seluruh Perusahaan untuk Superadmin)
+  const totalGlobalLembar = useMemo(
+    () => boksList.reduce((acc, b) => acc + (b.jumlah_lembar_terisi || 0), 0),
+    [boksList]
+  )
+  const totalGlobalKapasitas = useMemo(
+    () => boksList.reduce((acc, b) => acc + (Number(b.kapasitas_maks_lembar) || 500), 0),
+    [boksList]
+  )
+  const globalOccupancyPercent = useMemo(
+    () =>
+      totalGlobalKapasitas > 0
+        ? Math.min(100, Math.round((totalGlobalLembar / totalGlobalKapasitas) * 100))
+        : 0,
+    [totalGlobalLembar, totalGlobalKapasitas]
+  )
+
+  // Agregat Fasilitas Utama: Ruang Arsip Aktif (Gedung A) & Ruang Simpan Inaktif (Gedung Inaktif)
+  const fasilitasUtama = useMemo(() => {
+    let aktifLembar = 0
+    let aktifKapasitas = 0
+    let aktifBoks = 0
+
+    let inaktifLembar = 0
+    let inaktifKapasitas = 0
+    let inaktifBoks = 0
+
+    rakOccupancyList.forEach((rak) => {
+      const isRecordCenter =
+        rak.ruanganNama.toLowerCase().includes('inaktif') ||
+        rak.gedungNama.toLowerCase().includes('inaktif') ||
+        rak.gedungNama.toLowerCase().includes('record')
+
+      if (isRecordCenter) {
+        inaktifLembar += rak.totalLembar
+        inaktifKapasitas += rak.kapasitasMaksLembar
+        inaktifBoks += rak.totalBoks
+      } else {
+        aktifLembar += rak.totalLembar
+        aktifKapasitas += rak.kapasitasMaksLembar
+        aktifBoks += rak.totalBoks
+      }
+    })
+
+    const aktifPersen =
+      aktifKapasitas > 0 ? Math.min(100, Math.round((aktifLembar / aktifKapasitas) * 100)) : 0
+    const inaktifPersen =
+      inaktifKapasitas > 0 ? Math.min(100, Math.round((inaktifLembar / inaktifKapasitas) * 100)) : 0
+
+    return {
+      aktif: {
+        nama: 'Ruang Arsip Aktif (Gedung A)',
+        gedung: 'Gedung A • Lantai 1',
+        totalLembar: aktifLembar,
+        kapasitasMaks: aktifKapasitas || 1,
+        totalBoks: aktifBoks,
+        persen: aktifPersen,
+      },
+      inaktif: {
+        nama: 'Ruang Simpan Inaktif (Gedung Inaktif)',
+        gedung: 'Gedung Inaktif • Record Center',
+        totalLembar: inaktifLembar,
+        kapasitasMaks: inaktifKapasitas || 1,
+        totalBoks: inaktifBoks,
+        persen: inaktifPersen,
+      },
+    }
+  }, [rakOccupancyList])
+
   // Tren Arsip Tahunan
   const trenTahunanData = useMemo(() => {
     const yearsMap = new Map<number, { berkasMasuk: number; boksMasuk: Set<string>; inaktifBerkas: number }>()
@@ -735,7 +874,12 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
       {/* 1. Header & Quick Actions */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-2xl border border-[#ECEEF5] shadow-xs">
         <div>
-          {isAtasanAktif ? (
+          {isSuperadmin ? (
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#6366F1]/30 bg-[#EEF2FF] px-3 py-1 text-xs font-semibold text-[#4F46E5] mb-2">
+              <Shield className="h-3.5 w-3.5" />
+              <span>Dashboard Sistem &amp; Infrastruktur Arsip</span>
+            </div>
+          ) : isAtasanAktif ? (
             <div className="inline-flex items-center gap-2 rounded-full border border-[#0284C7]/30 bg-[#F0F9FF] px-3 py-1 text-xs font-semibold text-[#0284C7] mb-2">
               <ShieldCheck className="h-3.5 w-3.5" />
               <span>Dashboard Pengawasan &amp; Persetujuan Arsip</span>
@@ -751,11 +895,23 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
           </h1>
           <p className="text-sm text-[#4B5163] mt-0.5 flex items-center gap-2">
             <span>
-              {isAtasanAktif ? 'Unit Pengawasan' : 'Unit Pengolah'}: <strong>{userUnitName}</strong>
+              {isSuperadmin
+                ? 'Peran: Superadmin'
+                : isAtasanAktif
+                ? `Unit Pengawasan: ${userUnitName}`
+                : `Unit Pengolah: ${userUnitName}`}
             </span>
             <span className="text-[#8A90A2]">•</span>
-            <span className="capitalize text-[#0284C7] font-medium">
-              {isAtasanAktif ? 'Atasan Arsip Aktif' : userRole.replace('_', ' ')}
+            <span
+              className={`capitalize font-semibold ${
+                isSuperadmin ? 'text-[#4F46E5]' : isAtasanAktif ? 'text-[#0284C7]' : 'text-[#1E86C8]'
+              }`}
+            >
+              {isSuperadmin
+                ? 'Akses: Penuh / System Maintainer'
+                : isAtasanAktif
+                ? 'Atasan Arsip Aktif'
+                : userRole.replace('_', ' ')}
             </span>
           </p>
         </div>
@@ -773,7 +929,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               }`}
             >
               <FileText className="h-3.5 w-3.5" />
-              <span>{isAtasanAktif ? 'Berkas / Lembar' : 'Tampilkan Berkas / Lembar'}</span>
+              <span>{isSuperadmin || isAtasanAktif ? 'Berkas / Lembar' : 'Tampilkan Berkas / Lembar'}</span>
             </button>
             <button
               type="button"
@@ -785,12 +941,30 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               }`}
             >
               <Package className="h-3.5 w-3.5" />
-              <span>{isAtasanAktif ? 'Satuan Boks Fisik' : 'Tampilkan Satuan Boks'}</span>
+              <span>{isSuperadmin || isAtasanAktif ? 'Satuan Boks Fisik' : 'Tampilkan Satuan Boks'}</span>
             </button>
           </div>
 
           {/* Quick Action Khusus Peran */}
-          {isAtasanAktif ? (
+          {isSuperadmin ? (
+            /* Superadmin: Tombol Aksi Cepat Master (Kelola Master Lokasi & Kelola Pengguna), tanpa tombol entri/approval operasional */
+            <>
+              <Link
+                href="/master-data"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#D5D9E2] bg-white px-3.5 py-2 text-xs font-semibold text-[#1F2333] shadow-2xs hover:bg-[#F7F8FC] transition-colors"
+              >
+                <Warehouse className="h-3.5 w-3.5 text-[#4F46E5]" />
+                <span>Kelola Master Lokasi</span>
+              </Link>
+              <Link
+                href="/pengaturan/pengguna"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#D5D9E2] bg-white px-3.5 py-2 text-xs font-semibold text-[#1F2333] shadow-2xs hover:bg-[#F7F8FC] transition-colors"
+              >
+                <Users className="h-3.5 w-3.5 text-[#4F46E5]" />
+                <span>Kelola Pengguna</span>
+              </Link>
+            </>
+          ) : isAtasanAktif ? (
             /* Atasan Aktif: Tombol Primer "Tinjau Antrean Persetujuan" (Sembunyikan tombol + Entri Dokumen Baru) */
             <a
               href="#antrean-persetujuan"
@@ -827,7 +1001,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
       </div>
 
       {/* Banner Notifikasi / Peringatan Tindakan */}
-      {isAtasanAktif ? (
+      {isSuperadmin ? null : isAtasanAktif ? (
         totalMenunggu > 0 && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#FEEFC3] bg-[#FEF7E0] p-4 text-[#B06000] shadow-xs">
             <div className="flex items-start gap-3">
@@ -877,7 +1051,57 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
 
       {/* 2. Kartu Ringkasan (Metric Cards) 4 Kuadran */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {isAtasanAktif ? (
+        {isSuperadmin ? (
+          <>
+            {/* Card 1: Total Arsip Aktif Global */}
+            <StatCard
+              title="Total Arsip Aktif Global"
+              subtitle="Seluruh Unit Organisasi"
+              unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
+              value={unitMode === 'berkas' ? `${totalAktif} berkas` : `${totalAktifBoks} boks`}
+              trend="+12%"
+              trendUp={true}
+              note="sedang berjalan retensi 3 thn"
+              href="/dokumen?status=aktif"
+            />
+
+            {/* Card 2: Total Arsip Inaktif */}
+            <StatCard
+              title="Total Arsip Inaktif"
+              subtitle="Record Center / Gudang Inaktif"
+              unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
+              value={unitMode === 'berkas' ? `${totalInaktif} berkas` : `${totalInaktifBoks} boks`}
+              trend="Tersimpan"
+              trendUp={true}
+              note="siap layani peminjaman"
+              href="/dokumen?status=inaktif"
+            />
+
+            {/* Card 3: Okupansi Fasilitas Fisik */}
+            <StatCard
+              title="Okupansi Fasilitas Fisik"
+              subtitle={`${totalGlobalLembar.toLocaleString('id-ID')} / ${totalGlobalKapasitas.toLocaleString('id-ID')} lbr`}
+              unitLabel="Kapasitas"
+              value={`${globalOccupancyPercent}%`}
+              trend={`${boksList.length} Boks`}
+              trendUp={globalOccupancyPercent < 80}
+              note="seluruh rak terdaftar"
+              href="/master-data"
+            />
+
+            {/* Card 4: Total Pengguna Aktif */}
+            <StatCard
+              title="Total Pengguna Aktif"
+              subtitle="6 Peran Terdaftar"
+              unitLabel="Akun"
+              value={`${totalUsers} pengguna`}
+              trend="Aktif"
+              trendUp={true}
+              note="seluruh unit kerja"
+              href="/pengaturan/pengguna"
+            />
+          </>
+        ) : isAtasanAktif ? (
           <>
             {/* Card 1 (Highlight/Warna Menarik): Butuh Persetujuan */}
             <StatCard
@@ -989,10 +1213,16 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
             <div>
               <h2 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 text-[#3BA4E8]" />
-                Grafik Tren Arsip Tahunan
+                <span>
+                  {isSuperadmin
+                    ? 'Grafik Tren Arsip Agregat Tahunan'
+                    : 'Grafik Tren Arsip Tahunan'}
+                </span>
               </h2>
               <p className="text-xs text-[#6B7185] mt-0.5">
-                Perkembangan arsip masuk unit {userUnitName} dari tahun ke tahun ({unitMode === 'berkas' ? 'Satuan Berkas/Lembar' : 'Satuan Boks'}).
+                {isSuperadmin
+                  ? `Volume total arsip masuk dan beralih ke inaktif di seluruh perusahaan dari tahun ke tahun (${unitMode === 'berkas' ? 'Satuan Berkas/Lembar' : 'Satuan Boks'}).`
+                  : `Perkembangan arsip masuk unit ${userUnitName} dari tahun ke tahun (${unitMode === 'berkas' ? 'Satuan Berkas/Lembar' : 'Satuan Boks'}).`}
               </p>
             </div>
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1E86C8] bg-[#EEF7FD] px-3 py-1 rounded-lg">
@@ -1051,22 +1281,127 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
         </div>
       </div>
 
-      {/* 4. Widget Okupansi Rak Fisik Aktif */}
+      {/* 4. Widget Monitoring Kapasitas Fasilitas & Rak Fisik */}
       <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#ECEEF5] pb-3">
           <div>
             <h2 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
               <Warehouse className="h-5 w-5 text-[#3BA4E8]" />
-              Okupansi Rak Fisik Aktif (Ruang Arsip Aktif)
+              <span>
+                {isSuperadmin
+                  ? 'Monitoring Kapasitas Fasilitas Fisik (Aktif & Inaktif)'
+                  : 'Okupansi Rak Fisik Aktif (Ruang Arsip Aktif)'}
+              </span>
             </h2>
             <p className="text-xs text-[#6B7185] mt-0.5">
-              Keterisian fisik rak di Ruang Arsip Aktif unit. Standar kapasitas maksimal 500 lembar per boks.
+              {isSuperadmin
+                ? 'Keterisian fisik rak di Ruang Arsip Aktif (Gedung A) dan Ruang Simpan Inaktif (Record Center). Standar kapasitas 500 lembar per boks.'
+                : 'Keterisian fisik rak di Ruang Arsip Aktif unit. Standar kapasitas maksimal 500 lembar per boks.'}
             </p>
           </div>
           <span className="text-xs text-[#8A90A2]">
             Total: <strong>{rakOccupancyList.length} rak</strong>
           </span>
         </div>
+
+        {/* Khusus Superadmin: Tampilkan Ringkasan 2 Fasilitas Utama (Gedung A & Gedung Inaktif) */}
+        {isSuperadmin && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-2">
+            {/* Fasilitas 1: Ruang Arsip Aktif (Gedung A) */}
+            <div className="rounded-xl border border-[#ECEEF5] bg-[#F7F8FC] p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-[#E0F2FE] text-[#0284C7]">
+                    <Layers className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <p className="text-xs font-bold text-[#1F2333]">{fasilitasUtama.aktif.nama}</p>
+                    <p className="text-[11px] text-[#6B7185]">{fasilitasUtama.aktif.gedung}</p>
+                  </div>
+                </div>
+                <span
+                  className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
+                    fasilitasUtama.aktif.persen >= 90
+                      ? 'bg-[#FDECEC] text-[#D64545] border border-[#FECACA]'
+                      : fasilitasUtama.aktif.persen >= 75
+                      ? 'bg-[#FEF7E0] text-[#B06000] border border-[#FEEFC3]'
+                      : 'bg-[#E7F6EC] text-[#2F9E5B]'
+                  }`}
+                >
+                  {fasilitasUtama.aktif.persen}% Kapasitas
+                </span>
+              </div>
+              <div className="space-y-1">
+                <div className="h-2 w-full rounded-full bg-[#E5E7EB] overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      fasilitasUtama.aktif.persen >= 90
+                        ? 'bg-[#D64545]'
+                        : fasilitasUtama.aktif.persen >= 75
+                        ? 'bg-[#E37400]'
+                        : 'bg-[#2F9E5B]'
+                    }`}
+                    style={{ width: `${fasilitasUtama.aktif.persen}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-[#6B7185]">
+                  <span>{fasilitasUtama.aktif.totalBoks} Boks Aktif</span>
+                  <span>
+                    {fasilitasUtama.aktif.totalLembar.toLocaleString('id-ID')} /{' '}
+                    {fasilitasUtama.aktif.kapasitasMaks.toLocaleString('id-ID')} lbr
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Fasilitas 2: Ruang Simpan Inaktif (Gedung Inaktif) */}
+            <div className="rounded-xl border border-[#ECEEF5] bg-[#F7F8FC] p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-[#EDE9FE] text-[#6D28D9]">
+                    <Warehouse className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <p className="text-xs font-bold text-[#1F2333]">{fasilitasUtama.inaktif.nama}</p>
+                    <p className="text-[11px] text-[#6B7185]">{fasilitasUtama.inaktif.gedung}</p>
+                  </div>
+                </div>
+                <span
+                  className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
+                    fasilitasUtama.inaktif.persen >= 90
+                      ? 'bg-[#FDECEC] text-[#D64545] border border-[#FECACA]'
+                      : fasilitasUtama.inaktif.persen >= 75
+                      ? 'bg-[#FEF7E0] text-[#B06000] border border-[#FEEFC3]'
+                      : 'bg-[#E7F6EC] text-[#2F9E5B]'
+                  }`}
+                >
+                  {fasilitasUtama.inaktif.persen}% Kapasitas
+                </span>
+              </div>
+              <div className="space-y-1">
+                <div className="h-2 w-full rounded-full bg-[#E5E7EB] overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      fasilitasUtama.inaktif.persen >= 90
+                        ? 'bg-[#D64545]'
+                        : fasilitasUtama.inaktif.persen >= 75
+                        ? 'bg-[#E37400]'
+                        : 'bg-[#2F9E5B]'
+                    }`}
+                    style={{ width: `${fasilitasUtama.inaktif.persen}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-[#6B7185]">
+                  <span>{fasilitasUtama.inaktif.totalBoks} Boks Inaktif</span>
+                  <span>
+                    {fasilitasUtama.inaktif.totalLembar.toLocaleString('id-ID')} /{' '}
+                    {fasilitasUtama.inaktif.kapasitasMaks.toLocaleString('id-ID')} lbr
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Peringatan Kapasitas Melebihi 80% */}
         {(() => {
@@ -1163,8 +1498,103 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
         )}
       </div>
 
-      {/* 5. Tindakan Prioritas: Antrean Persetujuan Cepat (Atasan) VS Tabel Prioritas (PIC) */}
-      {isAtasanAktif ? (
+      {/* 5. Tindakan & Monitoring: Log Audit (Superadmin) VS Approval (Atasan) VS Prioritas (PIC) */}
+      {isSuperadmin ? (
+        /* Widget Log Audit & Aktivitas Sistem Terbaru (Khusus Superadmin) */
+        <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#ECEEF5] pb-3">
+            <div>
+              <h2 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
+                <Activity className="h-5 w-5 text-[#4F46E5]" />
+                <span>Log Audit &amp; Aktivitas Sistem Terkini</span>
+              </h2>
+              <p className="text-xs text-[#6B7185] mt-0.5">
+                Riwayat 10 transaksi operasional dan aktivitas keamanan kearsipan terbaru dari tabel <code>log_aktivitas</code>.
+              </p>
+            </div>
+            <Link
+              href="/riwayat"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#D5D9E2] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#1F2333] shadow-2xs hover:bg-[#F7F8FC] transition-colors self-start sm:self-auto"
+            >
+              <span>Lihat Semua Log Audit</span>
+              <ArrowRight className="w-3.5 h-3.5 text-[#4F46E5]" />
+            </Link>
+          </div>
+
+          {recentLogs.length === 0 ? (
+            <div className="py-12 text-center text-xs text-[#8A90A2] space-y-1">
+              <CheckCircle2 className="h-8 w-8 mx-auto text-[#2F9E5B] stroke-[1.5]" />
+              <p className="font-semibold text-[#1F2333]">Belum Ada Entri Log Aktivitas</p>
+              <p>Seluruh aktivitas sistem kearsipan akan tercatat otomatis di sini.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-[#ECEEF5] bg-[#F7F8FC] text-[#4B5163]">
+                    <th className="py-2.5 px-3 font-semibold w-12 text-center">No</th>
+                    <th className="py-2.5 px-3 font-semibold whitespace-nowrap">Waktu / Tanggal</th>
+                    <th className="py-2.5 px-3 font-semibold">Nama Pengguna</th>
+                    <th className="py-2.5 px-3 font-semibold">Peran</th>
+                    <th className="py-2.5 px-3 font-semibold">Tindakan</th>
+                    <th className="py-2.5 px-3 font-semibold">Dokumen / Objek</th>
+                    <th className="py-2.5 px-3 font-semibold">Keterangan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#ECEEF5]">
+                  {recentLogs.map((log, idx) => {
+                    const badge = aksiLogBadges[log.aksi] || {
+                      label: log.aksi || 'Aktivitas',
+                      className: 'bg-[#F3F4F6] text-[#4B5563] border-[#E5E7EB]',
+                    }
+                    const userName = log.user?.nama_lengkap || log.user?.email || 'Sistem'
+                    const userRoleStr = (log.user?.role || '-').replace('_', ' ')
+
+                    return (
+                      <tr key={log.id} className="hover:bg-[#F7F8FC] transition-colors">
+                        <td className="py-3 px-3 text-center text-[#6B7185] font-semibold">{idx + 1}</td>
+                        <td className="py-3 px-3 font-mono text-[#6B7185] whitespace-nowrap">
+                          {formatLogDate(log.created_at)}
+                        </td>
+                        <td className="py-3 px-3 font-medium text-[#1F2333] whitespace-nowrap">
+                          {userName}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <span className="capitalize text-[11px] font-medium text-[#6B7185] bg-[#F0F2F7] px-2 py-0.5 rounded">
+                            {userRoleStr}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <span
+                            className={`inline-block rounded-md border px-2 py-0.5 text-[11px] font-bold ${badge.className}`}
+                          >
+                            {badge.label}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 min-w-[160px] max-w-xs">
+                          {log.dokumen?.kode_arsip ? (
+                            <div>
+                              <KodeArsip kode={log.dokumen.kode_arsip} className="text-[11px]" />
+                              <p className="font-semibold text-[#1F2333] truncate mt-0.5">
+                                {log.dokumen.judul}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-[#8A90A2]">-</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 text-[#4B5163] max-w-sm truncate" title={log.keterangan}>
+                          {log.keterangan || '-'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : isAtasanAktif ? (
         /* Antrean Persetujuan Cepat Khusus Atasan Aktif */
         <div id="antrean-persetujuan" className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#ECEEF5] pb-3">
@@ -1456,13 +1886,19 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
         </div>
       )}
 
-      {/* 6. Daftar Dokumen Unit & Status Umum */}
+      {/* 6. Daftar Dokumen Unit & Status Umum (Atau Global Perusahaan untuk Superadmin) */}
       <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#ECEEF5] pb-3">
           <div>
-            <h2 className="text-base font-bold text-[#1F2333]">Daftar Seluruh Dokumen Unit</h2>
+            <h2 className="text-base font-bold text-[#1F2333]">
+              {isSuperadmin
+                ? 'Daftar Seluruh Dokumen Arsip (Global Perusahaan)'
+                : 'Daftar Seluruh Dokumen Unit'}
+            </h2>
             <p className="text-xs text-[#6B7185] mt-0.5">
-              Semua berkas arsip yang terdaftar pada unit pengolah <strong>{userUnitName}</strong>.
+              {isSuperadmin
+                ? 'Semua berkas arsip aktif & inaktif yang terdaftar di seluruh unit organisasi / departemen perusahaan.'
+                : `Semua berkas arsip yang terdaftar pada unit pengolah ${userUnitName}.`}
             </p>
           </div>
 
