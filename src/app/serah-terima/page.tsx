@@ -489,10 +489,10 @@ export default function SerahTerimaPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-serif font-bold tracking-tight text-[#111827] sm:text-3xl">
-              Serah Terima Fisik Dokumen
+              Penyimpanan Dokumen
             </h1>
             <p className="mt-1 text-sm text-[#4B5E76]">
-              Pencatatan perpindahan fisik dokumen arsip aktif menggunakan pemindaian QR / barcode scanner kasir & mobile.
+              Pencatatan perpindahan fisik dokumen arsip aktif menggunakan pemindaian QR / barcode scanner kasir &amp; mobile.
             </p>
           </div>
           <button
@@ -548,7 +548,7 @@ export default function SerahTerimaPage() {
             }`}
           >
             <History className="h-4 w-4" />
-            <span>Riwayat Serah Terima</span>
+            <span>Riwayat Penyimpanan</span>
           </button>
         </div>
 
@@ -903,7 +903,7 @@ export default function SerahTerimaPage() {
           <div className="rounded-xl border border-[#CBD7E3] bg-white p-6 shadow-xs space-y-4">
             <div className="border-b border-[#CBD7E3] pb-4">
               <h2 className="text-base font-semibold text-[#111827]">
-                Riwayat Lengkap Serah Terima Dokumen
+                Penyimpanan Dokumen
               </h2>
               <p className="text-xs text-[#4B5E76]">
                 Daftar rekaman seluruh perpindahan fisik dokumen arsip beserta tautan Berita Acara PDF resmi
@@ -912,15 +912,16 @@ export default function SerahTerimaPage() {
 
             {historyTransfers.length === 0 ? (
               <div className="rounded-lg border border-dashed border-[#CBD7E3] p-10 text-center text-xs text-[#64748B]">
-                <p>Belum ada rekaman serah terima dokumen dalam sistem.</p>
+                <p>Belum ada rekaman penyimpanan dokumen dalam sistem.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-[#CBD7E3] bg-[#F8FAFC] text-[#1E3A5F] font-semibold uppercase tracking-wider text-[11px]">
+                      <th className="py-3 px-3 w-12 text-center">No.</th>
                       <th className="py-3 px-3">Tanggal</th>
-                      <th className="py-3 px-3">Kode Arsip & Judul</th>
+                      <th className="py-3 px-3">Kode Arsip &amp; Judul</th>
                       <th className="py-3 px-3">Pihak Penyerah</th>
                       <th className="py-3 px-3">Pihak Penerima</th>
                       <th className="py-3 px-3">Lokasi Baru</th>
@@ -929,8 +930,11 @@ export default function SerahTerimaPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E2E8F0]">
-                    {historyTransfers.map((item) => (
+                    {historyTransfers.map((item, idx) => (
                       <tr key={item.id} className="hover:bg-[#F8FAFC]">
+                        <td className="py-3 px-3 text-center font-medium text-[#64748B]">
+                          {idx + 1}
+                        </td>
                         <td className="py-3 px-3 whitespace-nowrap text-[#64748B]">
                           {new Date(item.tanggal_serah).toLocaleDateString('id-ID', {
                             day: '2-digit',
