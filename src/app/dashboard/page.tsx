@@ -1103,7 +1103,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
           </>
         ) : isAtasanAktif ? (
           <>
-            {/* Card 1 (Highlight/Warna Menarik): Butuh Persetujuan */}
+            {/* Card 1: Butuh Persetujuan (Putih Bersih) */}
             <StatCard
               title="Butuh Persetujuan"
               subtitle="Menunggu Verifikasi Atasan"
@@ -1113,7 +1113,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               trendUp={totalMenunggu === 0}
               note="antrean verifikasi unit"
               href="#antrean-persetujuan"
-              highlight={true}
+              highlight={false}
             />
 
             {/* Card 2: Arsip Aktif */}
