@@ -1485,20 +1485,25 @@ function DaftarDokumenContent() {
                         <td className="whitespace-nowrap px-4 py-3.5">
                           <KodeArsip kode={doc.kode_arsip} prefix="#" className="font-mono text-xs text-[#1F2333] font-semibold select-all" />
                         </td>
-                        <td className="px-4 py-3.5 min-w-[200px] max-w-[320px]">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <Link href={`/dokumen/${doc.id}`} className="block truncate font-semibold text-[#1F2333] hover:text-[#1E86C8]">
-                              {doc.judul}
-                            </Link>
-                            {doc.pemilik_id === userId && (
-                              <span className="inline-flex shrink-0 items-center rounded-full bg-[#EBF5FB] px-2 py-0.5 text-[10px] font-semibold text-[#1E86C8] border border-[#3BA4E8]/20">
-                                Milik Anda
+                        <td className="px-4 py-3.5 min-w-[240px] max-w-[360px]">
+                          <div className="flex items-center gap-3">
+                            <MiniGlassFolder kategori={doc.kategori} status={doc.status} />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <Link href={`/dokumen/${doc.id}`} className="block truncate font-semibold text-[#1F2333] hover:text-[#1E86C8]">
+                                  {doc.judul}
+                                </Link>
+                                {doc.pemilik_id === userId && (
+                                  <span className="inline-flex shrink-0 items-center rounded-full bg-[#EBF5FB] px-2 py-0.5 text-[10px] font-semibold text-[#1E86C8] border border-[#3BA4E8]/20">
+                                    Milik Anda
+                                  </span>
+                                )}
+                              </div>
+                              <span className="block text-xs text-[#8A90A2] mt-0.5">
+                                Tgl: {formatTanggal(doc.tanggal_dokumen)}
                               </span>
-                            )}
+                            </div>
                           </div>
-                          <span className="block text-xs text-[#8A90A2] mt-0.5">
-                            Tgl: {formatTanggal(doc.tanggal_dokumen)}
-                          </span>
                         </td>
                         <td className="whitespace-nowrap px-4 py-3.5 text-xs text-[#4B5163]">
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#F1F5F9] text-[#475569]">
