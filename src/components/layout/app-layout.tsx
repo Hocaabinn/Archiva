@@ -25,6 +25,7 @@ import {
   Eye,
   Archive,
   Building2,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { UserRole } from '@/types'
 import { createClient } from '@/lib/supabase/client'
@@ -219,6 +220,12 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
       roles: ['superadmin'],
     },
     {
+      label: 'Laporan Rekapitulasi',
+      href: '/laporan',
+      icon: FileSpreadsheet,
+      roles: ['superadmin'],
+    },
+    {
       label: 'Kelola Pengguna',
       href: '/pengaturan/pengguna',
       icon: UserRound,
@@ -257,8 +264,8 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
       roles: ['pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif', 'staff'],
       children: [
         { label: 'Daftar Dokumen', href: '/dokumen', roles: ['pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif', 'staff'] },
-        { label: 'Transfer Dokumen', href: '/transfer-arsip', roles: ['pic_aktif', 'pic_inaktif'] },
-        { label: 'Verifikasi Dokumen', href: '/persetujuan/verifikasi-transfer', roles: ['pic_inaktif'] },
+        { label: 'Transfer Dokumen', href: '/transfer-dokumen', roles: ['pic_aktif', 'pic_inaktif'] },
+        { label: 'Verifikasi Dokumen', href: '/verifikasi-transfer', roles: ['pic_inaktif'] },
         { label: 'Persetujuan Entri', href: '/persetujuan', roles: ['atasan_aktif', 'atasan_inaktif'] },
         { label: 'Penyimpanan Dokumen', href: '/serah-terima', roles: ['pic_aktif', 'pic_inaktif'] },
       ],
@@ -268,6 +275,12 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
       href: '/peminjaman',
       icon: BookOpenCheck,
       roles: ['pic_inaktif', 'atasan_inaktif', 'pic_aktif', 'staff'],
+    },
+    {
+      label: 'Laporan Rekapitulasi',
+      href: '/laporan',
+      icon: FileSpreadsheet,
+      roles: ['pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif', 'staff'],
     },
     {
       label: 'Log Riwayat',

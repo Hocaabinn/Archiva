@@ -1,6 +1,8 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+import QRCode from 'qrcode'
 
 export interface ItemDokumenTransfer {
+  nomorPayment?: string
   kodeArsip: string
   judul: string
   kategori: string
@@ -23,14 +25,15 @@ export interface BeritaAcaraTransferData {
     nama: string
     email: string
     jabatan?: string
+    unit?: string
   }
   dokumenList: ItemDokumenTransfer[]
   catatan?: string
 }
 
 /**
- * Membuat dokumen PDF Berita Acara Penyerahan Arsip Kedaluwarsa / Mendekati Kedaluwarsa
- * Sesuai Standar PT Semen Indonesia (Persero) Tbk - Archiva R.03 (M8)
+ * Membuat dokumen PDF Berita Acara Serah Terima Arsip (BAST)
+ * Sesuai Standar PT Semen Indonesia (Persero) Tbk - Archiva R.03
  */
 export async function generateBeritaAcaraTransferPDF(data: BeritaAcaraTransferData): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create()
@@ -85,15 +88,15 @@ export async function generateBeritaAcaraTransferPDF(data: BeritaAcaraTransferDa
   y -= 20
 
   // 2. JUDUL DOKUMEN BERITA ACARA
-  page.drawText('BERITA ACARA PENYERAHAN ARSIP AKTIF KE INAKTIF', {
+  page.drawText('BERITA ACARA SERAH TERIMA ARSIP (BAST)', {
     x: 50,
     y,
-    size: 12,
+    size: 13,
     font: fontBold,
     color: darkGray,
   })
   y -= 14
-  page.drawText(`Nomor Registrasi Penyerahan: ${data.nomorBa}`, {
+  page.drawText(`Nomor BAST: ${data.nomorBa}`, {
     x: 50,
     y,
     size: 9.5,
@@ -124,7 +127,7 @@ export async function generateBeritaAcaraTransferPDF(data: BeritaAcaraTransferDa
 
   // 4. KOTAK PIHAK PENYERAH & PENERIMA
   const boxWidth = (width - 110) / 2
-  const boxHeight = 70
+  const boxHeight = 72
 
   // Pihak Penyerah (PIC Arsip Aktif)
   page.drawRectangle({
@@ -136,16 +139,17 @@ export async function generateBeritaAcaraTransferPDF(data: BeritaAcaraTransferDa
     borderWidth: 1,
     color: rgb(0.97, 0.98, 1),
   })
-  page.drawText('PIHAK I — PENYERAH (PIC ARSIP AKTIF):', {
+  page.drawText('PIHAK PERTAMA (PENYERAH):', {
     x: 58,
     y: y - 14,
     size: 8,
     font: fontBold,
     color: navyColor,
   })
-  page.drawText(`Nama   : ${data.pengirim.nama}`, { x: 58, y: y - 28, size: 8, font: fontRegular, color: darkGray })
-  page.drawText(`Unit   : ${data.pengirim.unit}`, { x: 58, y: y - 40, size: 8, font: fontRegular, color: darkGray })
-  page.drawText(`Surel  : ${data.pengirim.email}`, { x: 58, y: y - 52, size: 7.5, font: fontRegular, color: mediumGray })
+  page.drawText(`Nama       : ${data.pengirim.nama}`, { x: 58, y: y - 28, size: 8, font: fontRegular, color: darkGray })
+  page.drawText(`Peran      : PIC Arsip Aktif`, { x: 58, y: y - 40, size: 8, font: fontRegular, color: darkGray })
+  page.drawText(`Unit Kerja : ${data.pengirim.unit}`, { x: 58, y: y - 52, size: 8, font: fontRegular, color: darkGray })
+  page.drawText(`Surel      : ${data.pengirim.email}`, { x: 58, y: y - 64, size: 7.5, font: fontRegular, color: mediumGray })
 
   // Pihak Penerima (PIC Arsip Inaktif)
   page.drawRectangle({
@@ -157,21 +161,22 @@ export async function generateBeritaAcaraTransferPDF(data: BeritaAcaraTransferDa
     borderWidth: 1,
     color: rgb(0.97, 0.98, 1),
   })
-  page.drawText('PIHAK II — PENERIMA (PIC ARSIP INAKTIF):', {
+  page.drawText('PIHAK KEDUA (PENERIMA):', {
     x: 68 + boxWidth,
     y: y - 14,
     size: 8,
     font: fontBold,
     color: navyColor,
   })
-  page.drawText(`Nama   : ${data.penerima.nama}`, { x: 68 + boxWidth, y: y - 28, size: 8, font: fontRegular, color: darkGray })
-  page.drawText(`Peran  : Pengelola Gudang Inaktif`, { x: 68 + boxWidth, y: y - 40, size: 8, font: fontRegular, color: darkGray })
-  page.drawText(`Surel  : ${data.penerima.email}`, { x: 68 + boxWidth, y: y - 52, size: 7.5, font: fontRegular, color: mediumGray })
+  page.drawText(`Nama       : ${data.penerima.nama}`, { x: 68 + boxWidth, y: y - 28, size: 8, font: fontRegular, color: darkGray })
+  page.drawText(`Peran      : PIC Arsip Inaktif`, { x: 68 + boxWidth, y: y - 40, size: 8, font: fontRegular, color: darkGray })
+  page.drawText(`Unit Kerja : ${data.penerima.unit || 'Gudang Inaktif (Unit Kearsipan Inaktif)'}`, { x: 68 + boxWidth, y: y - 52, size: 8, font: fontRegular, color: darkGray })
+  page.drawText(`Surel      : ${data.penerima.email}`, { x: 68 + boxWidth, y: y - 64, size: 7.5, font: fontRegular, color: mediumGray })
 
   y -= boxHeight + 20
 
-  // 5. TABEL DAFTAR DOKUMEN YANG DISERAHKAN
-  page.drawText(`DAFTAR BERKAS DOKUMEN YANG DISERAHKAN (${data.dokumenList.length} BERKAS):`, {
+  // 5. TABEL DAFTAR BERKAS DOKUMEN
+  page.drawText(`DAFTAR BERKAS ARSIP YANG DISERAHKAN (${data.dokumenList.length} BERKAS):`, {
     x: 50,
     y,
     size: 9,
@@ -190,18 +195,18 @@ export async function generateBeritaAcaraTransferPDF(data: BeritaAcaraTransferDa
     borderColor: lightBorder,
     borderWidth: 1,
   })
-  page.drawText('NO', { x: 55, y: y - 12, size: 7.5, font: fontBold, color: navyColor })
-  page.drawText('KODE ARSIP (SIG)', { x: 75, y: y - 12, size: 7.5, font: fontBold, color: navyColor })
-  page.drawText('JUDUL / PERIHAL', { x: 215, y: y - 12, size: 7.5, font: fontBold, color: navyColor })
-  page.drawText('KATEGORI', { x: 350, y: y - 12, size: 7.5, font: fontBold, color: navyColor })
-  page.drawText('BOKS', { x: 405, y: y - 12, size: 7.5, font: fontBold, color: navyColor })
-  page.drawText('HAL', { x: 460, y: y - 12, size: 7.5, font: fontBold, color: navyColor })
-  page.drawText('RETENSI', { x: 495, y: y - 12, size: 7.5, font: fontBold, color: navyColor })
+  page.drawText('NO', { x: 54, y: y - 12, size: 7, font: fontBold, color: navyColor })
+  page.drawText('NO. PAYMENT', { x: 74, y: y - 12, size: 7, font: fontBold, color: navyColor })
+  page.drawText('KODE ARSIP (SIG)', { x: 145, y: y - 12, size: 7, font: fontBold, color: navyColor })
+  page.drawText('JUDUL / PERIHAL', { x: 280, y: y - 12, size: 7, font: fontBold, color: navyColor })
+  page.drawText('HAL', { x: 415, y: y - 12, size: 7, font: fontBold, color: navyColor })
+  page.drawText('BOKS ASAL', { x: 445, y: y - 12, size: 7, font: fontBold, color: navyColor })
+  page.drawText('STATUS', { x: 500, y: y - 12, size: 7, font: fontBold, color: navyColor })
 
   y -= 18
 
-  // Batasi daftar dokumen yang dirender agar tidak overlap dengan blok tanda tangan pada dokumen multi-item
-  const maxDocsToRender = 16
+  // Batasi daftar dokumen yang dirender agar tidak overlap
+  const maxDocsToRender = 15
   const renderedDocs = data.dokumenList.slice(0, maxDocsToRender)
 
   renderedDocs.forEach((doc, idx) => {
@@ -217,22 +222,25 @@ export async function generateBeritaAcaraTransferPDF(data: BeritaAcaraTransferDa
       borderWidth: 0.5,
     })
 
-    page.drawText(String(idx + 1), { x: 55, y: y - 12, size: 7.5, font: fontRegular, color: darkGray })
-    page.drawText(doc.kodeArsip, { x: 75, y: y - 12, size: 7, font: fontMono, color: navyColor })
+    page.drawText(String(idx + 1), { x: 54, y: y - 12, size: 7, font: fontRegular, color: darkGray })
+    page.drawText(doc.nomorPayment || '-', { x: 74, y: y - 12, size: 6.5, font: fontMonoBold, color: navyColor })
 
-    const judulTruncated = doc.judul.length > 28 ? doc.judul.substring(0, 25) + '...' : doc.judul
-    page.drawText(judulTruncated, { x: 215, y: y - 12, size: 7.5, font: fontRegular, color: darkGray })
-    page.drawText(doc.kategori || 'Umum', { x: 350, y: y - 12, size: 7, font: fontRegular, color: darkGray })
-    page.drawText(doc.nomorBoks || '-', { x: 405, y: y - 12, size: 6.5, font: fontMono, color: navyColor })
-    page.drawText(`${doc.jumlahHalaman} lbr`, { x: 460, y: y - 12, size: 7, font: fontRegular, color: darkGray })
+    const kodeTrunc = doc.kodeArsip.length > 22 ? doc.kodeArsip.substring(0, 20) + '..' : doc.kodeArsip
+    page.drawText(kodeTrunc, { x: 145, y: y - 12, size: 6.5, font: fontMono, color: navyColor })
+
+    const judulTruncated = doc.judul.length > 25 ? doc.judul.substring(0, 23) + '...' : doc.judul
+    page.drawText(judulTruncated, { x: 280, y: y - 12, size: 7, font: fontRegular, color: darkGray })
+
+    page.drawText(`${doc.jumlahHalaman} lbr`, { x: 415, y: y - 12, size: 7, font: fontRegular, color: darkGray })
+    page.drawText(doc.nomorBoks || '-', { x: 445, y: y - 12, size: 6.5, font: fontMono, color: navyColor })
 
     const statusRetensi = doc.sisaHari <= 0 ? 'Kedaluwarsa' : `H-${doc.sisaHari}`
-    page.drawText(statusRetensi, { x: 495, y: y - 12, size: 7, font: fontBold, color: rgb(0.8, 0.2, 0.2) })
+    page.drawText(statusRetensi, { x: 500, y: y - 12, size: 6.5, font: fontBold, color: rgb(0.8, 0.2, 0.2) })
 
     y -= rowH
   })
 
-  y -= 18
+  y -= 14
 
   // 6. CATATAN KETENTUAN
   const catatanKetentuan =
@@ -240,33 +248,65 @@ export async function generateBeritaAcaraTransferPDF(data: BeritaAcaraTransferDa
   page.drawText(catatanKetentuan, {
     x: 50,
     y,
-    size: 7.5,
+    size: 7.2,
     font: fontRegular,
     color: mediumGray,
     maxWidth: width - 100,
-    lineHeight: 10.5,
+    lineHeight: 10,
   })
-  y -= 35
 
-  // 7. KOLOM TANDA TANGAN
-  const ttdY = 100
-  page.drawText('Diserahkan oleh,', { x: 75, y: ttdY + 30, size: 8.5, font: fontRegular, color: darkGray })
-  page.drawText('PIC Arsip Aktif (Pihak I)', { x: 75, y: ttdY + 18, size: 8, font: fontBold, color: navyColor })
-  page.drawLine({ start: { x: 75, y: ttdY - 20 }, end: { x: 220, y: ttdY - 20 }, thickness: 1, color: darkGray })
-  page.drawText(data.pengirim.nama, { x: 75, y: ttdY - 32, size: 8, font: fontBold, color: darkGray })
+  // 7. FOOTER TANDA TANGAN KEDUA BELAH PIHAK & KODE QR VERIFIKASI
+  const ttdY = 95
 
-  page.drawText('Diterima & Diverifikasi oleh,', { x: width - 225, y: ttdY + 30, size: 8.5, font: fontRegular, color: darkGray })
-  page.drawText('PIC Arsip Inaktif (Pihak II)', { x: width - 225, y: ttdY + 18, size: 8, font: fontBold, color: navyColor })
-  page.drawLine({ start: { x: width - 225, y: ttdY - 20 }, end: { x: width - 80, y: ttdY - 20 }, thickness: 1, color: darkGray })
-  page.drawText(data.penerima.nama, { x: width - 225, y: ttdY - 32, size: 8, font: fontBold, color: darkGray })
+  // Tanda Tangan Pihak I
+  page.drawText('Pihak Pertama (Penyerah),', { x: 50, y: ttdY + 28, size: 8, font: fontRegular, color: darkGray })
+  page.drawText('PIC Arsip Aktif Unit Kerja', { x: 50, y: ttdY + 16, size: 7.5, font: fontBold, color: navyColor })
+  page.drawLine({ start: { x: 50, y: ttdY - 20 }, end: { x: 190, y: ttdY - 20 }, thickness: 1, color: darkGray })
+  page.drawText(data.pengirim.nama, { x: 50, y: ttdY - 32, size: 8, font: fontBold, color: darkGray })
 
-  // Footer Dokumen
-  page.drawText(`Archiva — Berita Acara Transfer Dokumen | Dicetak: ${new Date().toISOString()}`, {
+  // Tanda Tangan Pihak II
+  page.drawText('Pihak Kedua (Penerima),', { x: width - 190, y: ttdY + 28, size: 8, font: fontRegular, color: darkGray })
+  page.drawText('PIC Arsip Inaktif (Gudang)', { x: width - 190, y: ttdY + 16, size: 7.5, font: fontBold, color: navyColor })
+  page.drawLine({ start: { x: width - 190, y: ttdY - 20 }, end: { x: width - 50, y: ttdY - 20 }, thickness: 1, color: darkGray })
+  page.drawText(data.penerima.nama, { x: width - 190, y: ttdY - 32, size: 8, font: fontBold, color: darkGray })
+
+  // QR Code Verifikasi di Tengah
+  try {
+    const qrDataUrl = await QRCode.toDataURL(data.nomorBa, {
+      margin: 1,
+      width: 120,
+      color: { dark: '#1E3A5F', light: '#FFFFFF' },
+    })
+    const qrImageBytes = Buffer.from(qrDataUrl.split(',')[1], 'base64')
+    const qrImage = await pdfDoc.embedPng(qrImageBytes)
+    const qrSize = 54
+    const qrX = (width - qrSize) / 2
+    const qrY = ttdY - 26
+
+    page.drawImage(qrImage, {
+      x: qrX,
+      y: qrY,
+      width: qrSize,
+      height: qrSize,
+    })
+    page.drawText('QR Validasi BAST', {
+      x: qrX - 4,
+      y: qrY - 9,
+      size: 6.5,
+      font: fontBold,
+      color: navyColor,
+    })
+  } catch (qrErr) {
+    console.error('Gagal generate QR Code PDF:', qrErr)
+  }
+
+  // Footer Dokumen Paling Bawah
+  page.drawText(`Archiva — Berita Acara Serah Terima Arsip (BAST) | Dokumen Resmi PT Semen Indonesia (Persero) Tbk | ${data.nomorBa}`, {
     x: 50,
-    y: 25,
-    size: 7,
+    y: 20,
+    size: 6.5,
     font: fontRegular,
-    color: rgb(0.6, 0.6, 0.6),
+    color: rgb(0.55, 0.55, 0.55),
   })
 
   return await pdfDoc.save()

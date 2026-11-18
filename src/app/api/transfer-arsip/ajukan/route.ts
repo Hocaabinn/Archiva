@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}))
-    const { dokumen_ids, catatan } = body
+    const dokumen_ids = body.dokumen_ids || body.dokumenIds
+    const catatan = body.catatan
 
     if (!Array.isArray(dokumen_ids) || dokumen_ids.length === 0) {
       return NextResponse.json({ error: 'Pilih minimal 1 dokumen untuk ditransfer ke Inaktif.' }, { status: 400 })
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
     const { data: docs, error: docErr } = await admin
       .from('dokumen')
       .select(`
-        id, kode_arsip, judul, status, jumlah_halaman, tanggal_kadaluarsa, lokasi_saat_ini, boks_id,
+        id, kode_arsip, nomor_dokumen, nomor_ppl, judul, status, jumlah_halaman, tanggal_kadaluarsa, lokasi_saat_ini, boks_id,
         kategori_dokumen:kategori_id(nama),
         boks:boks_id(nomor_boks),
         dokumen_boks(urutan, jumlah_lembar, boks:boks_id(nomor_boks))
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date()
-    const nomorBa = `BA-TRANSFER/${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}/${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+    const nomorBa = `BAST-TRANSFER/${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}/${Math.random().toString(36).substring(2, 8).toUpperCase()}`
 
     // 3. Susun data untuk PDF Berita Acara (Mencantumkan seluruh nomor boks)
     const dokumenListForPdf = docs.map((d: any) => {
@@ -124,7 +125,11 @@ export async function POST(request: NextRequest) {
         nomorBoksLabel = `B.${d.boks.nomor_boks}`
       }
 
+      const parts = (d.kode_arsip || '').split('_')
+      const paymentNumber = d.nomor_ppl || d.nomor_dokumen || (parts.length >= 3 ? parts[2] : '-')
+
       return {
+        nomorPayment: paymentNumber,
         kodeArsip: d.kode_arsip,
         judul: d.judul,
         kategori: d.kategori_dokumen?.nama || 'Umum',

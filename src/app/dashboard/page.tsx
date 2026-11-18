@@ -593,7 +593,7 @@ function DashboardBody() {
               }`}
             >
               <FileText className="h-3.5 w-3.5" />
-              <span>Berkas / Lembar</span>
+              <span>Tampilkan Berkas</span>
             </button>
             <button
               type="button"
@@ -605,7 +605,7 @@ function DashboardBody() {
               }`}
             >
               <Package className="h-3.5 w-3.5" />
-              <span>Satuan Boks Fisik</span>
+              <span>Tampilkan Boks</span>
             </button>
           </div>
 
@@ -802,6 +802,31 @@ function DashboardBody() {
           </span>
         </div>
 
+        {/* Peringatan Kapasitas Melebihi 80% */}
+        {(() => {
+          const raksOver80 = rakOccupancyList.filter((r) => r.persenTerpakai >= 80)
+          if (raksOver80.length === 0) return null
+          return (
+            <div className="flex items-start gap-3 rounded-xl border border-[#FCA5A5] bg-[#FEF2F2] p-3.5 text-xs text-[#991B1B] shadow-2xs">
+              <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-[#DC2626]" />
+              <div className="space-y-0.5">
+                <p className="font-bold text-[#B91C1C]">
+                  Peringatan Kapasitas (Keterisian &ge; 80%): Terdapat {raksOver80.length} rak yang hampir penuh!
+                </p>
+                <p className="text-[11px] text-[#7F1D1D]">
+                  Lokasi:{' '}
+                  <strong>
+                    {raksOver80
+                      .map((r) => `${r.rakNama} (${r.ruanganNama} — ${r.persenTerpakai}%)`)
+                      .join(', ')}
+                  </strong>
+                  . Segera persiapkan penambahan boks baru atau alokasikan dokumen ke rak yang masih kosong.
+                </p>
+              </div>
+            </div>
+          )
+        })()}
+
         {rakOccupancyList.length === 0 ? (
           <p className="text-xs text-[#8A90A2] py-4 text-center">Belum ada master rak terdaftar.</p>
         ) : (
@@ -810,10 +835,15 @@ function DashboardBody() {
               // Styling status kapasitas
               let progressColor = 'bg-[#3BA4E8]'
               let badgeColor = 'text-[#1E86C8] bg-[#EEF7FD]'
+              const isAlert80 = rak.persenTerpakai >= 80
+
               if (rak.persenTerpakai >= 90) {
                 progressColor = 'bg-[#D64545]'
-                badgeColor = 'text-[#D64545] bg-[#FFF5F5]'
-              } else if (rak.persenTerpakai >= 70) {
+                badgeColor = 'text-[#D64545] bg-[#FFF5F5] border border-[#FECACA]'
+              } else if (rak.persenTerpakai >= 80) {
+                progressColor = 'bg-[#E11D48]'
+                badgeColor = 'text-[#BE123C] bg-[#FFE4E6] border border-[#FECDD3]'
+              } else if (rak.persenTerpakai >= 60) {
                 progressColor = 'bg-[#F29900]'
                 badgeColor = 'text-[#B06000] bg-[#FEF7E0]'
               }
@@ -821,11 +851,20 @@ function DashboardBody() {
               return (
                 <div
                   key={rak.rakId}
-                  className="rounded-xl border border-[#ECEEF5] bg-[#F7F8FC] p-4 flex flex-col justify-between gap-3 hover:border-[#3BA4E8]/40 transition-colors"
+                  className={`rounded-xl border p-4 flex flex-col justify-between gap-3 transition-colors ${
+                    isAlert80
+                      ? 'border-[#FCA5A5] bg-[#FFF8F8] hover:border-[#F87171]'
+                      : 'border-[#ECEEF5] bg-[#F7F8FC] hover:border-[#3BA4E8]/40'
+                  }`}
                 >
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#1F2333]">{rak.rakNama}</span>
+                      <div className="flex items-center gap-1.5">
+                        {isAlert80 && <AlertTriangle className="h-3.5 w-3.5 text-[#DC2626] shrink-0" />}
+                        <span className={`text-xs font-bold ${isAlert80 ? 'text-[#991B1B]' : 'text-[#1F2333]'}`}>
+                          {rak.rakNama}
+                        </span>
+                      </div>
                       <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${badgeColor}`}>
                         {rak.persenTerpakai}% Penuh
                       </span>
