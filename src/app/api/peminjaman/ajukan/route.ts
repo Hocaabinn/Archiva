@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     if (doc.status !== 'inaktif') {
       return NextResponse.json(
         {
-          error: `Dokumen tidak dapat dipinjam karena status saat ini '${doc.status}'. Sesuai ketentuan Blueprint 3.6, hanya dokumen Inaktif yang dapat dipinjam. Dokumen Aktif dapat diakses langsung.`,
+          error: `Dokumen tidak dapat dipinjam karena status saat ini '${doc.status}'. Hanya dokumen Inaktif yang dapat dipinjam. Dokumen Aktif dapat diakses langsung.`,
         },
         { status: 400 }
       )

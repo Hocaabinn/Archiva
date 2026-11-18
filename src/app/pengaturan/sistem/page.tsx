@@ -87,7 +87,7 @@ export default function PengaturanSistemPage() {
             <div className="space-y-1">
               <div className="inline-flex items-center gap-2 rounded-full border border-[#3BA4E8]/30 bg-white/80 px-3 py-1 text-xs font-semibold text-[#1E86C8]">
                 <Settings className="h-3.5 w-3.5" />
-                Konfigurasi Parameter Kedinasan R.03
+                Konfigurasi Parameter Sistem Kearsipan
               </div>
               <h1 className="text-2xl font-bold tracking-tight text-[#1F2333]">
                 Pengaturan Sistem Arsip
@@ -209,7 +209,7 @@ export default function PengaturanSistemPage() {
                   </span>
                 </div>
                 <p className="text-xs leading-relaxed text-[#4B5163]">
-                  Sesuai ketentuan keamanan kedinasan R.03, seluruh kredensial SMTP (<code className="bg-white px-1.5 py-0.5 rounded border border-[#D5D9E2] font-mono text-[#1F2333]">SMTP_HOST</code>, <code className="bg-white px-1.5 py-0.5 rounded border border-[#D5D9E2] font-mono text-[#1F2333]">SMTP_PORT</code>, <code className="bg-white px-1.5 py-0.5 rounded border border-[#D5D9E2] font-mono text-[#1F2333]">SMTP_USER</code>, <code className="bg-white px-1.5 py-0.5 rounded border border-[#D5D9E2] font-mono text-[#1F2333]">SMTP_PASS</code>) dikelola langsung via variabel lingkungan server dan <strong>tidak ditampilkan pada antarmuka grafis UI</strong> guna mencegah kebocoran data rahasia.
+                  Sesuai ketentuan keamanan kedinasan, seluruh kredensial SMTP (<code className="bg-white px-1.5 py-0.5 rounded border border-[#D5D9E2] font-mono text-[#1F2333]">SMTP_HOST</code>, <code className="bg-white px-1.5 py-0.5 rounded border border-[#D5D9E2] font-mono text-[#1F2333]">SMTP_PORT</code>, <code className="bg-white px-1.5 py-0.5 rounded border border-[#D5D9E2] font-mono text-[#1F2333]">SMTP_USER</code>, <code className="bg-white px-1.5 py-0.5 rounded border border-[#D5D9E2] font-mono text-[#1F2333]">SMTP_PASS</code>) dikelola langsung via variabel lingkungan server dan <strong>tidak ditampilkan pada antarmuka grafis UI</strong> guna mencegah kebocoran data rahasia.
                 </p>
                 <div className="text-[11px] text-[#8A90A2]">
                   Status Koneksi: <strong className="text-[#137333]">Aktif (Siap Kirim Notifikasi)</strong> &bull; Protokol Keamanan: TLS / STARTTLS

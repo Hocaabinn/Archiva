@@ -55,7 +55,7 @@ export async function POST(
 
     if (!profile || profile.role !== 'pic_inaktif') {
       return NextResponse.json(
-        { error: 'Akses Ditolak: Sesuai Blueprint 3.6 & Bab 5, hanya PIC Arsip Inaktif (pic_inaktif) yang berhak menyetujui atau menolak peminjaman dokumen inaktif.' },
+        { error: 'Akses Ditolak: Hanya PIC Arsip Inaktif (pic_inaktif) pengelola Record Center yang berhak menyetujui atau menolak permohonan peminjaman.' },
         { status: 403 }
       )
     }

@@ -69,7 +69,7 @@ export async function generateBeritaAcaraTransferPDF(data: BeritaAcaraTransferDa
     color: navyColor,
   })
   y -= 12
-  page.drawText('Sistem Informasi Manajemen Arsip Dokumen — Archiva (Standar SIG R.03)', {
+  page.drawText('Sistem Informasi Manajemen Arsip Dokumen — Archiva (Standar SIG)', {
     x: 50,
     y,
     size: 8.5,

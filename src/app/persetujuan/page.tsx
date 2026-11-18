@@ -328,7 +328,7 @@ function VerifikasiContent() {
                 <div className="space-y-2 text-xs rounded-xl bg-[#F0F9FF] border border-[#BAE6FD] p-3.5">
                   <p className="font-bold text-[#0369A1] flex items-center gap-1.5">
                     <Sparkles className="h-4 w-4 text-[#0284C7]" />
-                    Ketentuan Pengesahan (Blueprint 3.3 poin 4):
+                    Ketentuan Pengesahan:
                   </p>
                   <ul className="list-disc pl-5 space-y-1 text-[11px] text-[#0284C7]">
                     <li>Dokumen resmi berstatus <strong>AKTIF</strong> selama persis 3 tahun.</li>
@@ -405,7 +405,7 @@ function VerifikasiContent() {
             <div className="space-y-1">
               <div className="inline-flex items-center gap-2 rounded-full border border-[#0284C7]/30 bg-white/90 px-3 py-1 text-xs font-bold text-[#0284C7]">
                 <ShieldCheck className="h-3.5 w-3.5" />
-                ALUR PERSETUJUAN ENTRI (R.03) &bull; UNIT {currentUnitNama.toUpperCase()}
+                ALUR PERSETUJUAN ENTRI &bull; UNIT {currentUnitNama.toUpperCase()}
               </div>
               <h1 className="text-2xl font-bold text-[#0F172A] tracking-tight">
                 Persetujuan Entri Dokumen Arsip
@@ -442,9 +442,9 @@ function VerifikasiContent() {
           <div className="rounded-xl border border-[#FAD2CF] bg-[#FFF5F5] p-4 text-[#D64545] text-xs flex items-start gap-2.5">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#DC2626]" />
             <div>
-              <p className="font-bold">Akses Penyetujuan Terbatas</p>
+              <p className="font-bold">Akses Penyetujuan Khusus Atasan Unit Pengolah</p>
               <p className="mt-0.5 leading-relaxed">
-                Anda masuk sebagai peran <strong>{currentUserRole}</strong>. Sesuai Blueprint Bab 5, hak persetujuan dan pengesahan dokumen arsip baru berada di bawah kewenangan <strong>Atasan Arsip Aktif (atasan_aktif)</strong> unit terkait.
+                Halaman ini diperuntukkan bagi <strong>Atasan Arsip Aktif</strong> unit kerja untuk memverifikasi dan mengesahkan dokumen baru. Akun Anda saat ini ({currentUserRole.replace('_', ' ')}) tidak memiliki wewenang untuk menyetujui entri berkas baru.
               </p>
             </div>
           </div>

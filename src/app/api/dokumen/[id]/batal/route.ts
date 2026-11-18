@@ -58,7 +58,7 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            'Akses Ditolak: Sesuai Blueprint 6.6 & Bab 5, hanya Atasan Arsip Aktif (atasan_aktif) yang berhak membatalkan dokumen arsip. Superadmin dan peran lain tidak berhak membatalkan dokumen.',
+            'Akses Ditolak: Hanya Atasan Arsip Aktif (atasan_aktif) unit terkait yang berhak membatalkan dokumen arsip.',
         },
         { status: 403 }
       )
@@ -70,7 +70,7 @@ export async function POST(
 
     if (!alasan) {
       return NextResponse.json(
-        { error: 'Alasan pembatalan wajib diisi sesuai ketentuan Blueprint 6.7.' },
+        { error: 'Alasan pembatalan wajib diisi.' },
         { status: 400 }
       )
     }

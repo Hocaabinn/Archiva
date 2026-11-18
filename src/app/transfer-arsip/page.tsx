@@ -294,7 +294,7 @@ function TransferArsipContent() {
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 rounded-full border border-[#3BA4E8]/30 bg-white/80 px-3 py-1 text-xs font-semibold text-[#1E86C8]">
               <Layers className="h-3.5 w-3.5" />
-              Siklus Hidup Arsip Kedinasan (M8 — R.03)
+              Siklus Hidup Arsip Kedinasan
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-[#1F2333]">
               Transfer Dokumen ke Gudang Inaktif

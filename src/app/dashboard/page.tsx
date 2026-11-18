@@ -302,6 +302,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
   const { name, role: sessionRole } = useAppUser()
   const userRole = overrideRole || sessionRole
   const isSuperadmin = userRole === 'superadmin'
+  const isPicAktif = userRole === 'pic_aktif'
   const isAtasanAktif = userRole === 'atasan_aktif'
   const isPicInaktif = userRole === 'pic_inaktif'
   const isAtasanInaktif = userRole === 'atasan_inaktif'
@@ -1870,18 +1871,18 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
 
             <div className="mt-4 flex flex-wrap items-center justify-center gap-6 text-xs text-[#6B7185]">
               <span className="flex items-center gap-1.5 font-medium">
-                <span className="w-3 h-3 rounded-sm bg-[#3BA4E8]" /> {isPicInaktif ? 'Arsip Inaktif Tersimpan' : 'Arsip Masuk'} ({unitMode === 'berkas' ? 'Berkas' : 'Boks'})
+                <span className="w-3 h-3 rounded-sm bg-[#3BA4E8]" /> {isInaktifRole ? 'Arsip Inaktif Tersimpan' : 'Arsip Masuk'} ({unitMode === 'berkas' ? 'Berkas' : 'Boks'})
               </span>
               <span className="flex items-center gap-1.5 font-medium">
-                <span className="w-3 h-3 rounded-sm bg-[#BFE2F8]" /> {isPicInaktif ? 'Peminjaman Inaktif' : 'Beralih ke Inaktif'}
+                <span className="w-3 h-3 rounded-sm bg-[#BFE2F8]" /> {isInaktifRole ? 'Peminjaman Inaktif' : 'Beralih ke Inaktif'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Donut Kategori ATAU Widget Okupansi (Atasan Aktif / PIC Inaktif) */}
+        {/* Donut Kategori ATAU Widget Okupansi (Atasan/PIC Aktif & Inaktif) */}
         <div className="xl:col-span-4 flex flex-col">
-          {isAtasanAktif ? (
+          {(isAtasanAktif || isPicAktif) ? (
             <div className="h-full bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 flex flex-col justify-between">
               {/* Header Widget */}
               <div>
@@ -2001,8 +2002,8 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
                 </Link>
               </div>
             </div>
-          ) : isPicInaktif ? (
-            /* Widget Okupansi Rak Gudang Inaktif Khusus PIC Inaktif */
+          ) : isInaktifRole ? (
+            /* Widget Okupansi Rak Gudang Inaktif Khusus PIC Inaktif & Atasan Inaktif */
             <div className="h-full bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 flex flex-col justify-between">
               <div>
                 <div className="flex items-start justify-between gap-2 border-b border-[#ECEEF5] pb-3">
@@ -2163,8 +2164,8 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
         </div>
       </div>
 
-      {/* 4. Widget Monitoring Kapasitas Fasilitas & Rak Fisik (Disembunyikan pada Atasan Aktif dan PIC Inaktif karena sudah ada widget ringkasan okupansi di atas) */}
-      {!isAtasanAktif && !isPicInaktif && (
+      {/* 4. Widget Monitoring Kapasitas Fasilitas & Rak Fisik (Khusus Superadmin untuk manajemen fasilitas seluruh perusahaan) */}
+      {isSuperadmin && (
         <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#ECEEF5] pb-3">
             <div>
@@ -3211,9 +3212,10 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
         </div>
       )}
 
-      {/* 6. Daftar Dokumen Unit & Status Umum (Atau Global Perusahaan untuk Superadmin) */}
-      <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#ECEEF5] pb-3">
+      {/* 6. Daftar Dokumen Unit & Status Umum (Disembunyikan pada Atasan Inaktif karena pengawasan fokus pada Sirkulasi Peminjaman & BAST) */}
+      {!isAtasanInaktif && (
+        <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#ECEEF5] pb-3">
           <div>
             <h2 className="text-base font-bold text-[#1F2333]">
               {isSuperadmin
@@ -3331,6 +3333,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
           </table>
         </div>
       </div>
+    )}
 
       {/* ============================================================ */}
       {/* MODAL & DIALOG KHUSUS TINDAKAN ATASAN ARSIP AKTIF */}
@@ -3380,7 +3383,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               <div className="rounded-xl border border-[#ECEEF5] bg-[#F7F8FC] p-3 space-y-1.5 text-[#4B5163]">
                 <p className="font-semibold text-[#1F2333] flex items-center gap-1.5">
                   <ShieldCheck className="h-4 w-4 text-[#0284C7]" />
-                  <span>Ketentuan Siklus Hidup Arsip (R.03):</span>
+                  <span>Ketentuan Siklus Hidup Arsip:</span>
                 </p>
                 <ul className="list-disc list-inside space-y-0.5 text-[11px] text-[#6B7185]">
                   <li>Status berkas beralih menjadi <strong>AKTIF</strong>.</li>
@@ -3697,7 +3700,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
                 Gudang Inaktif &gt; Ruang Arsip Inaktif &gt; Rak Inaktif 01 (BOKS-INAKTIF-01)
               </p>
               <p className="text-[11px] text-[#0284C7]">
-                Kapasitas standar: 500 lembar per boks sesuai Blueprint R.03 Bab 3.5.
+                Kapasitas standar: 500 lembar per boks.
               </p>
             </div>
 
@@ -3801,7 +3804,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               <div className="p-3 rounded-xl border border-[#DDD6FE] bg-[#F5F3FF] text-[#6D28D9] text-[11px] space-y-1">
                 <p className="font-bold flex items-center gap-1.5">
                   <Shield className="w-3.5 h-3.5" />
-                  <span>Ketentuan Blueprint R.03 (Bab 3.6):</span>
+                  <span>Ketentuan Pengembalian Berkas Inaktif:</span>
                 </p>
                 <p>
                   Status dokumen <strong>TETAP Inaktif</strong> dan berkas fisik disimpan kembali di fasilitas Gudang Sentral Record Center.

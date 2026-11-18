@@ -266,7 +266,7 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
         { label: 'Daftar Dokumen', href: '/dokumen', roles: ['pic_aktif', 'atasan_aktif', 'pic_inaktif', 'atasan_inaktif', 'staff'] },
         { label: 'Transfer Dokumen', href: '/transfer-dokumen', roles: ['pic_aktif', 'pic_inaktif'] },
         { label: 'Verifikasi Dokumen', href: '/verifikasi-transfer', roles: ['pic_inaktif'] },
-        { label: 'Persetujuan Entri', href: '/persetujuan', roles: ['atasan_aktif', 'atasan_inaktif'] },
+        { label: 'Persetujuan Entri', href: '/persetujuan', roles: ['atasan_aktif'] },
         { label: 'Penyimpanan Dokumen', href: '/serah-terima', roles: ['pic_aktif', 'pic_inaktif'] },
       ],
     },

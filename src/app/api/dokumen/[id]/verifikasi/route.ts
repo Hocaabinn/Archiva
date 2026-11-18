@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 export async function POST() {
   return NextResponse.json(
     {
-      error: 'Tahap verifikasi PIC telah dihapus pada spesifikasi R.03. Dokumen yang dientri oleh PIC Arsip Aktif langsung masuk ke antrean persetujuan Atasan Arsip Aktif.',
+      error: 'Tahap verifikasi mandiri tidak tersedia. Dokumen yang dientri oleh PIC Arsip Aktif langsung diajukan ke antrean persetujuan Atasan Arsip Aktif.',
       status: 410,
     },
     { status: 410 }

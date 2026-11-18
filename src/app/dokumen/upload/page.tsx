@@ -512,7 +512,7 @@ export default function UploadDokumenPage() {
               <span>AKSES DITOLAK (403 FORBIDDEN)</span>
             </div>
             <p className="leading-relaxed text-[#7F1D1D]">
-              Sesuai aturan Blueprint Bab 5 dan R.03: <strong>HANYA PIC Arsip Aktif (pic_aktif)</strong> yang berhak mengentri dokumen baru.
+              Akses Terbatas: <strong>HANYA PIC Arsip Aktif</strong> yang berhak mengentri dokumen baru.
               Akun Anda memiliki peran: <span className="bg-[#FEE2E2] px-1.5 py-0.5 rounded font-bold uppercase">{currentUserRole}</span>.
             </p>
             <div className="mt-4">
@@ -861,7 +861,7 @@ export default function UploadDokumenPage() {
                   className="w-full h-10 border border-[#BAE6FD] bg-white rounded-lg px-3 text-xs font-mono font-bold tracking-wider text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
                 />
                 <p className="text-[10px] text-[#64748B] font-sans">
-                  Sesuai Blueprint 3.2 poin 5: Untuk dokumen tanpa payment/doc voucher, nomor dokumen dicatat langsung sebagai kode arsip.
+                  Untuk dokumen tanpa nomor payment/doc voucher, nomor dokumen ini digunakan langsung sebagai identitas kode arsip.
                 </p>
               </div>
             )}
@@ -886,7 +886,7 @@ export default function UploadDokumenPage() {
                   <span className="text-xs font-mono text-[#64748B] shrink-0 font-medium">lembar</span>
                 </div>
                 <p className="text-[10px] text-[#64748B] font-sans">
-                  Wajib diisi (Blueprint 3.5 & 4.4): untuk alokasi otomatis kapasitas boks (maks. 500 lembar per boks).
+                  Wajib diisi untuk alokasi otomatis kapasitas boks (maks. 500 lembar per boks).
                 </p>
               </div>
 
@@ -974,12 +974,12 @@ export default function UploadDokumenPage() {
 
             {/* LOKASI AWAL DARI MASTER */}
             <div className="space-y-4 pt-1">
-              {/* LOKASI BERTINGKAT DARI MASTER LOKASI (BLUEPRINT 3.5 & M5) */}
               <div className="space-y-2 border-l-3 border-[#0284C7] pl-3.5 py-2.5 bg-[#F0F9FF]/60 rounded-r-xl border-y border-r border-[#BAE6FD]">
                 <LokasiCascadeSelect
                   onChange={(val) => setSelectedLokasi(val)}
                   required
-                  label="LOKASI PENYIMPANAN FISIK AWAL (MASTER LOKASI BERTINGKAT)"
+                  excludeInaktif={true}
+                  label="LOKASI PENYIMPANAN FISIK AWAL (GEDUNG > RUANGAN > RAK)"
                 />
               </div>
             </div>

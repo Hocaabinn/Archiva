@@ -40,7 +40,7 @@ export function exportLaporanToPDF(options: GenerateLaporanPdfOptions) {
 
   doc.setFontSize(9)
   doc.setTextColor(75, 85, 99)
-  doc.text('UNIT KERJA KEARSIPAN & TATA KELOLA DOKUMEN (ARCHIVA R.03)', 15, 21)
+  doc.text('UNIT KERJA KEARSIPAN & TATA KELOLA DOKUMEN (ARCHIVA)', 15, 21)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)

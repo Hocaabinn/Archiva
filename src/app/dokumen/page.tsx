@@ -2183,7 +2183,7 @@ function DaftarDokumenContent() {
             <div className="p-3.5 bg-[#FEF2F2] border border-[#FCA5A5] rounded-xl space-y-1.5">
               <div className="flex items-center gap-2 text-[#991B1B] font-bold text-sm">
                 <AlertTriangle className="h-4 w-4 shrink-0 text-[#DC2626]" />
-                <span>Aturan Kedinasan Pembatalan (Blueprint R.03 Bab 3.3 &amp; 5.2)</span>
+                <span>Aturan Kedinasan Pembatalan Dokumen</span>
               </div>
               <p className="leading-relaxed text-[#7F1D1D]">
                 Pembatalan arsip hanya dapat disahkan oleh Atasan Arsip Aktif dengan menyertakan alasan penarikan resmi. Status dokumen akan diubah permanen menjadi <strong>DIBATALKAN</strong> dan kode arsip SIG <strong>tidak dapat dipakai ulang</strong>.

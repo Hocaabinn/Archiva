@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     if (profile.role !== 'pic_aktif') {
       return NextResponse.json(
         {
-          error: `Akses Ditolak: Hanya PIC Arsip Aktif (pic_aktif) yang berhak mengentri dokumen baru sesuai Blueprint Bab 5. Akun Anda memiliki peran '${profile.role}'.`,
+          error: `Akses Ditolak: Hanya PIC Arsip Aktif yang berhak mengentri dokumen baru. Akun Anda memiliki peran '${profile.role}'.`,
         },
         { status: 403 }
       )

@@ -27,6 +27,7 @@ interface LokasiCascadeSelectProps {
   required?: boolean
   className?: string
   label?: string
+  excludeInaktif?: boolean
 }
 
 export function LokasiCascadeSelect({
@@ -36,6 +37,7 @@ export function LokasiCascadeSelect({
   required = true,
   className = '',
   label = 'LOKASI FISIK DARI MASTER LOKASI (GEDUNG > RUANGAN > RAK)',
+  excludeInaktif = false,
 }: LokasiCascadeSelectProps) {
   const [allLokasi, setAllLokasi] = useState<LokasiItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -78,22 +80,39 @@ export function LokasiCascadeSelect({
 
   // Pisahkan berdasarkan tingkat (hanya yang aktif)
   const gedungOptions = useMemo(() => {
-    return allLokasi.filter((l) => l.tingkat === 'Gedung' && l.status !== 'Nonaktif')
-  }, [allLokasi])
+    return allLokasi.filter((l) => {
+      if (l.tingkat !== 'Gedung' || l.status === 'Nonaktif') return false
+      if (excludeInaktif) {
+        const lower = l.nama.toLowerCase()
+        if (lower.includes('inaktif') || lower.includes('record')) return false
+      }
+      return true
+    })
+  }, [allLokasi, excludeInaktif])
 
   const ruanganOptions = useMemo(() => {
     if (!selectedGedungId) return []
-    return allLokasi.filter(
-      (l) => l.tingkat === 'Ruangan' && l.parent_id === selectedGedungId && l.status !== 'Nonaktif'
-    )
-  }, [allLokasi, selectedGedungId])
+    return allLokasi.filter((l) => {
+      if (l.tingkat !== 'Ruangan' || l.parent_id !== selectedGedungId || l.status === 'Nonaktif') return false
+      if (excludeInaktif) {
+        const lower = l.nama.toLowerCase()
+        if (lower.includes('inaktif')) return false
+      }
+      return true
+    })
+  }, [allLokasi, selectedGedungId, excludeInaktif])
 
   const rakOptions = useMemo(() => {
     if (!selectedRuanganId) return []
-    return allLokasi.filter(
-      (l) => l.tingkat === 'Rak' && l.parent_id === selectedRuanganId && l.status !== 'Nonaktif'
-    )
-  }, [allLokasi, selectedRuanganId])
+    return allLokasi.filter((l) => {
+      if (l.tingkat !== 'Rak' || l.parent_id !== selectedRuanganId || l.status === 'Nonaktif') return false
+      if (excludeInaktif) {
+        const lower = l.nama.toLowerCase()
+        if (lower.includes('inaktif')) return false
+      }
+      return true
+    })
+  }, [allLokasi, selectedRuanganId, excludeInaktif])
 
   // Inisialisasi awal bila valueRakId sudah ada
   useEffect(() => {

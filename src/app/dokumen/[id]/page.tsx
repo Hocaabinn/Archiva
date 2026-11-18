@@ -566,7 +566,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
                     type="button"
                     onClick={() => setModalType('batal')}
                     className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-[#F5C2C2] bg-white px-4 py-2 text-sm font-semibold text-[#D64545] transition-colors hover:bg-[#FDECEC] sm:flex-none"
-                    title="Pembatalan Dokumen Aktif oleh Atasan (Blueprint Bab 6.7)"
+                    title="Pembatalan Dokumen Aktif oleh Atasan Unit"
                   >
                     <XCircle className="h-4 w-4" />
                     Batalkan Dokumen
@@ -708,7 +708,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
                 <span className="font-medium">Alasan:</span> {doc.alasan_penolakan || 'Tidak ada keterangan spesifik.'}
               </p>
               <p className="mt-1 text-xs text-[#8A90A2]">
-                Kode arsip tetap tersimpan dan tidak dipakai ulang (Blueprint Bab 6.7).
+                Kode arsip tetap tersimpan dan tidak dapat dipakai ulang.
               </p>
             </div>
           </div>
@@ -1102,7 +1102,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
               {modalType === 'batal' && (
                 <>
                   <p className="leading-relaxed">
-                    Pembatalan dokumen Aktif hanya dapat disahkan oleh Atasan (Blueprint Bab 6.7). Kode arsip tetap disimpan dan tidak dipakai ulang; dokumen akan berstatus <strong className="text-[#1F2333]">Dibatalkan</strong>.
+                    Pembatalan dokumen Aktif hanya dapat disahkan oleh Atasan Arsip Aktif unit terkait. Kode arsip tetap disimpan dan tidak dapat dipakai ulang; dokumen akan berstatus <strong className="text-[#1F2333]">Dibatalkan</strong>.
                   </p>
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">

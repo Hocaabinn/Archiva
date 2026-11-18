@@ -342,7 +342,7 @@ function VerifikasiTransferContent() {
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 rounded-full border border-[#3BA4E8]/30 bg-white/80 px-3 py-1 text-xs font-semibold text-[#1E86C8]">
               <Archive className="h-3.5 w-3.5" />
-              Penerimaan &amp; Verifikasi Fisik Inaktif (M8 — R.03)
+              Penerimaan &amp; Verifikasi Fisik Inaktif
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-[#1F2333]">
               Verifikasi Dokumen Transfer Inaktif
@@ -584,7 +584,7 @@ function VerifikasiTransferContent() {
               <div className="rounded-xl bg-[#E6F4EA] border border-[#CEEAD6] p-3 text-xs text-[#137333] space-y-1">
                 <p className="font-bold flex items-center gap-1.5">
                   <ShieldCheck className="h-4 w-4" />
-                  Alur Kearsipan Otomatis (R.03):
+                  Alur Kearsipan Otomatis:
                 </p>
                 <p>1. Status dokumen beralih menjadi <strong>Inaktif</strong>.</p>
                 <p>2. Berkas digital dipindahkan dari bucket <code>arsip-aktif</code> ke <code>arsip-inaktif</code>.</p>
