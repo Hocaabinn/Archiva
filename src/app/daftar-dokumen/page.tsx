@@ -10,3 +10,4 @@ import DokumenPage from '@/app/dokumen/page'
 export default function AliasDaftarDokumenPage() {
   return <DokumenPage />
 }
+

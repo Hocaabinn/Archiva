@@ -10,3 +10,4 @@ import PeminjamanPage from '@/app/peminjaman/page'
 export default function PeminjamanSayaPage() {
   return <PeminjamanPage />
 }
+

@@ -122,7 +122,19 @@ export default function LoginForm() {
         }, 1200)
         return
       }
-      setErrorMsg(`Gagal masuk: ${error.message}. Periksa surel dan kata sandi Anda.`)
+
+      const msg = error.message.toLowerCase()
+      if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+        setErrorMsg('Email atau kata sandi yang Anda masukkan salah. Coba periksa kembali, ya.')
+      } else if (msg.includes('email not confirmed')) {
+        setErrorMsg('Email akun Anda belum dikonfirmasi. Silakan periksa tautan konfirmasi di kotak masuk atau spam surel Anda.')
+      } else if (msg.includes('too many requests') || msg.includes('rate limit')) {
+        setErrorMsg('Terlalu banyak percobaan masuk yang salah. Mohon tunggu beberapa saat sebelum mencoba kembali.')
+      } else if (msg.includes('user not found')) {
+        setErrorMsg('Akun dengan email ini tidak ditemukan. Pastikan Anda telah terdaftar di sistem.')
+      } else {
+        setErrorMsg(`Gagal masuk: ${error.message}. Periksa kembali email dan kata sandi Anda.`)
+      }
       setLoading(false)
       return
     }
@@ -264,7 +276,7 @@ export default function LoginForm() {
               <div className="mb-6 p-4 bg-[#FEF3F2] border-l-4 border-[#B42318] text-[#B42318] text-xs sm:text-sm flex items-start gap-3 rounded-r-md">
                 <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold">Kesalahan Autentikasi</p>
+                  <p className="font-semibold">Gagal Masuk</p>
                   <p className="mt-0.5 leading-relaxed">{errorMsg}</p>
                 </div>
               </div>

@@ -146,7 +146,12 @@ export default function RegisterForm() {
         }, 1500)
         return
       }
-      setErrorMsg(`Pendaftaran gagal: ${error.message}`)
+      const msg = error.message.toLowerCase()
+      if (msg.includes('user already registered') || msg.includes('already registered') || msg.includes('already exists')) {
+        setErrorMsg('Email ini sudah terdaftar. Silakan langsung masuk di halaman Login.')
+      } else {
+        setErrorMsg(`Pendaftaran gagal: ${error.message}`)
+      }
       setLoading(false)
       return
     }
