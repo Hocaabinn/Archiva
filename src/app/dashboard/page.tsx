@@ -1366,21 +1366,21 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
         )
       ) : isPicInaktif ? (
         totalTransferMenunggu > 0 ? (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#FEEFC3] bg-[#FEF7E0] p-4 text-[#B06000] shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#BAE6FD] bg-[#F0F9FF] p-4 text-[#0369A1] shadow-xs">
             <div className="flex items-start gap-3">
-              <Clock className="h-5 w-5 shrink-0 mt-0.5 text-[#E37400]" />
+              <Clock className="h-5 w-5 shrink-0 mt-0.5 text-[#0284C7]" />
               <div>
-                <p className="font-bold text-sm text-[#8C4600]">
+                <p className="font-bold text-sm text-[#0369A1]">
                   Perhatian Record Center: Terdapat {totalTransferMenunggu} Berkas Transfer Masuk Menunggu Verifikasi BAST
                 </p>
-                <p className="text-xs text-[#B06000] mt-0.5">
+                <p className="text-xs text-[#0284C7] mt-0.5">
                   Segera verifikasi fisik berkas dari unit pengolah dan alokasikan ke rak/boks gudang inaktif agar resmi tersimpan di Record Center.
                 </p>
               </div>
             </div>
             <a
               href="#antrean-operasional"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#E37400] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#C96400] transition-colors whitespace-nowrap self-start sm:self-auto"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#0284C7] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#0369A1] transition-colors whitespace-nowrap self-start sm:self-auto"
             >
               <span>Verifikasi Sekarang</span>
               <ArrowRight className="h-3.5 w-3.5" />
@@ -1550,7 +1550,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               href="/dokumen?status=inaktif"
             />
 
-            {/* Card 2: Transfer Masuk Menunggu Verifikasi */}
+            {/* Card 2: Transfer Masuk Menunggu Verifikasi (Putih Bersih) */}
             <StatCard
               title="Transfer Masuk Menunggu Verifikasi"
               subtitle="Dari Unit Pengolah (PIC Aktif)"
@@ -1560,7 +1560,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               trendUp={totalTransferMenunggu === 0}
               note="menunggu verifikasi BAST"
               href="#antrean-operasional"
-              highlight={totalTransferMenunggu > 0}
+              highlight={false}
             />
 
             {/* Card 3: Dokumen Sedang Dipinjam */}
@@ -2435,11 +2435,11 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
             </div>
 
             {/* 2 Tab Switcher */}
-            <div className="inline-flex rounded-xl bg-[#F0F2F7] p-1 text-xs font-semibold">
+            <div className="inline-flex rounded-xl bg-[#F0F2F7] p-1 text-xs font-semibold max-w-full overflow-x-auto">
               <button
                 type="button"
                 onClick={() => setInaktifOpTab('transfer')}
-                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all ${
+                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all whitespace-nowrap ${
                   inaktifOpTab === 'transfer'
                     ? 'bg-white text-[#0284C7] shadow-xs'
                     : 'text-[#6B7185] hover:text-[#1F2333]'
@@ -2455,7 +2455,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               <button
                 type="button"
                 onClick={() => setInaktifOpTab('peminjaman')}
-                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all ${
+                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all whitespace-nowrap ${
                   inaktifOpTab === 'peminjaman'
                     ? 'bg-white text-[#7C3AED] shadow-xs'
                     : 'text-[#6B7185] hover:text-[#1F2333]'
@@ -2481,7 +2481,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
                   <p className="text-xs text-[#6B7185]">Semua berkas yang dialihkan dari unit pengolah telah diverifikasi masuk ke Record Center.</p>
                 </div>
               ) : (
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-xs min-w-[700px]">
                   <thead>
                     <tr className="border-b border-[#ECEEF5] bg-[#F7F8FC] text-[#4B5163]">
                       <th className="py-2.5 px-3 font-semibold w-12 text-center">No</th>
@@ -2560,7 +2560,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
                   <p className="text-xs text-[#6B7185]">Seluruh berkas arsip inaktif tersimpan aman di fasilitas Gudang Record Center.</p>
                 </div>
               ) : (
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-xs min-w-[700px]">
                   <thead>
                     <tr className="border-b border-[#ECEEF5] bg-[#F7F8FC] text-[#4B5163]">
                       <th className="py-2.5 px-3 font-semibold w-12 text-center">No</th>
@@ -3230,7 +3230,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
       {/* Modal Verifikasi Transfer Masuk Khusus PIC Arsip Inaktif */}
       {verifikasiModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-[#ECEEF5] space-y-4">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-[#ECEEF5] space-y-4">
             <div className="flex items-center justify-between border-b border-[#ECEEF5] pb-3">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-xl bg-[#E0F2FE] text-[#0284C7]">
@@ -3375,7 +3375,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
       {/* Modal Konfirmasi Pengembalian Peminjaman Khusus PIC Inaktif */}
       {pengembalianModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-[#ECEEF5] space-y-4">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-[#ECEEF5] space-y-4">
             <div className="flex items-center justify-between border-b border-[#ECEEF5] pb-3">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-xl bg-[#F5F3FF] text-[#7C3AED]">
