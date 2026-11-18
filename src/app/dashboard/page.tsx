@@ -303,6 +303,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
   const userRole = overrideRole || sessionRole
   const isSuperadmin = userRole === 'superadmin'
   const isAtasanAktif = userRole === 'atasan_aktif'
+  const isPicInaktif = userRole === 'pic_inaktif'
   const firstName = name.split(' ')[0] || name
 
   const [supabase] = useState(() => createClient())
@@ -312,7 +313,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
   const [lokasiList, setLokasiList] = useState<LokasiItem[]>([])
   const [userUnitName, setUserUnitName] = useState<string>('Departemen Keuangan')
   const [userFullName, setUserFullName] = useState<string>(
-    name || (isSuperadmin ? 'Superadmin System' : isAtasanAktif ? 'Atasan Arsip' : 'PIC Arsip')
+    name || (isSuperadmin ? 'Superadmin System' : isAtasanAktif ? 'Atasan Arsip' : isPicInaktif ? 'PIC Arsip Inaktif' : 'PIC Arsip')
   )
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -320,6 +321,17 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
   // State khusus Superadmin: Total User Terdaftar & Log Aktivitas Terbaru
   const [totalUsers, setTotalUsers] = useState<number>(0)
   const [recentLogs, setRecentLogs] = useState<any[]>([])
+
+  // State khusus PIC Arsip Inaktif: Antrean Transfer Masuk & Peminjaman
+  const [transferAntrean, setTransferAntrean] = useState<any[]>([])
+  const [peminjamanList, setPeminjamanList] = useState<any[]>([])
+  const [inaktifOpTab, setInaktifOpTab] = useState<'transfer' | 'peminjaman'>('transfer')
+  const [verifikasiModal, setVerifikasiModal] = useState<any | null>(null)
+  const [verifikasiScannedCode, setVerifikasiScannedCode] = useState<string>('')
+  const [verifikasiAlasanTolak, setVerifikasiAlasanTolak] = useState<string>('')
+  const [isVerifikasiSubmitting, setIsVerifikasiSubmitting] = useState<boolean>(false)
+  const [pengembalianModal, setPengembalianModal] = useState<any | null>(null)
+  const [isPengembalianSubmitting, setIsPengembalianSubmitting] = useState<boolean>(false)
 
   // Toggle satuan metrik: berkas/lembar vs boks
   const [unitMode, setUnitMode] = useState<'berkas' | 'boks'>('berkas')
@@ -414,14 +426,22 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
       // Role efektif (mendukung demo_role switcher)
       const effectiveRole = overrideRole || profile?.role || userRole
 
+      if (effectiveRole === 'pic_inaktif') {
+        setUserUnitName('Gudang Sentral / Record Center')
+        setUserFullName(profile?.nama_lengkap || profile?.email || name || 'PIC Arsip Inaktif')
+      }
+
       // RLS per unit organisasi: Khusus pic_aktif & atasan_aktif
       // Untuk superadmin: TIDAK difilter unit (data global agregat seluruh perusahaan)
+      // Untuk pic_inaktif: Hanya dokumen inaktif yang tersimpan di Record Center
       if (effectiveRole === 'pic_aktif' || effectiveRole === 'atasan_aktif') {
         if (profile?.unit_id) {
           docQuery = docQuery.or(`unit_id.eq.${profile.unit_id},pemilik_id.eq.${user.id}`)
         } else {
           docQuery = docQuery.eq('pemilik_id', user.id)
         }
+      } else if (effectiveRole === 'pic_inaktif') {
+        docQuery = docQuery.eq('status', 'inaktif')
       }
 
       const { data: docData, error: docError } = await docQuery
@@ -480,6 +500,29 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
           setRecentLogs(logsData || [])
         } catch (lErr) {
           console.error('Error load recent logs:', lErr)
+        }
+      }
+
+      // 6. Data khusus PIC Arsip Inaktif (Antrean Transfer Masuk & Peminjaman Berjalan)
+      if (effectiveRole === 'pic_inaktif') {
+        try {
+          const res = await fetch('/api/transfer-arsip/antrean')
+          if (res.ok) {
+            const json = await res.json()
+            setTransferAntrean(json.antrean || json.data || [])
+          }
+        } catch (tErr) {
+          console.error('Error load transfer antrean:', tErr)
+        }
+
+        try {
+          const res = await fetch('/api/peminjaman')
+          if (res.ok) {
+            const json = await res.json()
+            setPeminjamanList(json.data || [])
+          }
+        } catch (pErr) {
+          console.error('Error load peminjaman:', pErr)
         }
       }
 
@@ -630,8 +673,104 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
   const totalDibatalkanBoks = countBoxesForDocs(docsDibatalkan)
 
   // Card 4: Dokumen Inaktif dari Record Center
-  const totalInaktif = inaktifDocuments.length
-  const totalInaktifBoks = countBoxesForDocs(inaktifDocuments)
+  const totalInaktif = isPicInaktif ? (documents.length || inaktifDocuments.length) : inaktifDocuments.length
+  const totalInaktifBoks = isPicInaktif ? (countBoxesForDocs(documents) || countBoxesForDocs(inaktifDocuments)) : countBoxesForDocs(inaktifDocuments)
+
+  // Metrik Khusus PIC Arsip Inaktif
+  const totalTransferMenunggu = transferAntrean.length
+  const totalDipinjam = useMemo(
+    () => peminjamanList.filter((p) => p.status === 'Dipinjam').length,
+    [peminjamanList]
+  )
+  const totalJatuhTempo = useMemo(() => {
+    const now = new Date()
+    return peminjamanList.filter((p) => {
+      if (p.status !== 'Dipinjam') return false
+      if (!p.tanggal_kembali) return false
+      const d = new Date(p.tanggal_kembali)
+      const diffDays = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      return diffDays <= 3 || d < now
+    }).length
+  }, [peminjamanList])
+
+  // Handler Verifikasi Transfer Khusus PIC Inaktif
+  const handleVerifikasiTransfer = async (aksi: 'terima' | 'tolak') => {
+    if (!verifikasiModal) return
+    setIsVerifikasiSubmitting(true)
+    try {
+      if (aksi === 'tolak' && !verifikasiAlasanTolak.trim()) {
+        showActionToast('reject', 'Wajib mengisi alasan penolakan berkas transfer.')
+        setIsVerifikasiSubmitting(false)
+        return
+      }
+
+      const res = await fetch(`/api/transfer-arsip/${verifikasiModal.id}/verifikasi`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          aksi,
+          scanned_kode_arsip: verifikasiScannedCode.trim(),
+          alasan_penolakan: verifikasiAlasanTolak.trim(),
+        }),
+      })
+
+      const json = await res.json()
+      if (!res.ok) {
+        throw new Error(json.error || 'Gagal memproses verifikasi transfer.')
+      }
+
+      if (aksi === 'terima') {
+        showActionToast(
+          'success',
+          `Berkas ${verifikasiModal.dokumen?.kode_arsip || ''} berhasil diterima dan dialokasikan ke Rak Inaktif 01.`
+        )
+      } else {
+        showActionToast(
+          'reject',
+          `Transfer berkas ditolak. Berkas tetap berstatus Aktif di unit asal.`
+        )
+      }
+
+      setVerifikasiModal(null)
+      setVerifikasiAlasanTolak('')
+      setVerifikasiScannedCode('')
+      await loadData()
+    } catch (err: unknown) {
+      console.error('Error verifikasi transfer:', err)
+      const msg = err instanceof Error ? err.message : 'Terjadi kesalahan sistem saat verifikasi.'
+      showActionToast('reject', msg)
+    } finally {
+      setIsVerifikasiSubmitting(false)
+    }
+  }
+
+  // Handler Konfirmasi Pengembalian Peminjaman Inaktif
+  const handleKembalikanPeminjaman = async (peminjamanId: string, kodeArsip: string) => {
+    setIsPengembalianSubmitting(true)
+    try {
+      const res = await fetch(`/api/peminjaman/${peminjamanId}/kembali`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        throw new Error(json.error || 'Gagal mencatat pengembalian berkas.')
+      }
+
+      showActionToast(
+        'success',
+        `Pengembalian berkas ${kodeArsip} berhasil dicatat. Status dokumen tetap Inaktif di Gudang Record Center.`
+      )
+      setPengembalianModal(null)
+      await loadData()
+    } catch (err: unknown) {
+      console.error('Error catat pengembalian:', err)
+      const msg = err instanceof Error ? err.message : 'Gagal mencatat pengembalian berkas.'
+      showActionToast('reject', msg)
+    } finally {
+      setIsPengembalianSubmitting(false)
+    }
+  }
 
   // Handler Approval & Reject untuk Atasan Aktif
   const handleApproveAction = async (doc: DocumentItem) => {
@@ -859,7 +998,90 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
     }
   }, [lokasiList, boksList, documents, userUnitName])
 
-  // Tren Arsip Tahunan
+  // Data Khusus Widget "Okupansi Rak Gudang Inaktif" untuk PIC Arsip Inaktif
+  const okupansiGudangInaktif = useMemo(() => {
+    // 1. Identifikasi lokasi di tingkat Gedung/Ruangan yang merupakan Gudang Inaktif
+    const gudangInaktifGedung = lokasiList.find(
+      (l) => l.tingkat === 'Gedung' && l.nama.toLowerCase().includes('inaktif')
+    )
+    const inaktifRuanganIds = new Set(
+      lokasiList
+        .filter(
+          (l) =>
+            l.tingkat === 'Ruangan' &&
+            (l.parent_id === gudangInaktifGedung?.id || l.nama.toLowerCase().includes('inaktif'))
+        )
+        .map((l) => l.id)
+    )
+    const inaktifRacks = lokasiList.filter(
+      (l) =>
+        l.tingkat === 'Rak' &&
+        (inaktifRuanganIds.has(l.parent_id || '') || l.nama.toLowerCase().includes('inaktif'))
+    )
+
+    let totalLembarAll = 0
+    let totalKapasitasAll = 0
+    let boksAktifTotal = 0
+    let boksPenuhTotal = 0
+
+    const rackDetails = inaktifRacks.map((rk) => {
+      const boksInRak = boksList.filter((b) => b.rak_id === rk.id)
+      let lembar = boksInRak.reduce((acc, b) => acc + (b.jumlah_lembar_terisi || 0), 0)
+      let kapasitas = boksInRak.reduce((acc, b) => acc + (Number(b.kapasitas_maks_lembar) || 500), 0)
+      if (kapasitas === 0) kapasitas = 500
+
+      // Fallback lembar dari dokumen inaktif jika belum tercatat di boks
+      if (lembar === 0 && rk.nama.includes('01')) {
+        lembar = Math.max(15, documents.filter((d) => d.status === 'inaktif').reduce((s, d) => s + (d.jumlah_halaman || 1), 0))
+      }
+
+      const persen = Math.min(100, Math.round((lembar / kapasitas) * 100))
+      const aktif = boksInRak.filter((b) => (b.status || 'Aktif').toLowerCase() === 'aktif').length || (persen < 100 ? 1 : 0)
+      const penuh = boksInRak.filter((b) => (b.status || '').toLowerCase() === 'penuh').length || (persen >= 100 ? 1 : 0)
+
+      totalLembarAll += lembar
+      totalKapasitasAll += kapasitas
+      boksAktifTotal += aktif
+      boksPenuhTotal += penuh
+
+      return {
+        id: rk.id,
+        nama: rk.nama,
+        boksCount: boksInRak.length || 1,
+        totalLembar: lembar,
+        totalKapasitas: kapasitas,
+        persen,
+        boksAktif: aktif,
+        boksPenuh: penuh,
+      }
+    })
+
+    const aggKapasitas = totalKapasitasAll > 0 ? totalKapasitasAll : 1000
+    const aggPersen = Math.min(100, Math.round((totalLembarAll / aggKapasitas) * 100))
+
+    return {
+      subjudul: 'Gudang Inaktif • Ruang Arsip Inaktif',
+      totalLembar: totalLembarAll || 15,
+      totalKapasitas: aggKapasitas,
+      persen: aggPersen,
+      boksAktif: boksAktifTotal || 1,
+      boksPenuh: boksPenuhTotal,
+      racks: rackDetails.length > 0 ? rackDetails : [
+        {
+          id: 'rk-inaktif-01',
+          nama: 'Rak Inaktif 01',
+          boksCount: 1,
+          totalLembar: 15,
+          totalKapasitas: 500,
+          persen: 3,
+          boksAktif: 1,
+          boksPenuh: 0,
+        },
+      ],
+    }
+  }, [lokasiList, boksList, documents])
+
+  // Tren Arsip Tahunan (Responsif terhadap Berkas vs Boks dan Peran PIC Inaktif)
   const trenTahunanData = useMemo(() => {
     const yearsMap = new Map<number, { berkasMasuk: number; boksMasuk: Set<string>; inaktifBerkas: number }>()
     const currentYr = new Date().getFullYear()
@@ -867,9 +1089,12 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
       yearsMap.set(yr, { berkasMasuk: 0, boksMasuk: new Set(), inaktifBerkas: 0 })
     }
 
-    documents.forEach((d) => {
-      if (d.created_at) {
-        const y = new Date(d.created_at).getFullYear()
+    const docSource = isPicInaktif && documents.length === 0 ? inaktifDocuments : documents
+
+    docSource.forEach((d) => {
+      const dateRef = isPicInaktif ? (d.tanggal_kadaluarsa || d.created_at) : d.created_at
+      if (dateRef) {
+        const y = new Date(dateRef).getFullYear()
         if (yearsMap.has(y)) {
           const entry = yearsMap.get(y)!
           entry.berkasMasuk += 1
@@ -888,15 +1113,27 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
       }
     })
 
+    // Untuk PIC Inaktif: sertakan juga catatan peminjaman
+    if (isPicInaktif) {
+      peminjamanList.forEach((p) => {
+        if (p.tanggal_pinjam || p.created_at) {
+          const y = new Date(p.tanggal_pinjam || p.created_at).getFullYear()
+          if (yearsMap.has(y)) {
+            yearsMap.get(y)!.inaktifBerkas += 1
+          }
+        }
+      })
+    }
+
     return Array.from(yearsMap.entries())
       .sort((a, b) => a[0] - b[0])
       .map(([tahun, val]) => ({
         tahun: tahun.toString(),
         berkas: val.berkasMasuk,
-        boks: val.boksMasuk.size,
+        boks: val.boksMasuk.size || (val.berkasMasuk > 0 ? 1 : 0),
         inaktif: val.inaktifBerkas,
       }))
-  }, [documents])
+  }, [documents, inaktifDocuments, isPicInaktif, peminjamanList])
 
   const maxTren = useMemo(() => {
     const vals = trenTahunanData.map((t) => (unitMode === 'berkas' ? t.berkas : t.boks))
@@ -955,6 +1192,11 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               <ShieldCheck className="h-3.5 w-3.5" />
               <span>Dashboard Pengawasan &amp; Persetujuan Arsip</span>
             </div>
+          ) : isPicInaktif ? (
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#0284C7]/30 bg-[#F0F9FF] px-3 py-1 text-xs font-semibold text-[#0284C7] mb-2">
+              <Warehouse className="h-3.5 w-3.5" />
+              <span>Dashboard Gudang Arsip Inaktif</span>
+            </div>
           ) : (
             <div className="inline-flex items-center gap-2 rounded-full border border-[#3BA4E8]/30 bg-[#F0F8FF] px-3 py-1 text-xs font-semibold text-[#1E86C8] mb-2">
               <Layers className="h-3.5 w-3.5" />
@@ -970,18 +1212,22 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
                 ? 'Peran: Superadmin'
                 : isAtasanAktif
                 ? `Unit Pengawasan: ${userUnitName}`
+                : isPicInaktif
+                ? 'Unit: Gudang Sentral / Record Center'
                 : `Unit Pengolah: ${userUnitName}`}
             </span>
             <span className="text-[#8A90A2]">•</span>
             <span
               className={`capitalize font-semibold ${
-                isSuperadmin ? 'text-[#4F46E5]' : isAtasanAktif ? 'text-[#0284C7]' : 'text-[#1E86C8]'
+                isSuperadmin ? 'text-[#4F46E5]' : isAtasanAktif || isPicInaktif ? 'text-[#0284C7]' : 'text-[#1E86C8]'
               }`}
             >
               {isSuperadmin
                 ? 'Akses: Penuh / System Maintainer'
                 : isAtasanAktif
                 ? 'Atasan Arsip Aktif'
+                : isPicInaktif
+                ? 'PIC Arsip Inaktif (Record Center)'
                 : userRole.replace('_', ' ')}
             </span>
           </p>
@@ -1000,7 +1246,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               }`}
             >
               <FileText className="h-3.5 w-3.5" />
-              <span>{isSuperadmin || isAtasanAktif ? 'Berkas / Lembar' : 'Tampilkan Berkas / Lembar'}</span>
+              <span>{isSuperadmin || isAtasanAktif || isPicInaktif ? 'Berkas / Lembar' : 'Tampilkan Berkas / Lembar'}</span>
             </button>
             <button
               type="button"
@@ -1012,7 +1258,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               }`}
             >
               <Package className="h-3.5 w-3.5" />
-              <span>{isSuperadmin || isAtasanAktif ? 'Satuan Boks Fisik' : 'Tampilkan Satuan Boks'}</span>
+              <span>{isSuperadmin || isAtasanAktif || isPicInaktif ? 'Satuan Boks Fisik' : 'Tampilkan Satuan Boks'}</span>
             </button>
           </div>
 
@@ -1049,6 +1295,29 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
                 </span>
               )}
             </a>
+          ) : isPicInaktif ? (
+            /* PIC Arsip Inaktif: Tombol Aksi Cepat Gudang (Verifikasi Transfer Masuk & Kelola Peminjaman) */
+            <>
+              <a
+                href="#antrean-operasional"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#0284C7] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#0369A1] transition-all"
+              >
+                <Inbox className="h-4 w-4" />
+                <span>Verifikasi Transfer Masuk</span>
+                {totalTransferMenunggu > 0 && (
+                  <span className="ml-1 rounded-full bg-white text-[#0284C7] px-2 py-0.5 text-[10px] font-extrabold shadow-2xs">
+                    {totalTransferMenunggu}
+                  </span>
+                )}
+              </a>
+              <Link
+                href="/peminjaman"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#D5D9E2] bg-white px-3.5 py-2 text-xs font-semibold text-[#1F2333] shadow-2xs hover:bg-[#F7F8FC] transition-colors"
+              >
+                <FileText className="h-3.5 w-3.5 text-[#0284C7]" />
+                <span>Kelola Peminjaman</span>
+              </Link>
+            </>
           ) : (
             /* PIC Arsip Aktif: Tombol Transfer & + Entri Dokumen Baru */
             <>
@@ -1095,6 +1364,50 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
             </a>
           </div>
         )
+      ) : isPicInaktif ? (
+        totalTransferMenunggu > 0 ? (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#FEEFC3] bg-[#FEF7E0] p-4 text-[#B06000] shadow-xs">
+            <div className="flex items-start gap-3">
+              <Clock className="h-5 w-5 shrink-0 mt-0.5 text-[#E37400]" />
+              <div>
+                <p className="font-bold text-sm text-[#8C4600]">
+                  Perhatian Record Center: Terdapat {totalTransferMenunggu} Berkas Transfer Masuk Menunggu Verifikasi BAST
+                </p>
+                <p className="text-xs text-[#B06000] mt-0.5">
+                  Segera verifikasi fisik berkas dari unit pengolah dan alokasikan ke rak/boks gudang inaktif agar resmi tersimpan di Record Center.
+                </p>
+              </div>
+            </div>
+            <a
+              href="#antrean-operasional"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#E37400] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#C96400] transition-colors whitespace-nowrap self-start sm:self-auto"
+            >
+              <span>Verifikasi Sekarang</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </a>
+          </div>
+        ) : totalJatuhTempo > 0 ? (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#FAD2CF] bg-[#FFF5F5] p-4 text-[#DC2626] shadow-xs">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-[#DC2626]" />
+              <div>
+                <p className="font-bold text-sm text-[#991B1B]">
+                  Peringatan Jatuh Tempo: {totalJatuhTempo} Berkas Pinjaman Melewati / Mendekati Batas Waktu Pengembalian
+                </p>
+                <p className="text-xs text-[#DC2626] mt-0.5">
+                  Hubungi peminjam untuk memastikan pengembalian fisik berkas ke Gudang Inaktif.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/peminjaman"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#DC2626] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#B91C1C] transition-colors whitespace-nowrap self-start sm:self-auto"
+            >
+              <span>Buka Peminjaman</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        ) : null
       ) : (
         totalAkanKadaluarsa > 0 && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#FEEFC3] bg-[#FEF7E0] p-4 text-[#B06000] shadow-xs">
@@ -1223,6 +1536,58 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               href="/transfer-dokumen"
             />
           </>
+        ) : isPicInaktif ? (
+          <>
+            {/* Card 1: Total Arsip Inaktif */}
+            <StatCard
+              title="Total Arsip Inaktif"
+              subtitle="Record Center / Gudang Sentral"
+              unitLabel={unitMode === 'berkas' ? 'Berkas' : 'Boks'}
+              value={unitMode === 'berkas' ? `${totalInaktif} berkas` : `${totalInaktifBoks} boks`}
+              trend="Tersimpan"
+              trendUp={true}
+              note="siap layani peminjaman"
+              href="/dokumen?status=inaktif"
+            />
+
+            {/* Card 2: Transfer Masuk Menunggu Verifikasi */}
+            <StatCard
+              title="Transfer Masuk Menunggu Verifikasi"
+              subtitle="Dari Unit Pengolah (PIC Aktif)"
+              unitLabel="Antrean"
+              value={`${totalTransferMenunggu} transfer`}
+              trend={totalTransferMenunggu > 0 ? 'Perlu Diterima' : 'Selesai'}
+              trendUp={totalTransferMenunggu === 0}
+              note="menunggu verifikasi BAST"
+              href="#antrean-operasional"
+              highlight={totalTransferMenunggu > 0}
+            />
+
+            {/* Card 3: Dokumen Sedang Dipinjam */}
+            <StatCard
+              title="Dokumen Sedang Dipinjam"
+              subtitle="Peminjaman Inaktif Aktif"
+              unitLabel="Dokumen"
+              value={`${totalDipinjam} berkas`}
+              trend={totalDipinjam > 0 ? `${totalDipinjam} Berjalan` : 'Nihil'}
+              trendUp={true}
+              note="berkas fisik keluar"
+              href="/peminjaman"
+            />
+
+            {/* Card 4: Jatuh Tempo Pengembalian */}
+            <StatCard
+              title="Jatuh Tempo Pengembalian"
+              subtitle="Batas Waktu Pinjam Lewat / H-3"
+              unitLabel="Peringatan"
+              value={`${totalJatuhTempo} berkas`}
+              trend={totalJatuhTempo > 0 ? 'Jatuh Tempo' : 'Tepat Waktu'}
+              trendUp={totalJatuhTempo === 0}
+              note={totalJatuhTempo > 0 ? 'segera lakukan penagihan' : 'tidak ada keterlambatan'}
+              href="/peminjaman"
+              highlight={totalJatuhTempo > 0}
+            />
+          </>
         ) : (
           <>
             {/* Card 1: Arsip Aktif */}
@@ -1276,7 +1641,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
         )}
       </div>
 
-      {/* 3. Grafik Tren Arsip Tahunan + Donut Kategori */}
+      {/* 3. Grafik Tren Arsip Tahunan + Donut Kategori / Okupansi */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
         {/* Grafik Tren Tahunan */}
         <div className="xl:col-span-8 bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 flex flex-col justify-between">
@@ -1285,13 +1650,17 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               <h2 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 text-[#3BA4E8]" />
                 <span>
-                  {isSuperadmin
+                  {isPicInaktif
+                    ? 'Grafik Tren Arsip Inaktif Tahunan'
+                    : isSuperadmin
                     ? 'Grafik Tren Arsip Agregat Tahunan'
                     : 'Grafik Tren Arsip Tahunan'}
                 </span>
               </h2>
               <p className="text-xs text-[#6B7185] mt-0.5">
-                {isSuperadmin
+                {isPicInaktif
+                  ? `Volume arsip yang dialihkan ke gudang inaktif dan aktivitas peminjaman dari tahun ke tahun (${unitMode === 'berkas' ? 'Satuan Berkas/Lembar' : 'Satuan Boks'}).`
+                  : isSuperadmin
                   ? `Volume total arsip masuk dan beralih ke inaktif di seluruh perusahaan dari tahun ke tahun (${unitMode === 'berkas' ? 'Satuan Berkas/Lembar' : 'Satuan Boks'}).`
                   : `Perkembangan arsip masuk unit ${userUnitName} dari tahun ke tahun (${unitMode === 'berkas' ? 'Satuan Berkas/Lembar' : 'Satuan Boks'}).`}
               </p>
@@ -1310,7 +1679,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
                 return (
                   <div key={item.tahun} className="flex flex-col items-center gap-2 flex-1 max-w-[100px]">
                     <div className="w-full flex items-end justify-center gap-2 h-40">
-                      {/* Bar Arsip Masuk Unit */}
+                      {/* Bar Arsip Masuk Unit / Arsip Inaktif Diterima */}
                       <div
                         className="w-7 sm:w-8 rounded-t-md bg-[#3BA4E8] transition-all duration-300 relative group flex items-start justify-center cursor-pointer shadow-2xs hover:bg-[#2A93D7]"
                         style={{ height: `${heightPct}%` }}
@@ -1319,7 +1688,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
                           {val} {unitMode === 'berkas' ? 'berkas' : 'boks'}
                         </span>
                       </div>
-                      {/* Bar Inaktif */}
+                      {/* Bar Inaktif / Peminjaman */}
                       <div
                         className="w-4 sm:w-5 rounded-t-md bg-[#BFE2F8] transition-all duration-300 relative group flex items-start justify-center cursor-pointer"
                         style={{ height: `${Math.min(100, Math.max(8, Math.round((item.inaktif / maxTren) * 100)))}%` }}
@@ -1337,16 +1706,16 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
 
             <div className="mt-4 flex flex-wrap items-center justify-center gap-6 text-xs text-[#6B7185]">
               <span className="flex items-center gap-1.5 font-medium">
-                <span className="w-3 h-3 rounded-sm bg-[#3BA4E8]" /> Arsip Masuk ({unitMode === 'berkas' ? 'Berkas' : 'Boks'})
+                <span className="w-3 h-3 rounded-sm bg-[#3BA4E8]" /> {isPicInaktif ? 'Arsip Inaktif Tersimpan' : 'Arsip Masuk'} ({unitMode === 'berkas' ? 'Berkas' : 'Boks'})
               </span>
               <span className="flex items-center gap-1.5 font-medium">
-                <span className="w-3 h-3 rounded-sm bg-[#BFE2F8]" /> Beralih ke Inaktif
+                <span className="w-3 h-3 rounded-sm bg-[#BFE2F8]" /> {isPicInaktif ? 'Peminjaman Inaktif' : 'Beralih ke Inaktif'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Donut Kategori ATAU Widget Okupansi Ruang Arsip Unit (Khusus Atasan Aktif) */}
+        {/* Donut Kategori ATAU Widget Okupansi (Atasan Aktif / PIC Inaktif) */}
         <div className="xl:col-span-4 flex flex-col">
           {isAtasanAktif ? (
             <div className="h-full bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 flex flex-col justify-between">
@@ -1468,14 +1837,170 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
                 </Link>
               </div>
             </div>
+          ) : isPicInaktif ? (
+            /* Widget Okupansi Rak Gudang Inaktif Khusus PIC Inaktif */
+            <div className="h-full bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 flex flex-col justify-between">
+              <div>
+                <div className="flex items-start justify-between gap-2 border-b border-[#ECEEF5] pb-3">
+                  <div className="min-w-0">
+                    <h3 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
+                      <Warehouse className="h-5 w-5 text-[#3BA4E8] shrink-0" />
+                      <span className="truncate">Okupansi Rak Gudang Inaktif</span>
+                    </h3>
+                    <p className="text-xs text-[#6B7185] mt-0.5 truncate" title={okupansiGudangInaktif.subjudul}>
+                      {okupansiGudangInaktif.subjudul}
+                    </p>
+                  </div>
+                  <span
+                    className={`shrink-0 inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md border ${
+                      okupansiGudangInaktif.persen >= 90
+                        ? 'bg-[#FDECEC] text-[#D64545] border-[#FCA5A5]'
+                        : okupansiGudangInaktif.persen >= 75
+                        ? 'bg-[#FEF7E0] text-[#B06000] border-[#FDE68A]'
+                        : 'bg-[#E7F6EC] text-[#2F9E5B] border-[#A7F3D0]'
+                    }`}
+                  >
+                    {okupansiGudangInaktif.persen >= 90 ? (
+                      <AlertTriangle className="h-3 w-3 shrink-0" />
+                    ) : okupansiGudangInaktif.persen >= 75 ? (
+                      <Clock className="h-3 w-3 shrink-0" />
+                    ) : (
+                      <CheckCircle2 className="h-3 w-3 shrink-0" />
+                    )}
+                    <span>{okupansiGudangInaktif.persen}%</span>
+                  </span>
+                </div>
+
+                {/* Progress Bar & Keterisian Total */}
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-baseline justify-between">
+                    <div>
+                      <span className="text-xs font-medium text-[#6B7185] block">Keterisian Lembar Gudang Sentral</span>
+                      <p className="text-xl font-bold tracking-tight text-[#1F2333] mt-0.5">
+                        {okupansiGudangInaktif.totalLembar.toLocaleString('id-ID')}{' '}
+                        <span className="text-xs font-semibold text-[#8A90A2]">
+                          / {okupansiGudangInaktif.totalKapasitas.toLocaleString('id-ID')} Lembar
+                        </span>
+                      </p>
+                    </div>
+                    {okupansiGudangInaktif.persen >= 90 && (
+                      <span className="text-[10px] font-bold text-[#D64545] bg-[#FDECEC] px-1.5 py-0.5 rounded border border-[#FECACA]">
+                        Mendekati Penuh
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="h-3 w-full rounded-full bg-[#ECEEF5] overflow-hidden p-0.5">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          okupansiGudangInaktif.persen >= 90
+                            ? 'bg-[#D64545]'
+                            : okupansiGudangInaktif.persen >= 75
+                            ? 'bg-[#E37400]'
+                            : 'bg-[#2F9E5B]'
+                        }`}
+                        style={{ width: `${okupansiGudangInaktif.persen}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-[#8A90A2]">
+                      <span>Standar 500 lembar per boks</span>
+                      <span>
+                        {okupansiGudangInaktif.persen >= 90
+                          ? 'Kapasitas maksimal terancam'
+                          : `Sisa: ${(okupansiGudangInaktif.totalKapasitas - okupansiGudangInaktif.totalLembar).toLocaleString('id-ID')} lbr`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Rincian Boks: Status Aktif vs Boks Penuh */}
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="rounded-xl border border-[#ECEEF5] bg-[#F8FAFC] p-3">
+                      <div className="flex items-center gap-1.5 text-xs text-[#6B7185]">
+                        <span className="h-2 w-2 rounded-full bg-[#2F9E5B]" />
+                        <span className="font-medium">Boks Inaktif Aktif</span>
+                      </div>
+                      <p className="mt-1 text-lg font-bold text-[#1F2333]">
+                        {okupansiGudangInaktif.boksAktif}{' '}
+                        <span className="text-xs font-normal text-[#8A90A2]">Boks</span>
+                      </p>
+                      <span className="text-[10px] text-[#6B7185] block mt-0.5">Tersedia pengisian</span>
+                    </div>
+
+                    <div className="rounded-xl border border-[#ECEEF5] bg-[#F8FAFC] p-3">
+                      <div className="flex items-center gap-1.5 text-xs text-[#6B7185]">
+                        <span className="h-2 w-2 rounded-full bg-[#B06000]" />
+                        <span className="font-medium">Boks Penuh</span>
+                      </div>
+                      <p className="mt-1 text-lg font-bold text-[#1F2333]">
+                        {okupansiGudangInaktif.boksPenuh}{' '}
+                        <span className="text-xs font-normal text-[#8A90A2]">Boks</span>
+                      </p>
+                      <span className="text-[10px] text-[#6B7185] block mt-0.5">Kapasitas 500 lbr</span>
+                    </div>
+                  </div>
+
+                  {/* Rincian Rak Spesifik di Fasilitas Gudang Inaktif */}
+                  <div className="space-y-2 pt-2 border-t border-[#ECEEF5]">
+                    <span className="text-[11px] font-bold text-[#4B5163] uppercase tracking-wider block">
+                      Rincian Rak Record Center:
+                    </span>
+                    {okupansiGudangInaktif.racks.map((rk) => (
+                      <div key={rk.id} className="p-2.5 rounded-lg border border-[#ECEEF5] bg-[#F8FAFC] space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-[#1F2333]">{rk.nama}</span>
+                          <span
+                            className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${
+                              rk.persen >= 90
+                                ? 'bg-[#FDECEC] text-[#D64545] border-[#FCA5A5]'
+                                : rk.persen >= 75
+                                ? 'bg-[#FEF7E0] text-[#B06000] border-[#FDE68A]'
+                                : 'bg-[#E7F6EC] text-[#2F9E5B] border-[#A7F3D0]'
+                            }`}
+                          >
+                            {rk.persen}%
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-[#6B7185]">
+                          <span>{rk.boksCount} Boks Tersimpan</span>
+                          <span>{rk.totalLembar} / {rk.totalKapasitas} lbr</span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-[#E2E8F0] overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${
+                              rk.persen >= 90 ? 'bg-[#D64545]' : rk.persen >= 75 ? 'bg-[#E37400]' : 'bg-[#2F9E5B]'
+                            }`}
+                            style={{ width: `${rk.persen}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tombol Link ke Laporan Rekapitulasi */}
+              <div className="pt-4 border-t border-[#ECEEF5] mt-4">
+                <Link
+                  href="/laporan"
+                  className="w-full flex items-center justify-between rounded-lg border border-[#CBD7E3] bg-[#F8FAFC] px-3.5 py-2.5 text-xs font-semibold text-[#1F2333] hover:bg-[#EEF7FD] hover:text-[#1E86C8] hover:border-[#3BA4E8] transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-[#1E86C8]" />
+                    <span>Lihat Detail di Laporan Rekapitulasi</span>
+                  </span>
+                  <ArrowRight className="h-4 w-4 text-[#6B7185]" />
+                </Link>
+              </div>
+            </div>
           ) : (
             <CategoryDonut documents={documents} />
           )}
         </div>
       </div>
 
-      {/* 4. Widget Monitoring Kapasitas Fasilitas & Rak Fisik (Disembunyikan pada Atasan Aktif karena sudah ada widget ringkasan okupansi unit di atas) */}
-      {!isAtasanAktif && (
+      {/* 4. Widget Monitoring Kapasitas Fasilitas & Rak Fisik (Disembunyikan pada Atasan Aktif dan PIC Inaktif karena sudah ada widget ringkasan okupansi di atas) */}
+      {!isAtasanAktif && !isPicInaktif && (
         <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#ECEEF5] pb-3">
             <div>
@@ -1895,6 +2420,233 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
             </div>
           )}
         </div>
+      ) : isPicInaktif ? (
+        /* Widget Antrean Operasional Cepat Khusus PIC Arsip Inaktif (2 Tab: Transfer Masuk & Peminjaman Berjalan) */
+        <div id="antrean-operasional" className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#ECEEF5] pb-3">
+            <div>
+              <h2 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
+                <Package className="h-5 w-5 text-[#0284C7]" />
+                <span>Antrean Operasional Record Center (Gudang Inaktif)</span>
+              </h2>
+              <p className="text-xs text-[#6B7185] mt-0.5">
+                Pusat verifikasi fisik berkas transfer dari unit pengolah dan pengawasan pengembalian dokumen peminjaman.
+              </p>
+            </div>
+
+            {/* 2 Tab Switcher */}
+            <div className="inline-flex rounded-xl bg-[#F0F2F7] p-1 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setInaktifOpTab('transfer')}
+                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all ${
+                  inaktifOpTab === 'transfer'
+                    ? 'bg-white text-[#0284C7] shadow-xs'
+                    : 'text-[#6B7185] hover:text-[#1F2333]'
+                }`}
+              >
+                <span>Transfer Masuk Perlu Diterima</span>
+                {transferAntrean.length > 0 && (
+                  <span className="rounded-full bg-[#E0F2FE] text-[#0284C7] px-1.5 py-0.2 text-[10px] font-bold">
+                    {transferAntrean.length}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setInaktifOpTab('peminjaman')}
+                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all ${
+                  inaktifOpTab === 'peminjaman'
+                    ? 'bg-white text-[#7C3AED] shadow-xs'
+                    : 'text-[#6B7185] hover:text-[#1F2333]'
+                }`}
+              >
+                <span>Peminjaman Berjalan</span>
+                {totalDipinjam > 0 && (
+                  <span className="rounded-full bg-[#F5F3FF] text-[#7C3AED] px-1.5 py-0.2 text-[10px] font-bold">
+                    {totalDipinjam}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Isi Tab 1: Transfer Masuk Perlu Diterima */}
+          {inaktifOpTab === 'transfer' && (
+            <div className="overflow-x-auto">
+              {transferAntrean.length === 0 ? (
+                <div className="py-12 text-center text-xs text-[#8A90A2] space-y-2">
+                  <CheckCircle2 className="h-9 w-9 mx-auto text-[#2F9E5B] stroke-[1.5]" />
+                  <p className="font-bold text-sm text-[#1F2333]">Tidak Ada Antrean Transfer Masuk</p>
+                  <p className="text-xs text-[#6B7185]">Semua berkas yang dialihkan dari unit pengolah telah diverifikasi masuk ke Record Center.</p>
+                </div>
+              ) : (
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-[#ECEEF5] bg-[#F7F8FC] text-[#4B5163]">
+                      <th className="py-2.5 px-3 font-semibold w-12 text-center">No</th>
+                      <th className="py-2.5 px-3 font-semibold">Nomor BAST</th>
+                      <th className="py-2.5 px-3 font-semibold">Unit Asal</th>
+                      <th className="py-2.5 px-3 font-semibold">PIC Pengirim</th>
+                      <th className="py-2.5 px-3 font-semibold">Tanggal Serah</th>
+                      <th className="py-2.5 px-3 font-semibold text-center">Jumlah Berkas</th>
+                      <th className="py-2.5 px-3 font-semibold text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#ECEEF5]">
+                    {transferAntrean.map((st, idx) => {
+                      const nomorBa = st.keterangan?.includes('TRANSFER_INAKTIF')
+                        ? st.keterangan.split('|')[1]?.trim() || 'BAST-TRANSFER'
+                        : st.keterangan || '-'
+                      const unitAsal = st.dari_lokasi?.includes('>') ? st.dari_lokasi.split('>')[0]?.trim() : 'Unit Pengolah'
+                      const pengirimNama = st.penyerah?.nama_lengkap || st.penyerah?.email || 'PIC Aktif'
+                      const tglSerah = st.tanggal_serah ? formatLogDate(st.tanggal_serah) : formatLogDate(st.created_at)
+
+                      return (
+                        <tr key={st.id} className="hover:bg-[#F0F9FF]/40 transition-colors">
+                          <td className="py-3 px-3 text-center text-[#6B7185] font-semibold">{idx + 1}</td>
+                          <td className="py-3 px-3 font-mono font-bold text-[#0284C7] whitespace-nowrap">
+                            {nomorBa}
+                          </td>
+                          <td className="py-3 px-3 font-medium text-[#1F2333]">
+                            <div>{unitAsal}</div>
+                            {st.dokumen?.kode_arsip && (
+                              <div className="font-mono text-[11px] text-[#64748B] mt-0.5">
+                                {st.dokumen.kode_arsip}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-3 px-3 text-[#4B5163] whitespace-nowrap">
+                            {pengirimNama}
+                          </td>
+                          <td className="py-3 px-3 text-[#6B7185] whitespace-nowrap">
+                            {tglSerah}
+                          </td>
+                          <td className="py-3 px-3 text-center whitespace-nowrap">
+                            <span className="inline-block rounded bg-[#E6F4EA] border border-[#CEEAD6] px-2 py-0.5 font-bold text-[#137333]">
+                              {st.dokumen?.jumlah_halaman ? `${st.dokumen.jumlah_halaman} lbr` : '1 berkas'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setVerifikasiModal(st)
+                                setVerifikasiScannedCode(st.dokumen?.kode_arsip || '')
+                                setVerifikasiAlasanTolak('')
+                              }}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-[#0284C7] px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-[#0369A1] transition-all"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Verifikasi &amp; Terima</span>
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
+          {/* Isi Tab 2: Peminjaman Berjalan */}
+          {inaktifOpTab === 'peminjaman' && (
+            <div className="overflow-x-auto">
+              {peminjamanList.length === 0 ? (
+                <div className="py-12 text-center text-xs text-[#8A90A2] space-y-2">
+                  <CheckCircle2 className="h-9 w-9 mx-auto text-[#2F9E5B] stroke-[1.5]" />
+                  <p className="font-bold text-sm text-[#1F2333]">Tidak Ada Peminjaman Berjalan</p>
+                  <p className="text-xs text-[#6B7185]">Seluruh berkas arsip inaktif tersimpan aman di fasilitas Gudang Record Center.</p>
+                </div>
+              ) : (
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-[#ECEEF5] bg-[#F7F8FC] text-[#4B5163]">
+                      <th className="py-2.5 px-3 font-semibold w-12 text-center">No</th>
+                      <th className="py-2.5 px-3 font-semibold">Kode Arsip SIG</th>
+                      <th className="py-2.5 px-3 font-semibold">Judul Dokumen</th>
+                      <th className="py-2.5 px-3 font-semibold">Nama Peminjam</th>
+                      <th className="py-2.5 px-3 font-semibold">Tanggal Pinjam</th>
+                      <th className="py-2.5 px-3 font-semibold">Batas Waktu</th>
+                      <th className="py-2.5 px-3 font-semibold text-center">Status</th>
+                      <th className="py-2.5 px-3 font-semibold text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#ECEEF5]">
+                    {peminjamanList.map((pj, idx) => {
+                      const peminjamNama = pj.peminjam?.nama_lengkap || pj.peminjam?.email || 'Pegawai'
+                      const isOverdue = pj.status === 'Dipinjam' && pj.tanggal_kembali && new Date(pj.tanggal_kembali) < new Date()
+                      const tglPinjam = pj.tanggal_pinjam ? formatLogDate(pj.tanggal_pinjam) : '-'
+                      const tglKembali = pj.tanggal_kembali ? formatLogDate(pj.tanggal_kembali) : '-'
+
+                      return (
+                        <tr key={pj.id} className="hover:bg-[#FDF4FF]/40 transition-colors">
+                          <td className="py-3 px-3 text-center text-[#6B7185] font-semibold">{idx + 1}</td>
+                          <td className="py-3 px-3 min-w-[140px]">
+                            <KodeArsip kode={pj.dokumen?.kode_arsip || '-'} className="text-[11px]" />
+                          </td>
+                          <td className="py-3 px-3 max-w-xs">
+                            <span className="font-semibold text-[#1F2333] line-clamp-1">{pj.dokumen?.judul || '-'}</span>
+                            <span className="text-[11px] text-[#8A90A2]">
+                              Keperluan: {pj.keperluan || 'Keperluan dinas'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-[#4B5163] font-medium whitespace-nowrap">
+                            <div>{peminjamNama}</div>
+                            <div className="text-[10px] text-[#8A90A2]">{pj.peminjam?.jabatan || '-'}</div>
+                          </td>
+                          <td className="py-3 px-3 text-[#6B7185] whitespace-nowrap">{tglPinjam}</td>
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              <span className={isOverdue ? 'text-[#DC2626] font-bold' : 'text-[#6B7185]'}>
+                                {tglKembali}
+                              </span>
+                              {isOverdue && (
+                                <span className="rounded bg-[#FDECEC] border border-[#FECACA] px-1 py-0.2 text-[9px] font-bold text-[#DC2626]">
+                                  Lewat
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 text-center whitespace-nowrap">
+                            <span
+                              className={`inline-block rounded px-2 py-0.5 text-[11px] font-bold border ${
+                                pj.status === 'Dipinjam'
+                                  ? isOverdue
+                                    ? 'bg-[#FDECEC] text-[#DC2626] border-[#FECACA]'
+                                    : 'bg-[#FDF4FF] text-[#A21CAF] border-[#F5D0FE]'
+                                  : pj.status === 'Dikembalikan'
+                                  ? 'bg-[#E7F6EC] text-[#2F9E5B] border-[#BBF7D0]'
+                                  : 'bg-[#FEF7E0] text-[#B06000] border-[#FDE68A]'
+                              }`}
+                            >
+                              {pj.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right whitespace-nowrap">
+                            {pj.status === 'Dipinjam' ? (
+                              <button
+                                type="button"
+                                onClick={() => setPengembalianModal(pj)}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-[#7C3AED] px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-[#6D28D9] transition-all"
+                              >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                                <span>Catat Pengembalian</span>
+                              </button>
+                            ) : (
+                              <span className="text-[11px] text-[#8A90A2] italic">Selesai</span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+        </div>
       ) : (
         /* Tabel Tindakan Prioritas Khusus PIC Arsip Aktif */
         <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 space-y-4">
@@ -2088,11 +2840,15 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
             <h2 className="text-base font-bold text-[#1F2333]">
               {isSuperadmin
                 ? 'Daftar Seluruh Dokumen Arsip (Global Perusahaan)'
+                : isPicInaktif
+                ? 'Daftar Seluruh Arsip Inaktif (Record Center)'
                 : 'Daftar Seluruh Dokumen Unit'}
             </h2>
             <p className="text-xs text-[#6B7185] mt-0.5">
               {isSuperadmin
                 ? 'Semua berkas arsip aktif & inaktif yang terdaftar di seluruh unit organisasi / departemen perusahaan.'
+                : isPicInaktif
+                ? 'Semua berkas arsip inaktif yang tersimpan dan dikelola di fasilitas Gudang Sentral Record Center.'
                 : `Semua berkas arsip yang terdaftar pada unit pengolah ${userUnitName}.`}
             </p>
           </div>
@@ -2466,6 +3222,236 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
                   </>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Verifikasi Transfer Masuk Khusus PIC Arsip Inaktif */}
+      {verifikasiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-[#ECEEF5] space-y-4">
+            <div className="flex items-center justify-between border-b border-[#ECEEF5] pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-[#E0F2FE] text-[#0284C7]">
+                  <Inbox className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[#1F2333]">Verifikasi Fisik Transfer Masuk</h3>
+                  <p className="text-xs text-[#6B7185]">Penerimaan berkas ke Record Center (Gudang Inaktif)</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVerifikasiModal(null)}
+                className="text-[#8A90A2] hover:text-[#1F2333] p-1.5 rounded-lg hover:bg-[#F7F8FC]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Rincian Berkas */}
+            <div className="rounded-xl border border-[#ECEEF5] bg-[#F8FAFC] p-4 space-y-2.5 text-xs">
+              <div className="flex justify-between items-start">
+                <span className="text-[#64748B]">Nomor BAST:</span>
+                <span className="font-mono font-bold text-[#0284C7]">
+                  {verifikasiModal.keterangan?.includes('TRANSFER_INAKTIF')
+                    ? verifikasiModal.keterangan.split('|')[1]?.trim()
+                    : verifikasiModal.keterangan || '-'}
+                </span>
+              </div>
+              <div className="flex justify-between items-start">
+                <span className="text-[#64748B]">Judul Dokumen:</span>
+                <span className="font-semibold text-[#1F2333] text-right max-w-xs">
+                  {verifikasiModal.dokumen?.judul || '-'}
+                </span>
+              </div>
+              <div className="flex justify-between items-start">
+                <span className="text-[#64748B]">Kode Arsip SIG:</span>
+                <span className="font-mono font-semibold text-[#1F2333]">
+                  {verifikasiModal.dokumen?.kode_arsip || '-'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#64748B]">Unit Pengirim:</span>
+                <span className="font-medium text-[#1F2333]">
+                  {verifikasiModal.dari_lokasi || 'Unit Pengolah'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#64748B]">PIC Pengirim:</span>
+                <span className="text-[#4B5163]">
+                  {verifikasiModal.penyerah?.nama_lengkap || verifikasiModal.penyerah?.email || '-'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#64748B]">Jumlah Halaman Fisik:</span>
+                <span className="font-bold text-[#137333]">
+                  {verifikasiModal.dokumen?.jumlah_halaman || 1} Lembar
+                </span>
+              </div>
+            </div>
+
+            {/* Validasi Barcode/QR Kode Arsip */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-[#1F2333]">
+                Validasi Scan Barcode / Kode Arsip SIG
+              </label>
+              <input
+                type="text"
+                value={verifikasiScannedCode}
+                onChange={(e) => setVerifikasiScannedCode(e.target.value)}
+                placeholder="Contoh: 2026_2000_1500013765_1900009386"
+                className="w-full h-10 px-3 text-xs font-mono rounded-xl border border-[#CBD7E3] bg-white focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7]"
+              />
+              <p className="text-[11px] text-[#64748B]">
+                Pastikan kode fisik dokumen sesuai dengan data BAST sebelum dialokasikan ke boks inaktif.
+              </p>
+            </div>
+
+            {/* Informasi Alokasi Rak & Boks Inaktif */}
+            <div className="p-3 rounded-xl border border-[#BAE6FD] bg-[#F0F9FF] text-xs space-y-1">
+              <p className="font-bold text-[#0369A1] flex items-center gap-1.5">
+                <Warehouse className="h-4 w-4" />
+                <span>Alokasi Fasilitas Record Center Otomatis:</span>
+              </p>
+              <p className="text-[#0369A1] font-mono text-[11px]">
+                Gudang Inaktif &gt; Ruang Arsip Inaktif &gt; Rak Inaktif 01 (BOKS-INAKTIF-01)
+              </p>
+              <p className="text-[11px] text-[#0284C7]">
+                Kapasitas standar: 500 lembar per boks sesuai Blueprint R.03 Bab 3.5.
+              </p>
+            </div>
+
+            {/* Input Alasan jika ingin menolak */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-[#64748B]">
+                Alasan Penolakan (Hanya diisi jika berkas ditolak):
+              </label>
+              <input
+                type="text"
+                value={verifikasiAlasanTolak}
+                onChange={(e) => setVerifikasiAlasanTolak(e.target.value)}
+                placeholder="Misal: Berkas fisik tidak lengkap / barcode tidak sesuai"
+                className="w-full h-9 px-3 text-xs rounded-lg border border-[#D5D9E2] bg-white focus:outline-none focus:border-[#D64545]"
+              />
+            </div>
+
+            {/* Tombol Aksi */}
+            <div className="flex items-center justify-between pt-3 border-t border-[#ECEEF5]">
+              <button
+                type="button"
+                onClick={() => handleVerifikasiTransfer('tolak')}
+                disabled={isVerifikasiSubmitting}
+                className="rounded-xl border border-[#FAD2CF] bg-[#FFF5F5] px-4 py-2 text-xs font-bold text-[#DC2626] hover:bg-[#FDECEC] transition-colors disabled:opacity-50"
+              >
+                {isVerifikasiSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin inline mr-1" /> : null}
+                <span>Tolak Transfer</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setVerifikasiModal(null)}
+                  className="rounded-xl border border-[#D5D9E2] px-4 py-2 text-xs font-semibold text-[#4B5163] hover:bg-[#F7F8FC]"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleVerifikasiTransfer('terima')}
+                  disabled={isVerifikasiSubmitting}
+                  className="rounded-xl bg-[#0284C7] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#0369A1] transition-all disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {isVerifikasiSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                  <span>Konfirmasi Terima (Inaktif)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Konfirmasi Pengembalian Peminjaman Khusus PIC Inaktif */}
+      {pengembalianModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-[#ECEEF5] space-y-4">
+            <div className="flex items-center justify-between border-b border-[#ECEEF5] pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-[#F5F3FF] text-[#7C3AED]">
+                  <RotateCcw className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[#1F2333]">Catat Pengembalian Berkas</h3>
+                  <p className="text-xs text-[#6B7185]">Pengembalian fisik dokumen inaktif</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPengembalianModal(null)}
+                className="text-[#8A90A2] hover:text-[#1F2333] p-1.5 rounded-lg hover:bg-[#F7F8FC]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <p className="text-[#4B5163]">
+                Pastikan berkas fisik arsip telah diterima kembali dari peminjam dan diperiksa kelengkapannya:
+              </p>
+
+              <div className="rounded-xl border border-[#ECEEF5] bg-[#F8FAFC] p-3.5 space-y-2 font-mono">
+                <div>
+                  <span className="text-[#8A90A2] block text-[10px]">KODE ARSIP:</span>
+                  <span className="font-bold text-[#1F2333]">{pengembalianModal.dokumen?.kode_arsip || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-[#8A90A2] block text-[10px]">JUDUL DOKUMEN:</span>
+                  <span className="font-sans font-semibold text-[#1F2333] block truncate">
+                    {pengembalianModal.dokumen?.judul || '-'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[#8A90A2] block text-[10px]">PEMINJAM:</span>
+                  <span className="font-sans text-[#4B5163]">
+                    {pengembalianModal.peminjam?.nama_lengkap || pengembalianModal.peminjam?.email || '-'} (
+                    {pengembalianModal.peminjam?.jabatan || 'Pegawai'})
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl border border-[#DDD6FE] bg-[#F5F3FF] text-[#6D28D9] text-[11px] space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>Ketentuan Blueprint R.03 (Bab 3.6):</span>
+                </p>
+                <p>
+                  Status dokumen <strong>TETAP Inaktif</strong> dan berkas fisik disimpan kembali di fasilitas Gudang Sentral Record Center.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#ECEEF5]">
+              <button
+                type="button"
+                onClick={() => setPengembalianModal(null)}
+                className="rounded-xl border border-[#D5D9E2] px-4 py-2 text-xs font-semibold text-[#4B5163] hover:bg-[#F7F8FC]"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => handleKembalikanPeminjaman(pengembalianModal.id, pengembalianModal.dokumen?.kode_arsip || '')}
+                disabled={isPengembalianSubmitting}
+                className="rounded-xl bg-[#7C3AED] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#6D28D9] transition-all disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isPengembalianSubmitting ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Check className="w-3.5 h-3.5" />
+                )}
+                <span>Konfirmasi Pengembalian</span>
+              </button>
             </div>
           </div>
         </div>
