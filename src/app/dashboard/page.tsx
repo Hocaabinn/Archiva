@@ -45,6 +45,7 @@ import {
   Users,
   Shield,
   Activity,
+  BookOpenCheck,
 } from 'lucide-react'
 
 type DocStatus = DokumenStatus
@@ -1112,6 +1113,72 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
     }
   }, [lokasiList, boksList, documents])
 
+  // Data Khusus Widget "Status Sirkulasi Peminjaman & Kapasitas Boks" untuk Atasan Arsip Inaktif
+  const statusSirkulasiInaktif = useMemo(() => {
+    const now = new Date()
+    const pinjamAktif = peminjamanList.filter((p) => p.status === 'Dipinjam')
+
+    const overdueList: any[] = []
+    let tepatWaktuCount = 0
+    let mendekatiBatasCount = 0
+    let lewatJatuhTempoCount = 0
+
+    pinjamAktif.forEach((p) => {
+      if (!p.tanggal_kembali) {
+        tepatWaktuCount++
+        return
+      }
+      const tglKembali = new Date(p.tanggal_kembali)
+      const diffMs = tglKembali.getTime() - now.getTime()
+      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+
+      if (diffDays < 0) {
+        lewatJatuhTempoCount++
+        overdueList.push({
+          ...p,
+          hariTerlambat: Math.abs(diffDays),
+        })
+      } else if (diffDays <= 3) {
+        mendekatiBatasCount++
+      } else {
+        tepatWaktuCount++
+      }
+    })
+
+    const totalPinjam = pinjamAktif.length
+
+    // Hitung status fisik boks di Gudang Inaktif
+    const boksInaktifList = boksList.filter((b) => {
+      const rak = lokasiList.find((l) => l.id === b.rak_id)
+      const ruangan = rak?.parent_id ? lokasiList.find((l) => l.id === rak.parent_id) : undefined
+      const gedung = ruangan?.parent_id ? lokasiList.find((l) => l.id === ruangan.parent_id) : undefined
+      const isInaktifLoc =
+        (rak?.nama || '').toLowerCase().includes('inaktif') ||
+        (ruangan?.nama || '').toLowerCase().includes('inaktif') ||
+        (gedung?.nama || '').toLowerCase().includes('inaktif') ||
+        (b.nomor_boks || '').toLowerCase().includes('inaktif')
+      return isInaktifLoc
+    })
+
+    const inaktifDocs = documents.filter((d) => d.status === 'inaktif')
+    const fallbackBoks = countBoxesForDocs(inaktifDocs.length > 0 ? inaktifDocs : inaktifDocuments)
+
+    const totalBoksTerisi = boksInaktifList.length > 0 ? boksInaktifList.length : Math.max(1, fallbackBoks)
+    const boksPenuh = boksInaktifList.filter((b) => (b.status || '').toLowerCase() === 'penuh').length
+    const boksTerbuka = Math.max(1, totalBoksTerisi - boksPenuh)
+
+    return {
+      totalPinjam,
+      tepatWaktuCount,
+      mendekatiBatasCount,
+      lewatJatuhTempoCount,
+      overdueItemFirst: overdueList[0] || null,
+      totalBoksTerisi,
+      boksPenuh,
+      boksTerbuka,
+    }
+  }, [peminjamanList, boksList, lokasiList, documents, inaktifDocuments])
+
   // Tren Arsip Tahunan (Responsif terhadap Berkas vs Boks dan Peran PIC Inaktif)
   const trenTahunanData = useMemo(() => {
     const yearsMap = new Map<number, { berkasMasuk: number; boksMasuk: Set<string>; inaktifBerkas: number }>()
@@ -2002,7 +2069,193 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
                 </Link>
               </div>
             </div>
-          ) : isInaktifRole ? (
+          ) : isAtasanInaktif ? (
+            /* Widget: Status Sirkulasi Peminjaman & Kapasitas Boks (Khusus Atasan Inaktif) */
+            <div className="h-full bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 flex flex-col justify-between space-y-4">
+              <div>
+                {/* Header Panel */}
+                <div className="flex items-start justify-between gap-2 border-b border-[#ECEEF5] pb-3">
+                  <div className="min-w-0">
+                    <h3 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
+                      <BookOpenCheck className="h-5 w-5 text-[#3BA4E8] shrink-0" />
+                      <span className="truncate">Status Sirkulasi Peminjaman Fisik</span>
+                    </h3>
+                    <p className="text-xs text-[#6B7185] mt-0.5 truncate" title="Monitoring dokumen keluar & kepatuhan pengembalian ke Record Center">
+                      Monitoring dokumen keluar & kepatuhan pengembalian ke Record Center
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs font-bold text-[#1E86C8] bg-[#EAF5FD] border border-[#BCE1F9] px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>{statusSirkulasiInaktif.totalPinjam} Dipinjam</span>
+                  </span>
+                </div>
+
+                {/* 1. Alert Box / Status Jatuh Tempo */}
+                <div className="mt-3.5">
+                  {statusSirkulasiInaktif.lewatJatuhTempoCount > 0 ? (
+                    <div className="rounded-xl border border-[#FCA5A5] bg-[#FEF2F2] p-3 text-xs text-[#991B1B] shadow-2xs space-y-1.5 animate-in fade-in">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-[#B91C1C] flex items-center gap-1.5">
+                          <AlertTriangle className="h-4 w-4 text-[#DC2626] shrink-0" />
+                          <span>{statusSirkulasiInaktif.lewatJatuhTempoCount} Berkas Lewat Batas Waktu!</span>
+                        </span>
+                        <Link
+                          href="/peminjaman"
+                          className="text-[11px] font-semibold text-[#DC2626] hover:underline"
+                        >
+                          Hubungi PIC / Detail &rarr;
+                        </Link>
+                      </div>
+                      {statusSirkulasiInaktif.overdueItemFirst && (
+                        <div className="bg-white/70 rounded-lg p-2 border border-[#FECACA] text-[11px]">
+                          <p className="font-semibold text-[#1F2333] truncate">
+                            {statusSirkulasiInaktif.overdueItemFirst.dokumen?.judul || statusSirkulasiInaktif.overdueItemFirst.dokumen?.kode_arsip || 'Berkas Dokumen'}
+                          </p>
+                          <p className="text-[#64748B] mt-0.5 text-[10px]">
+                            Peminjam: <strong className="text-[#1F2333]">{statusSirkulasiInaktif.overdueItemFirst.peminjam?.nama_lengkap || statusSirkulasiInaktif.overdueItemFirst.peminjam?.email || 'Pegawai'}</strong> ({statusSirkulasiInaktif.overdueItemFirst.peminjam?.unit?.nama || 'Unit Terkait'})
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-[#A7F3D0] bg-[#E7F6EC] p-3 text-xs text-[#137333] flex items-center gap-2.5">
+                      <CheckCircle2 className="h-4 w-4 text-[#2F9E5B] shrink-0" />
+                      <div>
+                        <p className="font-bold text-xs text-[#137333]">Kepatuhan Pengembalian 100%</p>
+                        <p className="text-[11px] text-[#2F9E5B]">Seluruh dokumen pinjaman berada dalam batas waktu resmi.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Progress Bar / Ringkasan Sirkulasi */}
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-semibold text-[#4B5163]">
+                    <span>Sirkulasi Berkas Keluar</span>
+                    <span className="text-[11px] text-[#6B7185] font-normal">
+                      Total: <strong>{statusSirkulasiInaktif.totalPinjam} Berkas</strong>
+                    </span>
+                  </div>
+
+                  {/* Multi-segment Progress Bar */}
+                  <div className="h-3 w-full rounded-full bg-[#ECEEF5] overflow-hidden flex p-0.5 gap-0.5">
+                    {statusSirkulasiInaktif.totalPinjam === 0 ? (
+                      <div className="h-full w-full bg-[#E5E7EB] rounded-full" />
+                    ) : (
+                      <>
+                        {statusSirkulasiInaktif.tepatWaktuCount > 0 && (
+                          <div
+                            className="h-full bg-[#2F9E5B] rounded-sm transition-all duration-500"
+                            style={{
+                              width: `${(statusSirkulasiInaktif.tepatWaktuCount / statusSirkulasiInaktif.totalPinjam) * 100}%`,
+                            }}
+                            title={`Tepat Waktu: ${statusSirkulasiInaktif.tepatWaktuCount}`}
+                          />
+                        )}
+                        {statusSirkulasiInaktif.mendekatiBatasCount > 0 && (
+                          <div
+                            className="h-full bg-[#E37400] rounded-sm transition-all duration-500"
+                            style={{
+                              width: `${(statusSirkulasiInaktif.mendekatiBatasCount / statusSirkulasiInaktif.totalPinjam) * 100}%`,
+                            }}
+                            title={`Mendekati Batas: ${statusSirkulasiInaktif.mendekatiBatasCount}`}
+                          />
+                        )}
+                        {statusSirkulasiInaktif.lewatJatuhTempoCount > 0 && (
+                          <div
+                            className="h-full bg-[#DC2626] rounded-sm transition-all duration-500"
+                            style={{
+                              width: `${(statusSirkulasiInaktif.lewatJatuhTempoCount / statusSirkulasiInaktif.totalPinjam) * 100}%`,
+                            }}
+                            title={`Lewat Jatuh Tempo: ${statusSirkulasiInaktif.lewatJatuhTempoCount}`}
+                          />
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* 3 Metric Counts Sirkulasi */}
+                  <div className="grid grid-cols-3 gap-2 text-center pt-1">
+                    <div className="rounded-lg bg-[#F7F8FC] border border-[#ECEEF5] py-1.5 px-1">
+                      <span className="text-[10px] text-[#6B7185] block">Tepat Waktu</span>
+                      <span className="text-xs font-bold text-[#2F9E5B]">
+                        {statusSirkulasiInaktif.tepatWaktuCount} berkas
+                      </span>
+                    </div>
+                    <div className="rounded-lg bg-[#F7F8FC] border border-[#ECEEF5] py-1.5 px-1">
+                      <span className="text-[10px] text-[#6B7185] block">&lt; 3 Hari</span>
+                      <span className="text-xs font-bold text-[#E37400]">
+                        {statusSirkulasiInaktif.mendekatiBatasCount} berkas
+                      </span>
+                    </div>
+                    <div className={`rounded-lg py-1.5 px-1 border ${
+                      statusSirkulasiInaktif.lewatJatuhTempoCount > 0
+                        ? 'bg-[#FEF2F2] border-[#FCA5A5]'
+                        : 'bg-[#F7F8FC] border-[#ECEEF5]'
+                    }`}>
+                      <span className="text-[10px] text-[#6B7185] block">Jatuh Tempo</span>
+                      <span className={`text-xs font-bold ${
+                        statusSirkulasiInaktif.lewatJatuhTempoCount > 0 ? 'text-[#DC2626]' : 'text-[#8A90A2]'
+                      }`}>
+                        {statusSirkulasiInaktif.lewatJatuhTempoCount} berkas
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Ringkasan Boks Inaktif di Gudang */}
+                <div className="mt-4 pt-3 border-t border-[#ECEEF5] space-y-2">
+                  <div className="flex items-center justify-between text-xs font-semibold text-[#1F2333]">
+                    <span className="flex items-center gap-1.5 text-[#4B5163]">
+                      <Warehouse className="h-3.5 w-3.5 text-[#3BA4E8]" />
+                      <span>Kapasitas Boks Gudang Inaktif</span>
+                    </span>
+                    <span className="text-[11px] text-[#6B7185] font-mono">
+                      Std: 500 lbr/boks
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-lg border border-[#ECEEF5] bg-[#F8FAFC] p-2 text-center">
+                      <span className="text-[10px] text-[#64748B] block">Total Boks</span>
+                      <span className="text-sm font-bold text-[#1F2333] block mt-0.5 font-mono">
+                        {statusSirkulasiInaktif.totalBoksTerisi}
+                      </span>
+                      <span className="text-[9px] text-[#8A90A2]">Terisi</span>
+                    </div>
+                    <div className="rounded-lg border border-[#FEEFC3] bg-[#FFFCF5] p-2 text-center">
+                      <span className="text-[10px] text-[#B06000] block">Boks Penuh</span>
+                      <span className="text-sm font-bold text-[#B06000] block mt-0.5 font-mono">
+                        {statusSirkulasiInaktif.boksPenuh}
+                      </span>
+                      <span className="text-[9px] text-[#B06000]/80">500 lembar</span>
+                    </div>
+                    <div className="rounded-lg border border-[#CEEAD6] bg-[#F4FBF6] p-2 text-center">
+                      <span className="text-[10px] text-[#137333] block">Boks Terbuka</span>
+                      <span className="text-sm font-bold text-[#2F9E5B] block mt-0.5 font-mono">
+                        {statusSirkulasiInaktif.boksTerbuka}
+                      </span>
+                      <span className="text-[9px] text-[#137333]/80">Tersedia isi</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Tombol Aksi di Bagian Bawah Kartu */}
+              <div className="pt-3 border-t border-[#ECEEF5]">
+                <Link
+                  href="/peminjaman"
+                  className="w-full flex items-center justify-between rounded-lg border border-[#CBD7E3] bg-[#F8FAFC] px-3.5 py-2.5 text-xs font-semibold text-[#1F2333] hover:bg-[#EEF7FD] hover:text-[#1E86C8] hover:border-[#3BA4E8] transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <BookOpenCheck className="h-4 w-4 text-[#1E86C8]" />
+                    <span>Buka Modul Peminjaman</span>
+                  </span>
+                  <ArrowRight className="h-4 w-4 text-[#6B7185]" />
+                </Link>
+              </div>
+            </div>
+          ) : isPicInaktif ? (
             /* Widget Okupansi Rak Gudang Inaktif Khusus PIC Inaktif & Atasan Inaktif */
             <div className="h-full bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 flex flex-col justify-between">
               <div>
@@ -2164,224 +2417,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
         </div>
       </div>
 
-      {/* 4. Widget Monitoring Kapasitas Fasilitas & Rak Fisik (Khusus Superadmin untuk manajemen fasilitas seluruh perusahaan) */}
-      {isSuperadmin && (
-        <div className="bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#ECEEF5] pb-3">
-            <div>
-              <h2 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
-                <Warehouse className="h-5 w-5 text-[#3BA4E8]" />
-                <span>
-                  {isSuperadmin
-                    ? 'Monitoring Kapasitas Fasilitas Fisik (Aktif & Inaktif)'
-                    : 'Okupansi Rak Fisik Aktif (Ruang Arsip Aktif)'}
-                </span>
-              </h2>
-              <p className="text-xs text-[#6B7185] mt-0.5">
-                {isSuperadmin
-                  ? 'Keterisian fisik rak di Ruang Arsip Aktif (Gedung A) dan Ruang Simpan Inaktif (Record Center). Standar kapasitas 500 lembar per boks.'
-                  : 'Keterisian fisik rak di Ruang Arsip Aktif unit. Standar kapasitas maksimal 500 lembar per boks.'}
-              </p>
-            </div>
-            <span className="text-xs text-[#8A90A2]">
-              Total: <strong>{displayedRakList.length} rak</strong>
-            </span>
-          </div>
 
-          {/* Khusus Superadmin: Tampilkan Ringkasan 2 Fasilitas Utama (Gedung A & Gedung Inaktif) */}
-          {isSuperadmin && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-2">
-              {/* Fasilitas 1: Ruang Arsip Aktif (Gedung A) */}
-              <div className="rounded-xl border border-[#ECEEF5] bg-[#F7F8FC] p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-[#E0F2FE] text-[#0284C7]">
-                      <Layers className="h-4 w-4" />
-                    </span>
-                    <div>
-                      <p className="text-xs font-bold text-[#1F2333]">{fasilitasUtama.aktif.nama}</p>
-                      <p className="text-[11px] text-[#6B7185]">{fasilitasUtama.aktif.gedung}</p>
-                    </div>
-                  </div>
-                  <span
-                    className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
-                      fasilitasUtama.aktif.persen >= 90
-                        ? 'bg-[#FDECEC] text-[#D64545] border border-[#FECACA]'
-                        : fasilitasUtama.aktif.persen >= 75
-                        ? 'bg-[#FEF7E0] text-[#B06000] border border-[#FEEFC3]'
-                        : 'bg-[#E7F6EC] text-[#2F9E5B]'
-                    }`}
-                  >
-                    {fasilitasUtama.aktif.persen}% Kapasitas
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  <div className="h-2 w-full rounded-full bg-[#E5E7EB] overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        fasilitasUtama.aktif.persen >= 90
-                          ? 'bg-[#D64545]'
-                          : fasilitasUtama.aktif.persen >= 75
-                          ? 'bg-[#E37400]'
-                          : 'bg-[#2F9E5B]'
-                      }`}
-                      style={{ width: `${fasilitasUtama.aktif.persen}%` }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-[#6B7185]">
-                    <span>{fasilitasUtama.aktif.totalBoks} Boks Aktif</span>
-                    <span>
-                      {fasilitasUtama.aktif.totalLembar.toLocaleString('id-ID')} /{' '}
-                      {fasilitasUtama.aktif.kapasitasMaks.toLocaleString('id-ID')} lbr
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Fasilitas 2: Ruang Simpan Inaktif (Gedung Inaktif) */}
-              <div className="rounded-xl border border-[#ECEEF5] bg-[#F7F8FC] p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-[#EDE9FE] text-[#6D28D9]">
-                      <Warehouse className="h-4 w-4" />
-                    </span>
-                    <div>
-                      <p className="text-xs font-bold text-[#1F2333]">{fasilitasUtama.inaktif.nama}</p>
-                      <p className="text-[11px] text-[#6B7185]">{fasilitasUtama.inaktif.gedung}</p>
-                    </div>
-                  </div>
-                  <span
-                    className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
-                      fasilitasUtama.inaktif.persen >= 90
-                        ? 'bg-[#FDECEC] text-[#D64545] border border-[#FECACA]'
-                        : fasilitasUtama.inaktif.persen >= 75
-                        ? 'bg-[#FEF7E0] text-[#B06000] border border-[#FEEFC3]'
-                        : 'bg-[#E7F6EC] text-[#2F9E5B]'
-                    }`}
-                  >
-                    {fasilitasUtama.inaktif.persen}% Kapasitas
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  <div className="h-2 w-full rounded-full bg-[#E5E7EB] overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        fasilitasUtama.inaktif.persen >= 90
-                          ? 'bg-[#D64545]'
-                          : fasilitasUtama.inaktif.persen >= 75
-                          ? 'bg-[#E37400]'
-                          : 'bg-[#2F9E5B]'
-                      }`}
-                      style={{ width: `${fasilitasUtama.inaktif.persen}%` }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-[#6B7185]">
-                    <span>{fasilitasUtama.inaktif.totalBoks} Boks Inaktif</span>
-                    <span>
-                      {fasilitasUtama.inaktif.totalLembar.toLocaleString('id-ID')} /{' '}
-                      {fasilitasUtama.inaktif.kapasitasMaks.toLocaleString('id-ID')} lbr
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Peringatan Kapasitas Melebihi 80% */}
-          {(() => {
-            const raksOver80 = displayedRakList.filter((r) => r.persenTerpakai >= 80)
-            if (raksOver80.length === 0) return null
-            return (
-              <div className="flex items-start gap-3 rounded-xl border border-[#FCA5A5] bg-[#FEF2F2] p-3.5 text-xs text-[#991B1B] shadow-2xs">
-                <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-[#DC2626]" />
-                <div className="space-y-0.5">
-                  <p className="font-bold text-[#B91C1C]">
-                    Peringatan Kapasitas (Keterisian &ge; 80%): Terdapat {raksOver80.length} rak yang hampir penuh!
-                  </p>
-                  <p className="text-[11px] text-[#7F1D1D]">
-                    Lokasi:{' '}
-                    <strong>
-                      {raksOver80
-                        .map((r) => `${r.rakNama} (${r.ruanganNama} — ${r.persenTerpakai}%)`)
-                        .join(', ')}
-                    </strong>
-                    . Segera persiapkan penambahan boks baru atau alokasikan dokumen ke rak yang masih kosong.
-                  </p>
-                </div>
-              </div>
-            )
-          })()}
-
-          {displayedRakList.length === 0 ? (
-            <p className="text-xs text-[#8A90A2] py-4 text-center">Belum ada master rak terdaftar.</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {displayedRakList.map((rak) => {
-                // Indikator visual sesuai spesifikasi:
-                // hijau jika < 75%, kuning jika 75-89%, merah/alert jika >= 90%
-                let progressColor = 'bg-[#2F9E5B]' // hijau < 75%
-                let badgeColor = 'text-[#2F9E5B] bg-[#E7F6EC]'
-                const isAlert90 = rak.persenTerpakai >= 90
-                const isWarn75 = rak.persenTerpakai >= 75 && rak.persenTerpakai < 90
-
-                if (isAlert90) {
-                  progressColor = 'bg-[#D64545]' // merah >= 90%
-                  badgeColor = 'text-[#D64545] bg-[#FDECEC] border border-[#FECACA]'
-                } else if (isWarn75) {
-                  progressColor = 'bg-[#E37400]' // kuning/oranye 75-89%
-                  badgeColor = 'text-[#B06000] bg-[#FEF7E0] border border-[#FEEFC3]'
-                }
-
-                return (
-                  <div
-                    key={rak.rakId}
-                    className={`rounded-xl border p-4 flex flex-col justify-between gap-3 transition-colors ${
-                      isAlert90
-                        ? 'border-[#FCA5A5] bg-[#FFF8F8] hover:border-[#F87171]'
-                        : isWarn75
-                        ? 'border-[#FEEFC3] bg-[#FFFCF5] hover:border-[#F29900]/40'
-                        : 'border-[#ECEEF5] bg-[#F7F8FC] hover:border-[#3BA4E8]/40'
-                    }`}
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          {isAlert90 && <AlertTriangle className="h-3.5 w-3.5 text-[#DC2626] shrink-0" />}
-                          <span className={`text-xs font-bold ${isAlert90 ? 'text-[#991B1B]' : 'text-[#1F2333]'}`}>
-                            {rak.rakNama}
-                          </span>
-                        </div>
-                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${badgeColor}`}>
-                          {rak.persenTerpakai}% Kapasitas
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-[#6B7185]">
-                        {rak.gedungNama} &bull; {rak.ruanganNama}
-                      </p>
-                    </div>
-
-                    {/* Progress Bar Okupansi */}
-                    <div className="space-y-1.5">
-                      <div className="h-2 w-full rounded-full bg-[#E5E7EB] overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${progressColor} transition-all duration-500`}
-                          style={{ width: `${rak.persenTerpakai}%` }}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between text-[11px] text-[#6B7185]">
-                        <span>{rak.totalBoks} Boks Aktif</span>
-                        <span>
-                          {rak.totalLembar} / {rak.kapasitasMaksLembar} lbr
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* 5. Tindakan & Monitoring: Log Audit (Superadmin) VS Approval (Atasan) VS Prioritas (PIC) */}
       {isSuperadmin ? (

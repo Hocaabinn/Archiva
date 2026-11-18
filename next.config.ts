@@ -10,6 +10,14 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  async rewrites() {
+    return [
+      {
+        source: "/peminjaman-inaktif",
+        destination: "/peminjaman",
+      },
+    ];
+  },
 };
 
 export default nextConfig;
