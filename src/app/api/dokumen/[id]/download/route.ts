@@ -41,8 +41,6 @@ export async function GET(
       )
     }
 
-    const userRole = profile.role
-
     // 3. ATURAN BLUEPRINT R.03 BAB 5: Seluruh peran terautentikasi (termasuk Staff) berhak mengunduh dokumen resmi.
 
     // 4. Ambil Data Dokumen menggunakan Admin Client
@@ -58,20 +56,6 @@ export async function GET(
         { error: 'Dokumen arsip tidak ditemukan.' },
         { status: 404 }
       )
-    }
-
-    // 5. ATURAN HAK AKSES BAB 5: Pengaju (user) hanya boleh mengunduh dokumen miliknya sendiri
-    if (userRole === 'user') {
-      const isOwnerOrHolder = doc.pemilik_id === user.id || doc.pemegang_saat_ini === user.id
-      if (!isOwnerOrHolder) {
-        return NextResponse.json(
-          {
-            error:
-              'Akses Ditolak: Pengaju (User) hanya memiliki hak untuk mengunduh dokumen miliknya sendiri.',
-          },
-          { status: 403 }
-        )
-      }
     }
 
     // 6. Buat Signed URL Berumur Pendek (60 detik)

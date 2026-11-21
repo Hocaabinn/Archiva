@@ -41,8 +41,6 @@ export async function GET(
       )
     }
 
-    const userRole = profile.role
-
     // 3. ATURAN BLUEPRINT R.03 BAB 5: Seluruh peran terautentikasi (termasuk Staff) berhak mengunduh lampiran resmi.
 
     // 4. Ambil Lampiran beserta info Dokumen induknya
@@ -62,21 +60,6 @@ export async function GET(
       .select('id, bucket, pemilik_id, pemegang_saat_ini, kode_arsip')
       .eq('id', lampiran.dokumen_id)
       .single()
-
-    // 5. Cek kepemilikan untuk Pengaju (user)
-    if (userRole === 'user' && doc) {
-      const isOwnerOrUploader =
-        doc.pemilik_id === user.id ||
-        doc.pemegang_saat_ini === user.id ||
-        lampiran.diunggah_oleh === user.id
-
-      if (!isOwnerOrUploader) {
-        return NextResponse.json(
-          { error: 'Akses Ditolak: Anda hanya berhak mengunduh lampiran pada dokumen milik sendiri.' },
-          { status: 403 }
-        )
-      }
-    }
 
     // 6. Buat Signed URL Berumur Pendek (60 detik)
     // preview=true: tampilkan isi berkas di browser (tanpa Content-Disposition: attachment).

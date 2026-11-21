@@ -3,7 +3,7 @@
 import { useState, useEffect, createContext, useContext } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
   FolderArchive,
@@ -31,6 +31,7 @@ import {
 import { UserRole } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { NotificationBell } from './notification-bell'
+import { bolehAksesRute } from '@/lib/akses-rute'
 
 interface SubNavItem {
   label: string
@@ -130,10 +131,13 @@ function getInitials(name: string) {
 
 export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const [supabase] = useState(() => createClient())
 
   const [profileRole, setProfileRole] = useState<UserRole>('staff')
-  const currentRole: UserRole = initialRole || profileRole
+  // Peran dari server (profiles) selalu menang. Prop/cache hanya dipakai sampai terverifikasi.
+  const [roleVerified, setRoleVerified] = useState(false)
+  const currentRole: UserRole = roleVerified ? profileRole : initialRole || profileRole
   const [userName, setUserName] = useState<string>('Memuat...')
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isKatalogOpen, setIsKatalogOpen] = useState(true)
@@ -165,9 +169,10 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
             .single()
 
           if (profile) {
-            const role = (profile.role as UserRole) || 'user'
+            const role = (profile.role as UserRole) || 'staff'
             const name = profile.nama_lengkap || user.email?.split('@')[0] || 'Pengguna'
             setProfileRole(role)
+            setRoleVerified(true)
             setUserName(name)
             if (typeof window !== 'undefined') {
               localStorage.setItem('archiva_user_role', role)
@@ -175,6 +180,8 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
             }
           } else {
             const name = user.email?.split('@')[0] || 'Pengguna'
+            setProfileRole('staff')
+            setRoleVerified(true)
             setUserName(name)
             if (typeof window !== 'undefined') {
               localStorage.setItem('archiva_user_name', name)
@@ -182,9 +189,11 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
           }
         } else {
           setUserName('Tamu')
+          setRoleVerified(true)
         }
       } catch (err) {
         console.error('Error fetching user profile:', err)
+        setRoleVerified(true)
       }
     }
 
@@ -311,6 +320,12 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
         .filter(Boolean) as NavItem[]
 
   const roleTitle = roleTitles[currentRole] || currentRole
+
+  // Penjaga halaman: peran yang tidak berhak dialihkan ke /dashboard setelah peran terverifikasi.
+  const diizinkan = bolehAksesRute(pathname, currentRole)
+  useEffect(() => {
+    if (roleVerified && !diizinkan) router.replace('/dashboard')
+  }, [roleVerified, diizinkan, router])
 
   const navLinkClass = (active: boolean) =>
     `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
@@ -600,7 +615,15 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
             </div>
           </header>
 
-          <main className="p-4 sm:p-6 lg:p-8 flex-1">{children}</main>
+          <main className="p-4 sm:p-6 lg:p-8 flex-1">
+          {diizinkan ? (
+            children
+          ) : (
+            <p className="py-24 text-center text-sm text-[#6B7185]">
+              {roleVerified ? 'Anda tidak memiliki akses ke halaman ini. Mengalihkan ke Dashboard...' : 'Memeriksa hak akses...'}
+            </p>
+          )}
+        </main>
         </div>
       </div>
     </AppUserContext.Provider>

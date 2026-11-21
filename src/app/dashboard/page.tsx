@@ -1,6 +1,6 @@
 'use client'
 
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Suspense, useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { AppLayout, useAppUser } from '@/components/layout/app-layout'
@@ -4462,8 +4462,8 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
 }
 
 function DashboardContent() {
-  const searchParams = useSearchParams()
-  const roleParam = searchParams.get('demo_role') as UserRole | null
+  // demo_role dinonaktifkan: peran selalu dari server (profiles), bukan dari URL.
+  const roleParam: UserRole | null = null
 
   return (
     <AppLayout currentRole={roleParam || undefined}>

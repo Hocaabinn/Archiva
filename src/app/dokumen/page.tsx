@@ -290,7 +290,8 @@ function Field({ label, required, children, hint }: { label: string; required?: 
 function DaftarDokumenContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const roleParam = searchParams.get('demo_role') as UserRole | null
+  // demo_role dinonaktifkan: peran selalu dari server (profiles), bukan dari URL.
+  const roleParam: UserRole | null = null
   const statusParam = searchParams.get('status')
   const [supabase] = useState(() => createClient())
 
