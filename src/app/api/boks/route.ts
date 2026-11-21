@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { requireLogin } from '@/lib/server-admin'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
@@ -10,6 +10,8 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET() {
   try {
+    const auth = await requireLogin()
+    if ('error' in auth) return auth.error
     const admin = createAdminClient()
     const { data: boksList, error } = await admin
       .from('boks')

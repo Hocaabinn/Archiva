@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { requireLogin, PERAN_OPERASIONAL } from '@/lib/server-admin'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
@@ -10,15 +10,8 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authErr,
-    } = await supabase.auth.getUser()
-
-    if (authErr || !user) {
-      return NextResponse.json({ error: 'Akses Ditolak: Anda belum login.' }, { status: 401 })
-    }
+    const auth = await requireLogin(PERAN_OPERASIONAL)
+    if ('error' in auth) return auth.error
 
     const admin = createAdminClient()
 

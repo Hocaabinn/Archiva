@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireLogin } from '@/lib/server-admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,6 +14,8 @@ interface Params {
  */
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
+    const auth = await requireLogin()
+    if ('error' in auth) return auth.error
     const { id } = await params
     const admin = createAdminClient()
 

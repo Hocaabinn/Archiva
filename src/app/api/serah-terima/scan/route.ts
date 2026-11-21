@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { PERAN_OPERASIONAL } from '@/lib/server-admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,6 +28,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: 'Akses Ditolak: Anda harus login terlebih dahulu.' },
         { status: 401 }
+      )
+    }
+
+    // Staff hanya view + download: tidak boleh memakai alur serah terima.
+    const { data: prof } = await createAdminClient().from('profiles').select('role').eq('id', user.id).single()
+    if (!prof || !PERAN_OPERASIONAL.includes(prof.role)) {
+      return NextResponse.json(
+        { error: 'Akses Ditolak: Peran Anda tidak memiliki izin untuk fitur serah terima.' },
+        { status: 403 }
       )
     }
 

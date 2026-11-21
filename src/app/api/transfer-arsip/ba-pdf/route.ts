@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { requireLogin, PERAN_OPERASIONAL } from '@/lib/server-admin'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
@@ -10,20 +10,19 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authErr,
-    } = await supabase.auth.getUser()
-
-    if (authErr || !user) {
-      return NextResponse.json({ error: 'Akses Ditolak: Anda belum login.' }, { status: 401 })
-    }
+    const auth = await requireLogin(PERAN_OPERASIONAL)
+    if ('error' in auth) return auth.error
 
     const { searchParams } = new URL(request.url)
     const filePath = searchParams.get('path')
 
-    if (!filePath) {
+    // Hanya berkas Berita Acara (awalan berita-acara/) yang boleh diambil lewat endpoint ini.
+    if (
+      !filePath ||
+      !filePath.startsWith('berita-acara/') ||
+      filePath.includes('..') ||
+      filePath.includes('\\')
+    ) {
       return NextResponse.json({ error: 'Parameter path tidak valid.' }, { status: 400 })
     }
 

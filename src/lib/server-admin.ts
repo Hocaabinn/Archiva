@@ -57,3 +57,42 @@ export async function requireAdmin(request: NextRequest) {
 
   return { user, profile, admin }
 }
+
+/** Peran operasional (semua selain staff yang hanya view + download). */
+export const PERAN_OPERASIONAL: readonly Peran[] = [
+  'superadmin',
+  'pic_aktif',
+  'atasan_aktif',
+  'pic_inaktif',
+  'atasan_inaktif',
+]
+
+/**
+ * Memastikan pemanggil sudah login. Bila `peran` diberikan, role (dibaca dari
+ * tabel profiles di server) harus termasuk di dalamnya, selain itu 403.
+ */
+export async function requireLogin(peran?: readonly Peran[]) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
+
+  if (error || !user) {
+    return { error: NextResponse.json({ error: 'Akses Ditolak: Anda harus login terlebih dahulu.' }, { status: 401 }) }
+  }
+
+  const admin = createAdminClient()
+  const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single()
+
+  if (peran && (!profile || !peran.includes(profile.role as Peran))) {
+    return {
+      error: NextResponse.json(
+        { error: 'Akses Ditolak: Peran Anda tidak memiliki izin untuk fitur ini.' },
+        { status: 403 }
+      ),
+    }
+  }
+
+  return { user, profile, admin }
+}
