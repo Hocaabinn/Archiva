@@ -14,7 +14,6 @@ import {
   ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
-  MoreVertical,
   Menu,
   X,
   ShieldCheck,
@@ -31,6 +30,8 @@ import {
 import { UserRole } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { NotificationBell } from './notification-bell'
+import { RoleAvatar } from './role-avatar'
+import { FotoProfilDialog } from './foto-profil-dialog'
 import { bolehAksesRute } from '@/lib/akses-rute'
 
 interface SubNavItem {
@@ -78,25 +79,20 @@ const roleBadgeStyles: Record<UserRole, { icon: React.ComponentType<{ className?
 }
 
 /** Kartu identitas workspace + lencana peran aktif di sidebar. */
-function RoleCard({ role, roleTitle, compact = false }: { role: UserRole; roleTitle: string; compact?: boolean }) {
+function RoleCard({ role, roleTitle, compact = false, fotoUrl, onEditFoto }: { role: UserRole; roleTitle: string; compact?: boolean; fotoUrl?: string | null; onEditFoto?: () => void }) {
   const style = roleBadgeStyles[role] || roleBadgeStyles.staff
-  const Icon = style.icon
   if (compact) {
     return (
       <div className="flex justify-center pt-4" title={`Arsip Instansi — ${roleTitle}`}>
-        <span className={`flex h-9 w-9 items-center justify-center rounded-lg shadow-sm ${style.iconBox}`} suppressHydrationWarning>
-          <Icon className="h-[18px] w-[18px]" />
-        </span>
+        <button type="button" onClick={onEditFoto} title="Ubah foto profil" className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3BA4E8]"><RoleAvatar role={role} initials="" size={48} fotoUrl={fotoUrl} /></button>
       </div>
     )
   }
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-[#ECEEF5] bg-[#F8FBFE] p-2.5">
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg shadow-sm ${style.iconBox}`} suppressHydrationWarning>
-        <Icon className="h-[18px] w-[18px]" />
-      </span>
+    <div className="flex items-center gap-3.5 rounded-xl border border-[#ECEEF5] bg-[#F8FBFE] p-3.5">
+      <button type="button" onClick={onEditFoto} title="Ubah foto profil" className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3BA4E8]"><RoleAvatar role={role} initials="" size={56} fotoUrl={fotoUrl} /></button>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[14px] font-semibold leading-tight text-[#1F2333]">Arsip Instansi</p>
+        <p className="truncate text-[15px] font-semibold leading-tight text-[#1F2333]">Arsip Instansi</p>
         <span
           className={`mt-1 inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${style.pill}`}
           suppressHydrationWarning
@@ -135,6 +131,8 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
   const [supabase] = useState(() => createClient())
 
   const [profileRole, setProfileRole] = useState<UserRole>('staff')
+  const [fotoUrl, setFotoUrl] = useState<string | null>(null)
+  const [fotoOpen, setFotoOpen] = useState(false)
   // Peran dari server (profiles) selalu menang. Prop/cache hanya dipakai sampai terverifikasi.
   const [roleVerified, setRoleVerified] = useState(false)
   const currentRole: UserRole = roleVerified ? profileRole : initialRole || profileRole
@@ -174,6 +172,9 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
             setProfileRole(role)
             setRoleVerified(true)
             setUserName(name)
+            // Query terpisah: kegagalan kolom foto tidak boleh memengaruhi pembacaan role.
+            supabase.from('profiles').select('avatar_url').eq('id', user.id).single()
+              .then(({ data }) => setFotoUrl(data?.avatar_url || null), () => {})
             if (typeof window !== 'undefined') {
               localStorage.setItem('archiva_user_role', role)
               localStorage.setItem('archiva_user_name', name)
@@ -365,7 +366,7 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
               </div>
 
               <div className="px-4 pt-4 pb-3">
-                <RoleCard role={currentRole} roleTitle={roleTitle} />
+                <RoleCard fotoUrl={fotoUrl} onEditFoto={() => setFotoOpen(true)} role={currentRole} roleTitle={roleTitle} />
               </div>
 
               <nav className="px-3 pb-4 space-y-1 flex-1 overflow-y-auto">
@@ -483,10 +484,10 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
 
           {/* Workspace / Peran aktif */}
           {isCollapsed ? (
-            <RoleCard role={currentRole} roleTitle={roleTitle} compact />
+            <RoleCard fotoUrl={fotoUrl} onEditFoto={() => setFotoOpen(true)} role={currentRole} roleTitle={roleTitle} compact />
           ) : (
             <div className="px-4 pt-4 pb-3">
-              <RoleCard role={currentRole} roleTitle={roleTitle} />
+              <RoleCard fotoUrl={fotoUrl} onEditFoto={() => setFotoOpen(true)} role={currentRole} roleTitle={roleTitle} />
             </div>
           )}
 
@@ -601,17 +602,12 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
               <NotificationBell supabase={supabase} />
               <span className="hidden sm:block w-px h-7 bg-[#E3E6F0]" />
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-[#3BA4E8] text-white text-sm font-semibold flex items-center justify-center" suppressHydrationWarning>
-                  {getInitials(userName) || '?'}
-                </div>
+                <button type="button" onClick={() => setFotoOpen(true)} title="Ubah foto profil" className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3BA4E8]"><RoleAvatar role={currentRole} initials={getInitials(userName)} size={36} fotoUrl={fotoUrl} /></button>
                 <div className="hidden sm:block leading-tight" suppressHydrationWarning>
-                  <p className="text-sm font-semibold text-[#1F2333] max-w-[160px] truncate" suppressHydrationWarning>{userName}</p>
+                  <p className="text-sm font-semibold text-[#1F2333] max-w-[200px] truncate" suppressHydrationWarning>{userName}</p>
                   <p className="text-xs text-[#8A90A2]" suppressHydrationWarning>{roleTitle}</p>
                 </div>
               </div>
-              <button type="button" className="p-1 text-[#6B7185] hover:text-[#1F2333]" title="Menu lainnya">
-                <MoreVertical className="w-5 h-5" />
-              </button>
             </div>
           </header>
 
@@ -626,6 +622,16 @@ export function AppLayout({ children, currentRole: initialRole }: AppLayoutProps
         </main>
         </div>
       </div>
+      {fotoOpen && (
+        <FotoProfilDialog
+          role={currentRole}
+          initials={getInitials(userName)}
+          userName={userName}
+          fotoUrl={fotoUrl}
+          onClose={() => setFotoOpen(false)}
+          onChanged={setFotoUrl}
+        />
+      )}
     </AppUserContext.Provider>
   )
 }
