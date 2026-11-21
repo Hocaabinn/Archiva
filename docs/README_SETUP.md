@@ -16,7 +16,7 @@ File skema SQL telah disiapkan di `supabase.sql`.
    NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
    SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-   CRON_SECRET=secret-rahasia-cron-arsip-2026
+   CRON_SECRET=generate-token-acak-rahasia-di-sini
    ```
 
 ## Pengaturan Auth (Wajib untuk Demo)

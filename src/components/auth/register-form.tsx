@@ -22,24 +22,31 @@ export default function RegisterForm() {
   const [loading, setLoading] = useState(false)
   const [copiedNotification, setCopiedNotification] = useState(false)
 
-  // Fungsi menghasilkan kata sandi kukuh berdasarkan leksikon bahasa baku KBBI
+  // Menghasilkan kata sandi acak (CSPRNG) 12 karakter: huruf besar, kecil, angka, simbol
   const handleGenerateStrongPassword = () => {
-    const kataBakuKBBI = [
-      'Arsip', 'Dokumen', 'Warkat', 'Naskah', 'Berkas', 
-      'Pustaka', 'Risalah', 'Autentik', 'Akurat', 'Sahih', 
-      'Amanah', 'Saksama', 'Cermat', 'Tertib', 'Terpelihara'
+    const set = [
+      'ABCDEFGHJKLMNPQRSTUVWXYZ',
+      'abcdefghijkmnpqrstuvwxyz',
+      '23456789',
+      '@#$%!&*',
     ]
-    const lambangKhusus = ['@', '#', '$', '%', '!', '&', '*']
-    
-    const kata = kataBakuKBBI[Math.floor(Math.random() * kataBakuKBBI.length)]
-    const lambang = lambangKhusus[Math.floor(Math.random() * lambangKhusus.length)]
-    const angka = Math.floor(100 + Math.random() * 900) // 3 digit angka
-
-    let sandiKukuh = `${kata}${lambang}${angka}`
-    if (sandiKukuh.length < 8) {
-      sandiKukuh += '9'
+    const semua = set.join('')
+    const panjang = 12
+    const acak = (n: number) => {
+      const buf = new Uint32Array(1)
+      const batas = Math.floor(0xffffffff / n) * n
+      do { crypto.getRandomValues(buf) } while (buf[0] >= batas)
+      return buf[0] % n
     }
-    sandiKukuh = sandiKukuh.slice(0, 15)
+    // Pastikan tiap jenis karakter ada minimal satu
+    const chars = set.map((s) => s[acak(s.length)])
+    while (chars.length < panjang) chars.push(semua[acak(semua.length)])
+    // Acak urutan (Fisher-Yates)
+    for (let i = chars.length - 1; i > 0; i--) {
+      const j = acak(i + 1)
+      ;[chars[i], chars[j]] = [chars[j], chars[i]]
+    }
+    const sandiKukuh = chars.join('')
     setPassword(sandiKukuh)
     setCopiedNotification(true)
     setTimeout(() => setCopiedNotification(false), 2500)
@@ -319,11 +326,11 @@ export default function RegisterForm() {
                   <button
                     type="button"
                     onClick={handleGenerateStrongPassword}
-                    className="p-1.5 text-[#1E3A5F] hover:text-[#0F2038] bg-[#E8F1F8] hover:bg-[#D9E8F5] rounded-md border border-[#CBD7E3] transition-all cursor-pointer flex items-center gap-1 text-[11px]"
-                    title="Buat kata sandi aman otomatis"
+                    className="p-1.5 text-[#1E3A5F] hover:text-[#0F2038] bg-[#E8F1F8] hover:bg-[#D9E8F5] rounded-md border border-[#CBD7E3] transition-all cursor-pointer flex items-center"
+                    title="Buat kata sandi acak otomatis"
+                    aria-label="Buat kata sandi acak otomatis"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-[#0284C7]" />
-                    <span>Sandi Kuat</span>
                   </button>
                 </div>
                 <div className="relative">

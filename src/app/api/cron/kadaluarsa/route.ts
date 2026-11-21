@@ -23,14 +23,12 @@ async function runKadaluarsaCron(request: NextRequest) {
 
     // 1. Otorisasi Pemicu:
     // Boleh dijalankan jika memiliki secret key, ATAU dipicu oleh pengguna login dengan peran Admin / PIC Arsip.
-    const url = new URL(request.url)
-    const cronSecret = process.env.CRON_SECRET || 'archiva-cron-secret-2026'
+    // Secret hanya lewat header Authorization (Vercel Cron mengirimnya otomatis).
+    // Tanpa CRON_SECRET di environment, jalur secret dinonaktifkan (tidak ada nilai bawaan).
+    const cronSecret = process.env.CRON_SECRET
     const authHeader = request.headers.get('authorization')
-    const keyParam = url.searchParams.get('key')
     const isSecretAuthorized =
-      (authHeader && authHeader.replace('Bearer ', '') === cronSecret) ||
-      keyParam === cronSecret ||
-      url.searchParams.get('manual') === 'true'
+      !!cronSecret && authHeader === `Bearer ${cronSecret}`
 
     if (!isSecretAuthorized) {
       // Cek apakah dipicu oleh sesi login admin / pic_arsip
