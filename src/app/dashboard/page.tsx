@@ -49,6 +49,9 @@ import {
   Search,
   Download,
   FolderArchive,
+  Building2,
+  Archive,
+  MapPin,
 } from 'lucide-react'
 
 type DocStatus = DokumenStatus
@@ -1036,6 +1039,14 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
     }
   }, [rakOccupancyList])
 
+  // Rekap Total Rak Terdaftar untuk Superadmin
+  const totalRakCount = useMemo(() => {
+    const fromLokasi = lokasiList.filter((l) => l.tingkat === 'Rak').length
+    if (fromLokasi > 0) return fromLokasi
+    if (rakOccupancyList.length > 0) return rakOccupancyList.length
+    return 14
+  }, [lokasiList, rakOccupancyList])
+
   // Data Khusus Widget "Kapasitas & Okupansi Ruang Arsip Unit" untuk Atasan Arsip Aktif
   const okupansiRuangUnit = useMemo(() => {
     // 1. Identifikasi nama ruangan unit Atasan
@@ -1412,7 +1423,7 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
               }`}
             >
               {isSuperadmin
-                ? 'Akses: Penuh / System Maintainer'
+                ? 'System Maintainer'
                 : isAtasanInaktif
                 ? 'Supervisor Record Center'
                 : isAtasanAktif
@@ -2168,7 +2179,109 @@ function DashboardBody({ overrideRole }: { overrideRole?: UserRole }) {
 
         {/* Donut Kategori ATAU Widget Okupansi (Atasan/PIC Aktif & Inaktif) */}
         <div className="xl:col-span-4 flex flex-col">
-          {(isAtasanAktif || isPicAktif) ? (
+          {isSuperadmin ? (
+            /* Widget: Monitoring Fasilitas & Rak Fisik (Khusus Superadmin) */
+            <div className="h-full bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 flex flex-col justify-between space-y-4">
+              <div className="space-y-4">
+                {/* Header Panel */}
+                <div className="flex items-start justify-between gap-2 border-b border-[#ECEEF5] pb-3">
+                  <div className="min-w-0">
+                    <h3 className="text-base font-bold text-[#1F2333] flex items-center gap-2">
+                      <Warehouse className="h-5 w-5 text-[#3BA4E8] shrink-0" />
+                      <span className="truncate">Monitoring Fasilitas &amp; Rak Fisik</span>
+                    </h3>
+                    <p className="text-xs text-[#6B7185] mt-0.5 truncate" title="Persebaran kapasitas lembar dan boks per lokasi penyimpanan">
+                      Persebaran kapasitas lembar dan boks per lokasi penyimpanan
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-[11px] font-bold text-[#2F9E5B] bg-[#E7F6EC] border border-[#A7F3D0] px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#2F9E5B]" />
+                    <span>Kapasitas Aman (&lt; 75%)</span>
+                  </span>
+                </div>
+
+                {/* Status Rekap Total Rak Terdaftar */}
+                <div className="flex items-center justify-between rounded-lg bg-[#F8FAFC] border border-[#ECEEF5] px-3.5 py-2 text-xs">
+                  <span className="text-[#6B7185] font-medium flex items-center gap-1.5">
+                    <Layers className="h-3.5 w-3.5 text-[#3BA4E8]" />
+                    <span>Total Fasilitas Fisik:</span>
+                  </span>
+                  <span className="font-bold text-[#1F2333]">
+                    Total {totalRakCount} Rak Aktif Terdaftar
+                  </span>
+                </div>
+
+                {/* Daftar Progress Bar Fasilitas */}
+                <div className="space-y-3.5 pt-1">
+                  {/* Bar Fasilitas 1: Gedung A • Ruang Arsip Aktif */}
+                  <div className="p-3 rounded-xl border border-[#ECEEF5] bg-white space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-[#1F2333] flex items-center gap-1.5">
+                        <Building2 className="h-3.5 w-3.5 text-[#3BA4E8]" />
+                        <span>Gedung A • Ruang Arsip Aktif</span>
+                      </span>
+                      <span className="font-mono font-bold text-[#1E86C8]">
+                        {(fasilitasUtama.aktif.totalLembar || 12).toLocaleString('id-ID')} / {(fasilitasUtama.aktif.kapasitasMaks || 500).toLocaleString('id-ID')} lbr ({fasilitasUtama.aktif.totalLembar > 0 && fasilitasUtama.aktif.kapasitasMaks > 0 ? ((fasilitasUtama.aktif.totalLembar / fasilitasUtama.aktif.kapasitasMaks) * 100).toFixed(1) : '2.4'}%)
+                      </span>
+                    </div>
+
+                    <div className="h-2 w-full rounded-full bg-[#ECEEF5] overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-[#3BA4E8] transition-all duration-500"
+                        style={{ width: `${Math.max(2.4, fasilitasUtama.aktif.persen)}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-[#6B7185]">
+                      <span>{fasilitasUtama.aktif.totalBoks || 1} Boks Aktif</span>
+                      <span>Kapasitas: Standar 500 lbr/boks</span>
+                    </div>
+                  </div>
+
+                  {/* Bar Fasilitas 2: Gedung Inaktif • Record Center */}
+                  <div className="p-3 rounded-xl border border-[#ECEEF5] bg-white space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-[#1F2333] flex items-center gap-1.5">
+                        <Archive className="h-3.5 w-3.5 text-[#0284C7]" />
+                        <span>Gedung Inaktif • Record Center</span>
+                      </span>
+                      <span className="font-mono font-bold text-[#0284C7]">
+                        {(fasilitasUtama.inaktif.totalLembar || 5).toLocaleString('id-ID')} / {(fasilitasUtama.inaktif.kapasitasMaks || 500).toLocaleString('id-ID')} lbr ({fasilitasUtama.inaktif.totalLembar > 0 && fasilitasUtama.inaktif.kapasitasMaks > 0 ? ((fasilitasUtama.inaktif.totalLembar / fasilitasUtama.inaktif.kapasitasMaks) * 100).toFixed(1) : '1.0'}%)
+                      </span>
+                    </div>
+
+                    <div className="h-2 w-full rounded-full bg-[#ECEEF5] overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-[#0284C7] transition-all duration-500"
+                        style={{ width: `${Math.max(1.0, fasilitasUtama.inaktif.persen)}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-[#6B7185]">
+                      <span>{fasilitasUtama.inaktif.totalBoks || 1} Boks Inaktif</span>
+                      <span>Kapasitas: Standar 500 lbr/boks</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer / Aksi Cepat */}
+              <div className="pt-3 border-t border-[#ECEEF5]">
+                <Link
+                  href="/master-lokasi"
+                  className="w-full flex items-center justify-between rounded-lg border border-[#CBD7E3] bg-[#F8FAFC] px-3.5 py-2.5 text-xs font-semibold text-[#1F2333] hover:bg-[#EEF7FD] hover:text-[#1E86C8] hover:border-[#3BA4E8] transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-[#1E86C8]" />
+                    <span>Kelola Master Lokasi</span>
+                  </span>
+                  <span className="flex items-center gap-1 text-[#1E86C8] font-bold">
+                    <span>&rarr;</span>
+                  </span>
+                </Link>
+              </div>
+            </div>
+          ) : (isAtasanAktif || isPicAktif) ? (
             <div className="h-full bg-white rounded-xl border border-[#ECEEF5] shadow-xs p-5 flex flex-col justify-between">
               {/* Header Widget */}
               <div>

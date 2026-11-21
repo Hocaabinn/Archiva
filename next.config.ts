@@ -58,6 +58,10 @@ const nextConfig: NextConfig = {
         destination: "/peminjaman",
       },
       {
+        source: "/master-lokasi",
+        destination: "/master-data",
+      },
+      {
         source: "/peminjaman-saya",
         destination: "/peminjaman",
       },
