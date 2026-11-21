@@ -78,12 +78,12 @@ export async function GET(
     const rawFileName = doc.file_path.split('/').pop() || `${doc.kode_arsip}.pdf`
     const cleanFileName = rawFileName.replace(/^\d+_/, '')
 
+    // preview=true: tampilkan isi berkas di browser (tanpa Content-Disposition: attachment).
+    const isPreview = request.nextUrl.searchParams.get('preview') === 'true'
     const targetBucket = doc.bucket || 'arsip-aktif'
     const { data: signedData, error: signError } = await adminClient.storage
       .from(targetBucket)
-      .createSignedUrl(doc.file_path, 60, {
-        download: cleanFileName,
-      })
+      .createSignedUrl(doc.file_path, 60, isPreview ? undefined : { download: cleanFileName })
 
     if (signError || !signedData?.signedUrl) {
       console.error('Error saat membuat signed URL:', signError)
@@ -95,7 +95,7 @@ export async function GET(
 
     // 7. Catat Aktivitas Pengunduhan ke log_aktivitas
     try {
-      await adminClient.from('log_aktivitas').insert({
+      if (!isPreview) await adminClient.from('log_aktivitas').insert({
         dokumen_id: doc.id,
         user_id: user.id,
         aksi: 'download',

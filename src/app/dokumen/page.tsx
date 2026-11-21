@@ -678,7 +678,7 @@ function DaftarDokumenContent() {
     setPreviewPdfUrl(null)
     setPreviewLoading(true)
     try {
-      const res = await fetch(`/api/dokumen/${doc.id}/download?json=true`)
+      const res = await fetch(`/api/dokumen/${doc.id}/download?json=true&preview=true`)
       const json = await res.json()
       if (json?.signedUrl) {
         setPreviewPdfUrl(json.signedUrl)

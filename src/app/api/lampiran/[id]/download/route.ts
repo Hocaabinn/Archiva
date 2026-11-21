@@ -79,12 +79,16 @@ export async function GET(
     }
 
     // 6. Buat Signed URL Berumur Pendek (60 detik)
+    // preview=true: tampilkan isi berkas di browser (tanpa Content-Disposition: attachment).
+    const isPreview = request.nextUrl.searchParams.get('preview') === 'true'
     const targetBucket = doc?.bucket || 'arsip-aktif'
     const { data: signedData, error: signError } = await adminClient.storage
       .from(targetBucket)
-      .createSignedUrl(lampiran.file_path, 60, {
-        download: lampiran.nama_file || true,
-      })
+      .createSignedUrl(
+        lampiran.file_path,
+        60,
+        isPreview ? undefined : { download: lampiran.nama_file || true }
+      )
 
     if (signError || !signedData?.signedUrl) {
       return NextResponse.json(
@@ -95,7 +99,7 @@ export async function GET(
 
     // 7. Catat Aktivitas ke log_aktivitas
     try {
-      await adminClient.from('log_aktivitas').insert({
+      if (!isPreview) await adminClient.from('log_aktivitas').insert({
         dokumen_id: lampiran.dokumen_id,
         user_id: user.id,
         aksi: 'download',

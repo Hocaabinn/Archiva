@@ -356,6 +356,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
     url: string
     type: 'pdf' | 'image' | 'other'
     ukuran?: number | null
+    downloadUrl: string
   } | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
 
@@ -363,7 +364,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
     if (!doc) return
     setPreviewLoading(true)
     try {
-      const res = await fetch(`/api/dokumen/${doc.id}/download?json=true`)
+      const res = await fetch(`/api/dokumen/${doc.id}/download?json=true&preview=true`)
       const data = await res.json()
       if (!res.ok || !data.signedUrl) {
         throw new Error(data.error || 'Gagal menerbitkan tautan pratinjau berkas.')
@@ -377,6 +378,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
         url: data.signedUrl,
         type: isPdf ? 'pdf' : isImage ? 'image' : 'other',
         ukuran: doc.ukuran_file,
+        downloadUrl: `/api/dokumen/${doc.id}/download`,
       })
     } catch (err: unknown) {
       setToast({
@@ -391,7 +393,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
   const handlePreviewLampiran = async (lamp: Lampiran) => {
     setPreviewLoading(true)
     try {
-      const res = await fetch(`/api/lampiran/${lamp.id}/download?json=true`)
+      const res = await fetch(`/api/lampiran/${lamp.id}/download?json=true&preview=true`)
       const data = await res.json()
       if (!res.ok || !data.signedUrl) {
         throw new Error(data.error || 'Gagal menerbitkan tautan pratinjau lampiran.')
@@ -405,6 +407,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
         url: data.signedUrl,
         type: isPdf ? 'pdf' : isImage ? 'image' : 'other',
         ukuran: lamp.file_size,
+        downloadUrl: `/api/lampiran/${lamp.id}/download`,
       })
     } catch (err: unknown) {
       setToast({
@@ -1150,10 +1153,9 @@ export default function DetailDokumenPage({ params }: PageProps) {
 
               <div className="flex items-center gap-2 shrink-0">
                 <a
-                  href={previewFile.url}
+                  href={previewFile.downloadUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  download={previewFile.nama}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-[#CBD7E3] bg-white px-3 py-1.5 text-xs font-semibold text-[#1F2333] hover:bg-[#EEF7FD] hover:text-[#1E86C8] transition-colors"
                 >
                   <Download className="h-3.5 w-3.5" />
@@ -1196,10 +1198,9 @@ export default function DetailDokumenPage({ params }: PageProps) {
                     </p>
                   </div>
                   <a
-                    href={previewFile.url}
+                    href={previewFile.downloadUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    download={previewFile.nama}
                     className="inline-flex items-center gap-2 rounded-lg bg-[#1E86C8] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#166EAA] transition-colors"
                   >
                     <Download className="h-4 w-4" />
