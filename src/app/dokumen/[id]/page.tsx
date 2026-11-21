@@ -34,6 +34,8 @@ import {
   Trash2,
   ShieldAlert,
   Archive,
+  Eye,
+  X,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { KodeArsip } from '@/components/documents/kode-arsip'
@@ -346,6 +348,72 @@ export default function DetailDokumenPage({ params }: PageProps) {
 
   const handleDownloadLampiran = (lampId: string) => {
     window.open(`/api/lampiran/${lampId}/download`, '_blank')
+  }
+
+  // State untuk Pratinjau Berkas (Modal Preview PDF, PNG, JPG, dll)
+  const [previewFile, setPreviewFile] = useState<{
+    nama: string
+    url: string
+    type: 'pdf' | 'image' | 'other'
+    ukuran?: number | null
+  } | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+
+  const handlePreviewMainDoc = async () => {
+    if (!doc) return
+    setPreviewLoading(true)
+    try {
+      const res = await fetch(`/api/dokumen/${doc.id}/download?json=true`)
+      const data = await res.json()
+      if (!res.ok || !data.signedUrl) {
+        throw new Error(data.error || 'Gagal menerbitkan tautan pratinjau berkas.')
+      }
+      const rawExt = (namaFile || doc.file_path).split('.').pop()?.toLowerCase() || ''
+      const isPdf = rawExt === 'pdf'
+      const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(rawExt)
+
+      setPreviewFile({
+        nama: namaFile,
+        url: data.signedUrl,
+        type: isPdf ? 'pdf' : isImage ? 'image' : 'other',
+        ukuran: doc.ukuran_file,
+      })
+    } catch (err: unknown) {
+      setToast({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Gagal membuka pratinjau berkas.',
+      })
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
+  const handlePreviewLampiran = async (lamp: Lampiran) => {
+    setPreviewLoading(true)
+    try {
+      const res = await fetch(`/api/lampiran/${lamp.id}/download?json=true`)
+      const data = await res.json()
+      if (!res.ok || !data.signedUrl) {
+        throw new Error(data.error || 'Gagal menerbitkan tautan pratinjau lampiran.')
+      }
+      const rawExt = lamp.nama_file.split('.').pop()?.toLowerCase() || ''
+      const isPdf = rawExt === 'pdf' || lamp.mime_type?.includes('pdf')
+      const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(rawExt) || lamp.mime_type?.startsWith('image/')
+
+      setPreviewFile({
+        nama: lamp.nama_file,
+        url: data.signedUrl,
+        type: isPdf ? 'pdf' : isImage ? 'image' : 'other',
+        ukuran: lamp.file_size,
+      })
+    } catch (err: unknown) {
+      setToast({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Gagal membuka pratinjau lampiran.',
+      })
+    } finally {
+      setPreviewLoading(false)
+    }
   }
 
   // Aksi Eksekusi Modal (Verifikasi / Approve / Tolak / Ajukan Ulang)
@@ -911,14 +979,31 @@ export default function DetailDokumenPage({ params }: PageProps) {
                       </p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleDownload}
-                    className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[#3BA4E8] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#2A92D6] active:scale-[0.98]"
-                  >
-                    <Download className="h-4 w-4" />
-                    Unduh Berkas
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handlePreviewMainDoc}
+                      disabled={previewLoading}
+                      title="Lihat isi berkas (Pratinjau)"
+                      className="flex items-center justify-center gap-1.5 rounded-lg border border-[#CBD7E3] bg-white px-3.5 py-2 text-sm font-semibold text-[#1F2333] shadow-xs transition-colors hover:bg-[#EEF7FD] hover:text-[#1E86C8] hover:border-[#3BA4E8] active:scale-[0.98] disabled:opacity-50"
+                    >
+                      {previewLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-[#1E86C8]" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-[#1E86C8]" />
+                      )}
+                      <span>Lihat</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownload}
+                      title="Unduh berkas"
+                      className="flex items-center justify-center gap-1.5 rounded-lg bg-[#3BA4E8] px-3.5 py-2 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-[#2A92D6] active:scale-[0.98]"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span>Unduh</span>
+                    </button>
+                  </div>
                 </div>
 
                 {lampiranList.length > 0 && (
@@ -936,14 +1021,27 @@ export default function DetailDokumenPage({ params }: PageProps) {
                               {(lamp.file_size / 1024).toFixed(0)} KB · {lamp.mime_type || 'file'}
                             </p>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleDownloadLampiran(lamp.id)}
-                            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-[#E3E6F0] bg-white px-3 py-1.5 text-xs font-medium text-[#4B5163] hover:border-[#3BA4E8] hover:text-[#1E86C8]"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                            Unduh
-                          </button>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handlePreviewLampiran(lamp)}
+                              disabled={previewLoading}
+                              title="Lihat isi lampiran"
+                              className="flex items-center gap-1 rounded-lg border border-[#E3E6F0] bg-white px-2.5 py-1.5 text-xs font-medium text-[#4B5163] hover:border-[#3BA4E8] hover:text-[#1E86C8] transition-colors disabled:opacity-50"
+                            >
+                              <Eye className="h-3.5 w-3.5 text-[#1E86C8]" />
+                              <span>Lihat</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadLampiran(lamp.id)}
+                              title="Unduh lampiran"
+                              className="flex items-center gap-1 rounded-lg border border-[#E3E6F0] bg-white px-2.5 py-1.5 text-xs font-medium text-[#4B5163] hover:border-[#3BA4E8] hover:text-[#1E86C8] transition-colors"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                              <span>Unduh</span>
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1016,6 +1114,103 @@ export default function DetailDokumenPage({ params }: PageProps) {
           </div>
         </div>
       </div>
+
+      {/* ================= MODAL PRATINJAU BERKAS (PDF / GAMBAR / BERKAS LAIN) ================= */}
+      {previewFile && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-6 animate-in fade-in duration-150"
+          onClick={() => setPreviewFile(null)}
+        >
+          <div
+            className="relative flex flex-col w-full max-w-4xl max-h-[92vh] bg-white rounded-2xl shadow-2xl border border-[#CBD7E3] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Modal */}
+            <div className="flex items-center justify-between border-b border-[#ECEEF5] px-5 py-3.5 bg-[#F8FAFC]">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="p-2 rounded-lg bg-[#E0F2FE] text-[#0284C7] shrink-0">
+                  {previewFile.type === 'pdf' ? (
+                    <FileText className="h-4 w-4" />
+                  ) : previewFile.type === 'image' ? (
+                    <Eye className="h-4 w-4" />
+                  ) : (
+                    <FileDown className="h-4 w-4" />
+                  )}
+                </span>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-[#1F2333] truncate" title={previewFile.nama}>
+                    {previewFile.nama}
+                  </h3>
+                  <p className="text-[11px] text-[#6B7185]">
+                    {previewFile.ukuran ? `${(previewFile.ukuran / 1024 / 1024).toFixed(2)} MB • ` : ''}
+                    {previewFile.type === 'pdf' ? 'Dokumen PDF' : previewFile.type === 'image' ? 'Berkas Gambar' : 'Berkas Fisik'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={previewFile.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download={previewFile.nama}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#CBD7E3] bg-white px-3 py-1.5 text-xs font-semibold text-[#1F2333] hover:bg-[#EEF7FD] hover:text-[#1E86C8] transition-colors"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Unduh</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewFile(null)}
+                  className="p-1.5 rounded-lg text-[#6B7185] hover:text-[#1F2333] hover:bg-[#E2E8F0] transition-colors cursor-pointer"
+                  title="Tutup Pratinjau"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Konten File */}
+            <div className="flex-1 overflow-auto bg-[#0F172A]/5 p-2 sm:p-4 flex items-center justify-center min-h-[440px] max-h-[calc(92vh-120px)]">
+              {previewFile.type === 'pdf' ? (
+                <iframe
+                  src={previewFile.url}
+                  title={previewFile.nama}
+                  className="w-full h-full min-h-[560px] rounded-lg bg-white border border-[#CBD7E3] shadow-xs"
+                />
+              ) : previewFile.type === 'image' ? (
+                <div className="max-w-full max-h-full flex items-center justify-center p-2">
+                  <img
+                    src={previewFile.url}
+                    alt={previewFile.nama}
+                    className="max-w-full max-h-[70vh] rounded-lg object-contain shadow-md border border-[#E2E8F0] bg-white"
+                  />
+                </div>
+              ) : (
+                <div className="text-center p-8 space-y-3 bg-white rounded-xl border border-[#ECEEF5] max-w-md shadow-xs">
+                  <FileText className="h-12 w-12 text-[#94A3B8] mx-auto" />
+                  <div>
+                    <p className="text-sm font-semibold text-[#1F2333]">Pratinjau Langsung Tidak Tersedia</p>
+                    <p className="text-xs text-[#6B7185] mt-1">
+                      Format berkas ini ({previewFile.nama.split('.').pop()?.toUpperCase()}) tidak mendukung pratinjau browser langsung. Silakan unduh berkas untuk membukanya.
+                    </p>
+                  </div>
+                  <a
+                    href={previewFile.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={previewFile.nama}
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#1E86C8] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#166EAA] transition-colors"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>Unduh Sekarang</span>
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ================= MODAL AKSI ================= */}
       {modalType && (
