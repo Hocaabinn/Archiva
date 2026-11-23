@@ -192,6 +192,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Penerima yang dipilih tidak terdaftar.' }, { status: 404 })
     }
 
+    // Role Staff (Viewer) bersifat read-only dan tidak boleh memegang arsip fisik (Blueprint R.03)
+    if (penerima.role === 'staff' || penerima.role === 'user' || penerima.email === 'viewer@example.com') {
+      return NextResponse.json(
+        {
+          error: 'Pengguna dengan role Staff (Viewer) hanya memiliki akses baca/unduh dan tidak dapat menjadi pemegang fisik arsip.',
+        },
+        { status: 400 }
+      )
+    }
+
     // 5. Cek apakah dokumen sedang dalam proses serah terima lain yang belum dikonfirmasi
     const { data: pendingTransfer } = await admin
       .from('serah_terima')

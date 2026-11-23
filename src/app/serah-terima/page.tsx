@@ -155,7 +155,16 @@ export default function SerahTerimaPage() {
           .order('nama_lengkap', { ascending: true })
 
         if (profs) {
-          setProfiles(profs.filter((p) => p.id !== user.id))
+          // Hanya pengguna yang dapat memegang fisik arsip (kecuali staff / viewer sesuai Blueprint R.03)
+          setProfiles(
+            profs.filter(
+              (p) =>
+                p.id !== user.id &&
+                p.role !== 'staff' &&
+                p.role !== 'user' &&
+                p.email !== 'viewer@example.com'
+            )
+          )
         }
       }
     }

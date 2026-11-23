@@ -285,7 +285,9 @@ export function LokasiCascadeSelect({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {/* 1. GEDUNG */}
             <div>
-              <span className="block text-[10px] font-mono text-[#64748B] mb-1">1. TINGKAT GEDUNG</span>
+              <span className="flex items-end h-7 text-[10px] font-mono text-[#64748B] mb-1 leading-tight">
+                1. TINGKAT GEDUNG
+              </span>
               <select
                 required={required}
                 disabled={disabled || loading}
@@ -304,7 +306,9 @@ export function LokasiCascadeSelect({
 
             {/* 2. RUANGAN */}
             <div>
-              <span className="block text-[10px] font-mono text-[#64748B] mb-1">2. TINGKAT RUANGAN</span>
+              <span className="flex items-end h-7 text-[10px] font-mono text-[#64748B] mb-1 leading-tight">
+                2. TINGKAT RUANGAN
+              </span>
               <select
                 required={required}
                 disabled={disabled || loading || !selectedGedungId}
@@ -323,7 +327,9 @@ export function LokasiCascadeSelect({
 
             {/* 3. RAK */}
             <div>
-              <span className="block text-[10px] font-mono text-[#64748B] mb-1">3. TINGKAT RAK (WADAH BOKS)</span>
+              <span className="flex items-end h-7 text-[10px] font-mono text-[#64748B] mb-1 leading-tight">
+                3. TINGKAT RAK (WADAH BOKS)
+              </span>
               <select
                 required={required}
                 disabled={disabled || loading || !selectedRuanganId}
