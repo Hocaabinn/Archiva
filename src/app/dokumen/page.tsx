@@ -1034,14 +1034,14 @@ function DaftarDokumenContent() {
               } else {
                 showToast(
                   'error',
-                  'Hapus permanen dibatasi: Memerlukan pencatatan persetujuan_hapus resmi dari Atasan di log aktivitas.'
+                  'Menunggu persetujuan Atasan sebelum melakukan penghapusan berkas'
                 )
               }
             }}
             title={
               hasApprovalHapus
                 ? 'Hapus Permanen (Persetujuan Atasan Terverifikasi)'
-                : 'Hapus Permanen Dibatasi: Memerlukan pencatatan persetujuan_hapus resmi dari Atasan'
+                : 'Menunggu persetujuan Atasan sebelum melakukan penghapusan berkas'
             }
             className={`rounded-md p-1.5 transition-colors ${
               hasApprovalHapus

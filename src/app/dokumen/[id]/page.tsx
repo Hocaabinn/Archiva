@@ -695,17 +695,17 @@ export default function DetailDokumenPage({ params }: PageProps) {
                     onClick={() => {
                       showToast(
                         'error',
-                        'Hapus permanen dibatasi: Memerlukan persetujuan hapus resmi dari Atasan di log aktivitas terlebih dahulu.'
+                        'Menunggu persetujuan Atasan sebelum melakukan penghapusan berkas'
                       )
                     }}
                     className="flex items-center justify-center gap-2 rounded-lg bg-[#EEF0F4] border border-[#D1D5DB] px-4 py-2 text-sm font-semibold text-[#8A90A2] hover:text-[#D64545] hover:border-[#FCA5A5] transition-colors sm:flex-none cursor-pointer"
-                    title="Memerlukan persetujuan hapus dari Atasan yang tercatat di log aktivitas."
+                    title="Menunggu persetujuan Atasan sebelum melakukan penghapusan berkas"
                   >
                     <Trash2 className="h-4 w-4" />
                     Hapus Permanen
                   </button>
                   <span className="hidden xl:inline text-[11px] text-[#8A90A2] italic">
-                    * Menunggu persetujuan Atasan di log
+                    * Menunggu persetujuan Atasan sebelum melakukan penghapusan berkas
                   </span>
                 </div>
               )
@@ -1022,14 +1022,14 @@ export default function DetailDokumenPage({ params }: PageProps) {
                           } else {
                             showToast(
                               'error',
-                              'Hapus berkas dibatasi: Memerlukan persetujuan hapus resmi dari Atasan di log aktivitas terlebih dahulu.'
+                              'Menunggu persetujuan Atasan sebelum melakukan penghapusan berkas'
                             )
                           }
                         }}
                         title={
                           hasApprovalHapus
                             ? 'Hapus permanen berkas dan dokumen'
-                            : 'Hapus berkas dibatasi: Memerlukan persetujuan hapus dari Atasan'
+                            : 'Menunggu persetujuan Atasan sebelum melakukan penghapusan berkas'
                         }
                         className={`flex items-center justify-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-semibold shadow-xs transition-colors active:scale-[0.98] ${
                           hasApprovalHapus

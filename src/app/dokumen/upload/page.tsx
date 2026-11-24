@@ -320,34 +320,50 @@ export default function UploadDokumenPage() {
   }
 
   // File Upload Handlers
+  const processMainFile = async (file: File) => {
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      setErrorMsg('Berkas dokumen utama harus berformat PDF.')
+      return
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      setErrorMsg('Ukuran berkas utama melebihi batas maksimal 25 MB.')
+      return
+    }
+    setSelectedFile(file)
+    setErrorMsg(null)
+
+    // Otomatis hitung jumlah halaman PDF dari berkas (bisa diubah manual oleh user)
+    try {
+      const arrayBuffer = await file.arrayBuffer()
+      const { PDFDocument } = await import('pdf-lib')
+      const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true })
+      const pagesCount = pdfDoc.getPageCount()
+      if (pagesCount > 0) {
+        setJumlahHalaman(pagesCount)
+      }
+    } catch (pdfErr) {
+      console.warn('Gagal membaca jumlah halaman PDF secara otomatis:', pdfErr)
+    }
+
+    // Otomatis isi judul jika masih kosong dari nama berkas yang bersih
+    if (!judul.trim()) {
+      const cleanTitle = file.name
+        .replace(/\.[^/.]+$/, '')
+        .replace(/[_-]/g, ' ')
+        .replace(/\b\w/g, (l) => l.toUpperCase())
+      setJudul(cleanTitle)
+    }
+
+    // Otomatis buatkan deskripsi jika belum diisi manual
+    if (!deskripsi.trim()) {
+      const autoText = generateAutoDeskripsi(file, judul, kategoriId, nomorPpl)
+      setDeskripsi(autoText)
+    }
+  }
+
   const handleMainFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      if (file.type !== 'application/pdf') {
-        setErrorMsg('Berkas dokumen utama harus berformat PDF.')
-        return
-      }
-      if (file.size > 25 * 1024 * 1024) {
-        setErrorMsg('Ukuran berkas utama melebihi batas maksimal 25 MB.')
-        return
-      }
-      setSelectedFile(file)
-      setErrorMsg(null)
-
-      // Otomatis isi judul jika masih kosong dari nama berkas yang bersih
-      if (!judul.trim()) {
-        const cleanTitle = file.name
-          .replace(/\.[^/.]+$/, '')
-          .replace(/[_-]/g, ' ')
-          .replace(/\b\w/g, (l) => l.toUpperCase())
-        setJudul(cleanTitle)
-      }
-
-      // Otomatis buatkan deskripsi jika belum diisi manual
-      if (!deskripsi.trim()) {
-        const autoText = generateAutoDeskripsi(file, judul, kategoriId, nomorPpl)
-        setDeskripsi(autoText)
-      }
+      processMainFile(e.target.files[0])
     }
   }
 
@@ -869,9 +885,16 @@ export default function UploadDokumenPage() {
             {/* FIELD WAJIB M3: JUMLAH HALAMAN (LEMBAR FISIK), TANGGAL DOKUMEN & TAHUN DOKUMEN */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2 border-l-3 border-[#38BDF8] pl-3.5 py-1 bg-[#F8FBFE] rounded-r-xl">
-                <label className="block font-bold text-[#0F172A]">
-                  JUMLAH HALAMAN FISIK (LEMBAR) <span className="text-red-500">*</span>
-                </label>
+                <div className="flex items-center justify-between gap-1">
+                  <label className="block font-bold text-[#0F172A]">
+                    JUMLAH HALAMAN FISIK (LEMBAR) <span className="text-red-500">*</span>
+                  </label>
+                  {typeof jumlahHalaman === 'number' && jumlahHalaman > 0 && (
+                    <span className="text-[10px] font-mono text-[#0284C7] bg-[#E0F2FE] px-1.5 py-0.5 rounded font-semibold">
+                      Otomatis PDF
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
@@ -886,7 +909,7 @@ export default function UploadDokumenPage() {
                   <span className="text-xs font-mono text-[#64748B] shrink-0 font-medium">lembar</span>
                 </div>
                 <p className="text-[10px] text-[#64748B] font-sans">
-                  Wajib diisi untuk alokasi otomatis kapasitas boks (maks. 500 lembar per boks).
+                  Terisi otomatis saat unggah PDF, atau dapat diubah / disesuaikan manual (maks. 500 lembar per boks).
                 </p>
               </div>
 
@@ -989,7 +1012,16 @@ export default function UploadDokumenPage() {
               <label className="block font-bold text-[#0F172A]">
                 BERKAS UTAMA DOKUMEN (PDF) <span className="text-red-500">*</span>
               </label>
-              <div className="border-2 border-dashed border-[#BAE6FD] hover:border-[#0284C7] rounded-xl p-5 text-center bg-[#F0F9FF]/40 hover:bg-[#F0F9FF] transition-all">
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    processMainFile(e.dataTransfer.files[0])
+                  }
+                }}
+                className="border-2 border-dashed border-[#BAE6FD] hover:border-[#0284C7] rounded-xl p-5 text-center bg-[#F0F9FF]/40 hover:bg-[#F0F9FF] transition-all"
+              >
                 <input
                   type="file"
                   id="main-file"
