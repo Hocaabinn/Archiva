@@ -103,7 +103,7 @@ export const ART_PRESETS: Record<ArtPreset, ArtRecipe> = {
   // a long exposure: blush, oxblood and steel pulled across the frame
   aurora: {
     style: "streak",
-    colors: ["#f4efe9", "#e9c2b8", "#c2433f", "#2a1e2a", "#22395e", "#6f97c2", "#e5edf4"],
+    colors: ["#3dafe4", "#62d0ff", "#0fa0dc", "#0c82b5", "#2ea9e3", "#60d1fe", "#e0f2fe"],
     scale: 0.7,
     warp: 1.4,
     angle: -0.62,
@@ -504,43 +504,29 @@ export function MiniGlassFolder({
 }) {
   const uid = React.useId().replace(/:/g, '')
 
-  let c1 = '#1E3A5F'
-  let c2 = '#3BA4E8'
-
-  const katLower = (kategori || '').toLowerCase()
-  if (katLower.includes('keu')) {
-    c1 = '#1E3A5F'
-    c2 = '#0284C7'
-  } else if (katLower.includes('sdm')) {
-    c1 = '#134E4A'
-    c2 = '#10B981'
-  } else if (katLower.includes('kon') || katLower.includes('huk')) {
-    c1 = '#311042'
-    c2 = '#9333EA'
-  } else if (status === 'inaktif') {
-    c1 = '#334155'
-    c2 = '#64748B'
-  } else if (status === 'ditolak') {
-    c1 = '#7F1D1D'
-    c2 = '#EF4444'
-  }
+  // Warna biru folder macOS sesuai referensi (disinkronkan dengan palet sistem Archiva)
+  const backC1 = '#0C88C2'
+  const backC2 = '#3DAFE4'
+  const frontC1 = '#62D0FF'
+  const frontC2 = '#2EA9E3'
+  const rimColor = '#88DEFF'
 
   return (
     <div className={`relative flex items-center justify-center shrink-0 w-10 h-8.5 select-none ${className}`}>
       <svg className="w-10 h-8.5 overflow-visible" viewBox="0 0 340 272" aria-hidden="true">
         <defs>
-          <linearGradient id={`mgf-b-${uid}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor={c1} />
-            <stop offset="100%" stopColor={c2} />
+          <linearGradient id={`mgf-b-${uid}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={backC2} />
+            <stop offset="100%" stopColor={backC1} />
           </linearGradient>
           <linearGradient id={`mgf-f-${uid}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.82" />
-            <stop offset="40%" stopColor="#ffffff" stopOpacity="0.48" />
-            <stop offset="100%" stopColor="#edf2f7" stopOpacity="0.94" />
+            <stop offset="0%" stopColor={frontC1} stopOpacity="0.95" />
+            <stop offset="35%" stopColor="#60D1FE" stopOpacity="0.92" />
+            <stop offset="100%" stopColor={frontC2} stopOpacity="0.96" />
           </linearGradient>
           <linearGradient id={`mgf-r-${uid}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.98" />
-            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.25" />
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
+            <stop offset="100%" stopColor={rimColor} stopOpacity="0.45" />
           </linearGradient>
           <clipPath id={`mgf-pocket-${uid}`}>
             {/* Mencegah berkas tembus ke bawah folder saat diam di dalam saku */}
@@ -558,41 +544,41 @@ export function MiniGlassFolder({
           className="transition-all duration-500 ease-out group-hover:scale-110 group-hover:opacity-70 origin-center"
         />
 
-        {/* Back panel artwork */}
+        {/* Back panel tab & body */}
         <path d={BACK_PATH} fill={`url(#mgf-b-${uid})`} className="transition-transform duration-500 ease-out origin-bottom group-hover:scale-[1.02]" />
 
         {/* Kontainer berkas: di dalam folder saat diam, meluncur NAIK keluar saat kursor diarahkan */}
         <g clipPath={`url(#mgf-pocket-${uid})`}>
-          {/* Lembar Berkas 1 (Kertas belakang): diam tersembunyi di dalam folder (translate-y-14, opacity-0), muncul naik ke atas saat di-hover */}
+          {/* Lembar Berkas 1 (Kertas belakang) */}
           <g className="transition-all duration-500 ease-[cubic-bezier(0.34,1.36,0.5,1)] origin-bottom translate-y-14 opacity-0 group-hover:translate-y-0 group-hover:opacity-90 group-hover:-rotate-3">
             <rect x="52" y="36" width="236" height="180" rx="12" fill="#F1F5F9" stroke="#E2E8F0" strokeWidth="2" />
             <line x1="75" y1="62" x2="160" y2="62" stroke="#94A3B8" strokeWidth="7" strokeLinecap="round" />
           </g>
 
-          {/* Lembar Berkas 2 (Kertas depan utama): diam di dalam folder, saat hover meluncur NAIK keluar dari map */}
+          {/* Lembar Berkas 2 (Kertas depan utama) */}
           <g className="transition-all duration-500 delay-75 ease-[cubic-bezier(0.34,1.36,0.5,1)] origin-bottom translate-y-16 opacity-0 group-hover:-translate-y-2 group-hover:opacity-100 group-hover:rotate-2">
             <rect x="42" y="40" width="256" height="185" rx="14" fill="#FFFFFF" filter="drop-shadow(0 4px 10px rgba(0,0,0,0.2))" />
             {/* Garis naskah dokumen */}
-            <line x1="68" y1="68" x2="190" y2="68" stroke={c1} strokeWidth="9" strokeLinecap="round" />
+            <line x1="68" y1="68" x2="190" y2="68" stroke="#0284C7" strokeWidth="9" strokeLinecap="round" />
             <line x1="68" y1="96" x2="255" y2="96" stroke="#94A3B8" strokeWidth="6" strokeLinecap="round" strokeOpacity="0.6" />
             <line x1="68" y1="120" x2="215" y2="120" stroke="#CBD5E1" strokeWidth="6" strokeLinecap="round" strokeOpacity="0.7" />
           </g>
         </g>
 
-        {/* Front frosted glass panel (membuka ke depan saat cursor diarahkan) */}
+        {/* Front flap panel (membuka ke depan saat cursor diarahkan) */}
         <g
           transform="translate(0, 74)"
           className="transition-all duration-500 ease-[cubic-bezier(0.34,1.36,0.5,1)] origin-bottom group-hover:-translate-y-1 group-hover:scale-y-[0.85] group-hover:scale-x-[1.03]"
         >
           <path d={FRONT_PATH} fill={`url(#mgf-f-${uid})`} />
           <path d={FRONT_PATH} fill="none" stroke={`url(#mgf-r-${uid})`} strokeWidth="3" />
-          {/* Kilau specular kaca */}
+          {/* Kilau specular */}
           <line
             x1="30"
             y1="24"
             x2="150"
             y2="175"
-            stroke="rgba(255,255,255,0.45)"
+            stroke="rgba(255,255,255,0.4)"
             strokeWidth="7"
             strokeLinecap="round"
             className="transition-opacity duration-300 group-hover:opacity-95"
@@ -994,8 +980,8 @@ const GF_CSS = `
   --gf-spread: 0px;
   --gf-fan: 0deg;
   --gf-stack: 15px;
-  --gf-ink: #141416;
-  --gf-ink-soft: rgba(20, 20, 22, .55);
+  --gf-ink: #ffffff;
+  --gf-ink-soft: rgba(255, 255, 255, .85);
   position: relative;
   display: inline-block;
   flex: none;
@@ -1042,9 +1028,9 @@ const GF_CSS = `
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: linear-gradient(180deg, #f3f3f4 0%, #e3e3e6 100%);
+  background: linear-gradient(180deg, #3dafe4 0%, #0c82b5 100%);
 }
-.gf-root[data-tone="dark"] .gf-back { background: linear-gradient(180deg, #2a2a2e 0%, #121214 100%); }
+.gf-root[data-tone="dark"] .gf-back { background: linear-gradient(180deg, #0284c7 0%, #034f78 100%); }
 .gf-art {
   position: absolute;
   left: -12px;
@@ -1225,10 +1211,10 @@ canvas.gf-sheet-art[data-ready] { opacity: 1; filter: none; }
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, .5) 42%, rgba(252, 252, 252, .93) 100%);
+    linear-gradient(180deg, rgba(98, 208, 255, .82) 0%, rgba(96, 209, 254, .88) 42%, rgba(46, 169, 227, .96) 100%);
 }
 .gf-root[data-tone="dark"] .gf-tint {
-  background: linear-gradient(180deg, rgba(18, 18, 20, .18) 0%, rgba(14, 14, 16, .62) 46%, rgba(8, 8, 10, .94) 100%);
+  background: linear-gradient(180deg, rgba(14, 116, 178, .86) 0%, rgba(3, 105, 161, .92) 46%, rgba(2, 60, 105, .98) 100%);
 }
 .gf-spec {
   position: absolute;

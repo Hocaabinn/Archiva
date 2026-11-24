@@ -565,8 +565,8 @@ function DaftarDokumenContent() {
     if (selectedKategori === 'semua') {
       const standardCats: { id: string; nama: string; art: ArtPreset; tone: 'light' | 'dark' }[] = [
         { id: 'keuangan', nama: 'Keuangan', art: 'aurora', tone: 'light' },
-        { id: 'sdm', nama: 'SDM', art: 'verdant', tone: 'light' },
-        { id: 'kontrak', nama: 'Kontrak', art: 'dusk', tone: 'dark' },
+        { id: 'sdm', nama: 'SDM', art: 'aurora', tone: 'light' },
+        { id: 'kontrak', nama: 'Kontrak', art: 'aurora', tone: 'light' },
       ]
 
       const dynamicCats = new Set<string>()
@@ -578,10 +578,10 @@ function DaftarDokumenContent() {
 
       const allCatConfigs = [
         ...standardCats,
-        ...Array.from(dynamicCats).map((name, i) => ({
+        ...Array.from(dynamicCats).map((name) => ({
           id: name.toLowerCase().replace(/\s+/g, '-'),
           nama: name,
-          art: (i % 2 === 0 ? 'ember' : 'glacier') as ArtPreset,
+          art: 'aurora' as ArtPreset,
           tone: 'light' as const,
         })),
       ]
