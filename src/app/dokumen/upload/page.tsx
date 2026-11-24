@@ -885,16 +885,9 @@ export default function UploadDokumenPage() {
             {/* FIELD WAJIB M3: JUMLAH HALAMAN (LEMBAR FISIK), TANGGAL DOKUMEN & TAHUN DOKUMEN */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2 border-l-3 border-[#38BDF8] pl-3.5 py-1 bg-[#F8FBFE] rounded-r-xl">
-                <div className="flex items-center justify-between gap-1">
-                  <label className="block font-bold text-[#0F172A]">
-                    JUMLAH HALAMAN FISIK (LEMBAR) <span className="text-red-500">*</span>
-                  </label>
-                  {typeof jumlahHalaman === 'number' && jumlahHalaman > 0 && (
-                    <span className="text-[10px] font-mono text-[#0284C7] bg-[#E0F2FE] px-1.5 py-0.5 rounded font-semibold">
-                      Otomatis PDF
-                    </span>
-                  )}
-                </div>
+                <label className="block font-bold text-[#0F172A]">
+                  JUMLAH HALAMAN FISIK (LEMBAR) <span className="text-red-500">*</span>
+                </label>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
