@@ -1421,10 +1421,10 @@ export default function DetailDokumenPage({ params }: PageProps) {
                       <label className="flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border-2 border-dashed border-[#BCE1F9] bg-[#F8FBFE] px-4 py-5 text-center transition-colors hover:border-[#3BA4E8] hover:bg-[#F3FAFF]">
                         <Upload className="h-5 w-5 text-[#3BA4E8]" />
                         <span className="text-sm font-medium text-[#1E86C8]">Pilih berkas pengganti</span>
-                        <span className="text-xs text-[#8A90A2]">PDF, PNG, atau JPG</span>
+                        <span className="text-xs text-[#8A90A2]">PDF, XLSX, XLS, CSV, PNG, atau JPG</span>
                         <input
                           type="file"
-                          accept=".pdf,.png,.jpg,.jpeg"
+                          accept=".pdf,.xlsx,.xls,.csv,.png,.jpg,.jpeg"
                           className="sr-only"
                           onChange={(e) => setEditFile(e.target.files?.[0] || null)}
                         />

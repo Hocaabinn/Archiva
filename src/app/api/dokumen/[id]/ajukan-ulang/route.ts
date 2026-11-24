@@ -95,18 +95,25 @@ export async function POST(
     let keteranganBerkas = ''
     if (berkasBaru) {
       const ext = (berkasBaru.name.split('.').pop() || '').toLowerCase()
-      if (!['pdf', 'png', 'jpg', 'jpeg'].includes(ext)) {
+      if (!['pdf', 'png', 'jpg', 'jpeg', 'xlsx', 'xls', 'csv'].includes(ext)) {
         return NextResponse.json(
-          { error: 'Format berkas tidak didukung. Gunakan PDF, PNG, atau JPG.' },
+          { error: 'Format berkas tidak didukung. Gunakan PDF, Excel (XLSX, XLS), CSV, PNG, atau JPG.' },
           { status: 400 }
         )
       }
       const cleanFileName = berkasBaru.name.replace(/[^a-zA-Z0-9._-]/g, '_')
       const filePath = `${doc.pemilik_id}/${Date.now()}_${cleanFileName}`
+
+      let detectedMime = berkasBaru.type || 'application/octet-stream'
+      if (ext === 'pdf') detectedMime = 'application/pdf'
+      else if (ext === 'xlsx') detectedMime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      else if (ext === 'xls') detectedMime = 'application/vnd.ms-excel'
+      else if (ext === 'csv') detectedMime = 'text/csv'
+
       const { error: uploadError } = await admin.storage
         .from('arsip-aktif')
         .upload(filePath, Buffer.from(await berkasBaru.arrayBuffer()), {
-          contentType: berkasBaru.type || 'application/pdf',
+          contentType: detectedMime,
           upsert: false,
         })
       if (uploadError) {

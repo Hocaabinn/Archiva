@@ -244,10 +244,18 @@ export async function POST(request: NextRequest) {
     const filePath = `${user.id}/${Date.now()}_${cleanFileName}`
     const fileBuffer = Buffer.from(await file.arrayBuffer())
 
+    // Tentukan mime type sesuai ekstensi jika file.type kosong
+    const fileExt = (file.name.split('.').pop() || '').toLowerCase()
+    let detectedMime = file.type || 'application/octet-stream'
+    if (fileExt === 'pdf') detectedMime = 'application/pdf'
+    else if (fileExt === 'xlsx') detectedMime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    else if (fileExt === 'xls') detectedMime = 'application/vnd.ms-excel'
+    else if (fileExt === 'csv') detectedMime = 'text/csv'
+
     const { error: uploadError } = await adminClient.storage
       .from('arsip-aktif')
       .upload(filePath, fileBuffer, {
-        contentType: file.type || 'application/pdf',
+        contentType: detectedMime,
         upsert: false,
       })
 

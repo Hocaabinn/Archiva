@@ -321,8 +321,17 @@ export default function UploadDokumenPage() {
 
   // File Upload Handlers
   const processMainFile = async (file: File) => {
-    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-      setErrorMsg('Berkas dokumen utama harus berformat PDF.')
+    const fileNameLower = file.name.toLowerCase()
+    const allowedExtensions = ['.pdf', '.xlsx', '.xls', '.csv']
+    const isAllowedExt = allowedExtensions.some((ext) => fileNameLower.endsWith(ext))
+    const isAllowedMime =
+      file.type === 'application/pdf' ||
+      file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      file.type === 'application/vnd.ms-excel' ||
+      file.type === 'text/csv'
+
+    if (!isAllowedExt && !isAllowedMime) {
+      setErrorMsg('Berkas dokumen utama harus berformat PDF atau Excel (.xlsx, .xls, .csv).')
       return
     }
     if (file.size > 25 * 1024 * 1024) {
@@ -332,17 +341,24 @@ export default function UploadDokumenPage() {
     setSelectedFile(file)
     setErrorMsg(null)
 
-    // Otomatis hitung jumlah halaman PDF dari berkas (bisa diubah manual oleh user)
-    try {
-      const arrayBuffer = await file.arrayBuffer()
-      const { PDFDocument } = await import('pdf-lib')
-      const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true })
-      const pagesCount = pdfDoc.getPageCount()
-      if (pagesCount > 0) {
-        setJumlahHalaman(pagesCount)
+    // Otomatis hitung jumlah halaman jika berkas PDF (bisa diubah manual oleh user)
+    if (fileNameLower.endsWith('.pdf')) {
+      try {
+        const arrayBuffer = await file.arrayBuffer()
+        const { PDFDocument } = await import('pdf-lib')
+        const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true })
+        const pagesCount = pdfDoc.getPageCount()
+        if (pagesCount > 0) {
+          setJumlahHalaman(pagesCount)
+        }
+      } catch (pdfErr) {
+        console.warn('Gagal membaca jumlah halaman PDF secara otomatis:', pdfErr)
       }
-    } catch (pdfErr) {
-      console.warn('Gagal membaca jumlah halaman PDF secara otomatis:', pdfErr)
+    } else {
+      // Untuk Excel/Spreadsheet default 1 lembar (dapat disesuaikan manual oleh PIC)
+      if (!jumlahHalaman || Number(jumlahHalaman) <= 0) {
+        setJumlahHalaman(1)
+      }
     }
 
     // Otomatis isi judul jika masih kosong dari nama berkas yang bersih
@@ -416,7 +432,7 @@ export default function UploadDokumenPage() {
       return
     }
     if (!selectedFile) {
-      setErrorMsg('Berkas utama dokumen wajib diunggah (format PDF).')
+      setErrorMsg('Berkas utama dokumen wajib diunggah (format PDF atau Excel .xlsx/.xls).')
       return
     }
     if (!jumlahHalaman || Number(jumlahHalaman) <= 0) {
@@ -1000,10 +1016,10 @@ export default function UploadDokumenPage() {
               </div>
             </div>
 
-            {/* UNGGAH BERKAS UTAMA (PDF) */}
+            {/* UNGGAH BERKAS UTAMA (PDF / EXCEL) */}
             <div className="space-y-2 pt-2 border-t border-[#E0F2FE]">
               <label className="block font-bold text-[#0F172A]">
-                BERKAS UTAMA DOKUMEN (PDF) <span className="text-red-500">*</span>
+                BERKAS UTAMA DOKUMEN (PDF / EXCEL) <span className="text-red-500">*</span>
               </label>
               <div
                 onDragOver={(e) => e.preventDefault()}
@@ -1018,7 +1034,7 @@ export default function UploadDokumenPage() {
                 <input
                   type="file"
                   id="main-file"
-                  accept=".pdf,application/pdf"
+                  accept=".pdf,.xlsx,.xls,.csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                   onChange={handleMainFileChange}
                   className="hidden"
                 />
@@ -1035,8 +1051,8 @@ export default function UploadDokumenPage() {
                     </div>
                   ) : (
                     <div className="text-xs font-mono text-[#64748B]">
-                      <span className="font-bold text-[#0284C7] underline underline-offset-2">Pilih Berkas PDF</span> atau seret file ke area ini
-                      <span className="text-[10px] text-[#94A3B8] block mt-1">Format file dokumen utama wajib PDF (Maks. 25 MB)</span>
+                      <span className="font-bold text-[#0284C7] underline underline-offset-2">Pilih Berkas PDF / Excel</span> atau seret file ke area ini
+                      <span className="text-[10px] text-[#94A3B8] block mt-1">Format file utama: PDF, XLSX, XLS, CSV (Maks. 25 MB)</span>
                     </div>
                   )}
                 </label>
