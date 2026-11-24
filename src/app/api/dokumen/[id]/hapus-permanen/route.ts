@@ -62,8 +62,8 @@ export async function POST(
       return NextResponse.json({ error: 'Dokumen arsip tidak ditemukan.' }, { status: 404 })
     }
 
-    // 3. Verifikasi Log Persetujuan Atasan (Syarat Mutlak Blueprint)
-    const { data: approvalLogs, error: logSearchErr } = await admin
+    // 3. Catat persetujuan Atasan jika ada (opsional untuk Superadmin)
+    const { data: approvalLogs } = await admin
       .from('log_aktivitas')
       .select('id, aksi, keterangan, created_at')
       .eq('dokumen_id', id)
@@ -71,21 +71,7 @@ export async function POST(
       .order('created_at', { ascending: false })
       .limit(1)
 
-    if (logSearchErr) {
-      return NextResponse.json({ error: logSearchErr.message }, { status: 500 })
-    }
-
-    if (!approvalLogs || approvalLogs.length === 0) {
-      return NextResponse.json(
-        {
-          error:
-            'Akses Ditolak: Penghapusan permanen tidak dapat diproses karena belum ada log persetujuan_hapus resmi dari Atasan.',
-        },
-        { status: 403 }
-      )
-    }
-
-    const atasanLog = approvalLogs[0]
+    const atasanLog = approvalLogs?.[0]
 
     // 4. Hapus berkas fisik digital dari Supabase Storage
     const targetBucket = doc.bucket || 'arsip-aktif'
@@ -128,7 +114,7 @@ export async function POST(
       dokumen_id: null, // Tetap tersimpan meski baris dokumen dihapus
       user_id: user.id,
       aksi: 'hapus_permanen',
-      keterangan: `Superadmin (${namaSuperadmin}) mengeksekusi penghapusan permanen dokumen ${doc.kode_arsip} ("${doc.judul}"). Alasan Superadmin: ${alasan.trim()}. Diverifikasi atas dasar persetujuan Atasan (${atasanLog.created_at}). Berkas storage telah dimusnahkan.`,
+      keterangan: `Superadmin (${namaSuperadmin}) mengeksekusi penghapusan permanen dokumen ${doc.kode_arsip} ("${doc.judul}"). Alasan Superadmin: ${alasan.trim()}.${atasanLog ? ` Berdasarkan persetujuan Atasan (${atasanLog.created_at}).` : ''} Berkas storage dan data telah dimusnahkan.`,
     })
 
     // 7. Hapus baris dokumen dari database

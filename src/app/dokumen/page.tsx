@@ -1023,31 +1023,16 @@ function DaftarDokumenContent() {
           </button>
         )}
 
-        {/* Opsi Khusus Superadmin: Hapus Permanen (Hanya aktif bila ada persetujuan_hapus dari Atasan) */}
+        {/* Opsi Khusus Superadmin: Hapus Permanen */}
         {role === 'superadmin' && (
           <button
             type="button"
             onClick={() => {
-              if (hasApprovalHapus) {
-                setSuperadminDeletingDoc(doc)
-                setSuperadminDeleteReason('')
-              } else {
-                showToast(
-                  'error',
-                  'Menunggu persetujuan Atasan sebelum melakukan penghapusan berkas'
-                )
-              }
+              setSuperadminDeletingDoc(doc)
+              setSuperadminDeleteReason('')
             }}
-            title={
-              hasApprovalHapus
-                ? 'Hapus Permanen (Persetujuan Atasan Terverifikasi)'
-                : 'Menunggu persetujuan Atasan sebelum melakukan penghapusan berkas'
-            }
-            className={`rounded-md p-1.5 transition-colors ${
-              hasApprovalHapus
-                ? 'text-[#D64545] hover:bg-[#FDECEC] hover:text-[#991B1B] cursor-pointer'
-                : 'text-[#94A3B8] hover:text-[#D64545] hover:bg-[#FDECEC]'
-            }`}
+            title="Hapus Permanen Dokumen"
+            className="rounded-md p-1.5 transition-colors text-[#D64545] hover:bg-[#FDECEC] hover:text-[#991B1B] cursor-pointer"
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -1820,20 +1805,22 @@ function DaftarDokumenContent() {
               </p>
             </div>
 
-            {/* Bukti Catatan Persetujuan Atasan */}
-            <div className="p-3 bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl space-y-1">
-              <span className="text-[11px] font-bold text-[#166534] flex items-center gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Catatan Persetujuan Atasan Terverifikasi di Log:
-              </span>
-              <p className="text-xs text-[#14532D] font-mono bg-white/80 p-2 rounded border border-[#DCFCE7]">
-                {approvalHapusMap[superadminDeletingDoc.id]?.keterangan ||
-                  'Atasan Arsip telah menyetujui permohonan penghapusan dokumen ini.'}
-              </p>
-              <span className="text-[10px] text-[#15803D] block">
-                Tanggal persetujuan: {formatTanggal(approvalHapusMap[superadminDeletingDoc.id]?.created_at)}
-              </span>
-            </div>
+            {/* Bukti Catatan Persetujuan Atasan jika ada */}
+            {approvalHapusMap[superadminDeletingDoc.id] && (
+              <div className="p-3 bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl space-y-1">
+                <span className="text-[11px] font-bold text-[#166534] flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Catatan Persetujuan Atasan Terverifikasi di Log:
+                </span>
+                <p className="text-xs text-[#14532D] font-mono bg-white/80 p-2 rounded border border-[#DCFCE7]">
+                  {approvalHapusMap[superadminDeletingDoc.id]?.keterangan ||
+                    'Atasan Arsip telah menyetujui permohonan penghapusan dokumen ini.'}
+                </p>
+                <span className="text-[10px] text-[#15803D] block">
+                  Tanggal persetujuan: {formatTanggal(approvalHapusMap[superadminDeletingDoc.id]?.created_at)}
+                </span>
+              </div>
+            )}
 
             {/* Input Alasan Eksekusi Superadmin */}
             <div>

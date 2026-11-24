@@ -678,37 +678,15 @@ export default function DetailDokumenPage({ params }: PageProps) {
 
             {/* Aksi Hapus Permanen HANYA untuk Superadmin */}
             {currentUserRole === 'superadmin' && (
-              hasApprovalHapus ? (
-                <button
-                  type="button"
-                  onClick={() => setModalType('hapus_permanen')}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#D64545] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#B91C1C] sm:flex-none"
-                  title="Eksekusi pemusnahan permanen berkas dan database"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Hapus Permanen
-                </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      showToast(
-                        'error',
-                        'Menunggu persetujuan Atasan sebelum melakukan penghapusan berkas'
-                      )
-                    }}
-                    className="flex items-center justify-center gap-2 rounded-lg bg-[#EEF0F4] border border-[#D1D5DB] px-4 py-2 text-sm font-semibold text-[#8A90A2] hover:text-[#D64545] hover:border-[#FCA5A5] transition-colors sm:flex-none cursor-pointer"
-                    title="Menunggu persetujuan Atasan sebelum melakukan penghapusan berkas"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Hapus Permanen
-                  </button>
-                  <span className="hidden xl:inline text-[11px] text-[#8A90A2] italic">
-                    * Menunggu persetujuan Atasan sebelum melakukan penghapusan berkas
-                  </span>
-                </div>
-              )
+              <button
+                type="button"
+                onClick={() => setModalType('hapus_permanen')}
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#D64545] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#B91C1C] sm:flex-none cursor-pointer"
+                title="Hapus permanen berkas dan dokumen"
+              >
+                <Trash2 className="h-4 w-4" />
+                Hapus Permanen
+              </button>
             )}
           </div>
         </div>
@@ -1016,26 +994,9 @@ export default function DetailDokumenPage({ params }: PageProps) {
                     {currentUserRole === 'superadmin' && (
                       <button
                         type="button"
-                        onClick={() => {
-                          if (hasApprovalHapus) {
-                            setModalType('hapus_permanen')
-                          } else {
-                            showToast(
-                              'error',
-                              'Menunggu persetujuan Atasan sebelum melakukan penghapusan berkas'
-                            )
-                          }
-                        }}
-                        title={
-                          hasApprovalHapus
-                            ? 'Hapus permanen berkas dan dokumen'
-                            : 'Menunggu persetujuan Atasan sebelum melakukan penghapusan berkas'
-                        }
-                        className={`flex items-center justify-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-semibold shadow-xs transition-colors active:scale-[0.98] ${
-                          hasApprovalHapus
-                            ? 'border-[#FCA5A5] bg-[#FEF2F2] text-[#D64545] hover:bg-[#FEE2E2]'
-                            : 'border-[#CBD7E3] bg-white text-[#94A3B8] hover:text-[#D64545] hover:border-[#FCA5A5]'
-                        }`}
+                        onClick={() => setModalType('hapus_permanen')}
+                        title="Hapus permanen berkas dan dokumen"
+                        className="flex items-center justify-center gap-1.5 rounded-lg border border-[#FCA5A5] bg-[#FEF2F2] px-3.5 py-2 text-sm font-semibold text-[#D64545] shadow-xs transition-colors hover:bg-[#FEE2E2] active:scale-[0.98] cursor-pointer"
                       >
                         <Trash2 className="h-4 w-4 text-[#D64545]" />
                         <span className="text-[#D64545]">Hapus</span>
@@ -1380,7 +1341,7 @@ export default function DetailDokumenPage({ params }: PageProps) {
                       Peringatan Tindakan Pemusnahan Permanen
                     </p>
                     <p className="text-xs text-[#4B5163] leading-relaxed">
-                      Dokumen <strong className="font-mono text-[#1F2333]">{doc.kode_arsip}</strong> beserta seluruh berkas digital di storage akan <strong>dihapus permanen</strong>. Log persetujuan Atasan telah terverifikasi.
+                      Dokumen <strong className="font-mono text-[#1F2333]">{doc.kode_arsip}</strong> beserta seluruh berkas digital di storage akan <strong>dihapus permanen</strong> dari sistem.
                     </p>
                   </div>
                   <div>
