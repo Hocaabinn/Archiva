@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { kirimNotifikasiKePeran } from '@/lib/server-dokumen'
+import { UserRole } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -121,6 +123,25 @@ export async function POST(
     const { error: deleteErr } = await admin.from('dokumen').delete().eq('id', id)
     if (deleteErr) {
       return NextResponse.json({ error: deleteErr.message }, { status: 500 })
+    }
+
+    // 8. Kirim notifikasi ke setiap role pengguna (Pemberitahuan Penghapusan Dokumen)
+    try {
+      const allRoles: UserRole[] = [
+        'pic_aktif',
+        'atasan_aktif',
+        'pic_inaktif',
+        'atasan_inaktif',
+        'staff',
+        'superadmin',
+      ]
+      await kirimNotifikasiKePeran({
+        roles: allRoles,
+        judul: 'Pemberitahuan Penghapusan Dokumen Arsip',
+        isi: `Dokumen arsip "${doc.judul}" (${doc.kode_arsip}) telah dihapus permanen oleh Superadmin (${namaSuperadmin}). Alasan: ${alasan.trim()}. Berkas dan data telah dimusnahkan dari sistem.`,
+      })
+    } catch (notifErr) {
+      console.warn('Gagal menyebarkan notifikasi hapus ke seluruh peran:', notifErr)
     }
 
     return NextResponse.json({
