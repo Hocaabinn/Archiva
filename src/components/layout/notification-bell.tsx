@@ -21,6 +21,38 @@ function waktuRelatif(iso: string) {
 }
 
 /**
+ * Mendeteksi aktor/pengirim notifikasi untuk ditampilkan sebagai badge visual yang jelas
+ */
+function getAktorBadge(judul: string, isi: string): { label: string; badgeClass: string; displayJudul: string } {
+  let displayJudul = judul
+  const match = judul.match(/^\[(.*?)\]\s*(.*)/)
+  if (match) {
+    const rawTag = match[1]
+    displayJudul = match[2] || judul
+    const tagLower = rawTag.toLowerCase()
+    if (tagLower.includes('admin')) {
+      return { label: rawTag, badgeClass: 'bg-[#FEE2E2] text-[#991B1B] border-[#FECACA]', displayJudul }
+    }
+    if (tagLower.includes('atasan')) {
+      return { label: rawTag, badgeClass: 'bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]', displayJudul }
+    }
+    return { label: rawTag, badgeClass: 'bg-[#E0F2FE] text-[#0369A1] border-[#BAE6FD]', displayJudul }
+  }
+
+  const combined = (judul + ' ' + isi).toLowerCase()
+  if (combined.includes('superadmin') || combined.includes('admin')) {
+    return { label: 'Admin', badgeClass: 'bg-[#FEE2E2] text-[#991B1B] border-[#FECACA]', displayJudul }
+  }
+  if (combined.includes('atasan')) {
+    return { label: 'Atasan', badgeClass: 'bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]', displayJudul }
+  }
+  if (combined.includes('pic')) {
+    return { label: 'PIC Arsip', badgeClass: 'bg-[#E0F2FE] text-[#0369A1] border-[#BAE6FD]', displayJudul }
+  }
+  return { label: 'Sistem', badgeClass: 'bg-[#F1F5F9] text-[#475569] border-[#E2E8F0]', displayJudul }
+}
+
+/**
  * Lonceng notifikasi di bar atas. Membaca tabel `notifikasi` milik pengguna yang login
  * (dibatasi RLS: user_id = auth.uid()), menandai dibaca, dan ikut terbarui otomatis
  * lewat Supabase Realtime dengan cadangan polling 30 detik.
@@ -203,28 +235,36 @@ export function NotificationBell({ supabase }: { supabase: SupabaseClient }) {
               </div>
             ) : (
               <ul className="divide-y divide-[#F1F3F8]">
-                {items.map((n) => (
-                  <li key={n.id}>
-                    <button
-                      type="button"
-                      onClick={() => markRead(n)}
-                      className={`flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-[#F7FBFE] ${
-                        n.dibaca ? '' : 'bg-[#F3FAFF]'
-                      }`}
-                    >
-                      <span
-                        className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.dibaca ? 'bg-transparent' : 'bg-[#3BA4E8]'}`}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className={`block text-sm ${n.dibaca ? 'text-[#4B5163]' : 'font-semibold text-[#1F2333]'}`}>
-                          {n.judul}
+                {items.map((n) => {
+                  const aktorInfo = getAktorBadge(n.judul, n.isi)
+                  return (
+                    <li key={n.id}>
+                      <button
+                        type="button"
+                        onClick={() => markRead(n)}
+                        className={`flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-[#F7FBFE] ${
+                          n.dibaca ? '' : 'bg-[#F3FAFF]'
+                        }`}
+                      >
+                        <span
+                          className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.dibaca ? 'bg-transparent' : 'bg-[#3BA4E8]'}`}
+                        />
+                        <span className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2 mb-0.5">
+                            <span className={`block truncate text-sm ${n.dibaca ? 'text-[#4B5163]' : 'font-semibold text-[#1F2333]'}`}>
+                              {aktorInfo.displayJudul}
+                            </span>
+                            <span className={`inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[10px] font-semibold border ${aktorInfo.badgeClass}`}>
+                              {aktorInfo.label}
+                            </span>
+                          </div>
+                          <span className="line-clamp-2 block text-xs leading-relaxed text-[#6B7185]">{n.isi}</span>
+                          <span className="mt-1 block text-[11px] text-[#9AA0B2]">{waktuRelatif(n.created_at)}</span>
                         </span>
-                        <span className="mt-0.5 line-clamp-2 block text-xs leading-relaxed text-[#6B7185]">{n.isi}</span>
-                        <span className="mt-1 block text-[11px] text-[#9AA0B2]">{waktuRelatif(n.created_at)}</span>
-                      </span>
-                    </button>
-                  </li>
-                ))}
+                      </button>
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </div>

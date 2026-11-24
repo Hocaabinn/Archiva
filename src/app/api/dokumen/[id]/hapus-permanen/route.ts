@@ -137,8 +137,8 @@ export async function POST(
       ]
       await kirimNotifikasiKePeran({
         roles: allRoles,
-        judul: 'Pemberitahuan Penghapusan Dokumen Arsip',
-        isi: `Dokumen arsip "${doc.judul}" (${doc.kode_arsip}) telah dihapus permanen oleh Superadmin (${namaSuperadmin}). Alasan: ${alasan.trim()}. Berkas dan data telah dimusnahkan dari sistem.`,
+        judul: `[Dari Admin] Dokumen Dihapus: ${doc.kode_arsip}`,
+        isi: `Superadmin (${namaSuperadmin}) telah menghapus permanen dokumen "${doc.judul}" (${doc.kode_arsip}). Alasan: ${alasan.trim()}. Berkas dan data telah dimusnahkan dari sistem.`,
       })
     } catch (notifErr) {
       console.warn('Gagal menyebarkan notifikasi hapus ke seluruh peran:', notifErr)
