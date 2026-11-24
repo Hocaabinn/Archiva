@@ -825,9 +825,13 @@ export default function UploadDokumenPage() {
                     <input
                       type="text"
                       value={nomorPpl}
-                      onChange={(e) => setNomorPpl(e.target.value)}
+                      onChange={(e) => {
+                        // Hanya angka dan simbol (tidak menerima huruf alfabet a-z / A-Z)
+                        const filtered = e.target.value.replace(/[a-zA-Z]/g, '').slice(0, 10)
+                        setNomorPpl(filtered)
+                      }}
                       placeholder="Contoh: 1500013765"
-                      maxLength={15}
+                      maxLength={10}
                       required={!isNonPayment}
                       className="w-full h-10 border border-[#BAE6FD] bg-white rounded-lg px-3 text-xs font-mono font-bold tracking-wider text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
                     />
@@ -858,7 +862,11 @@ export default function UploadDokumenPage() {
                     <input
                       type="text"
                       value={docVoucherInput}
-                      onChange={(e) => setDocVoucherInput(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
+                      onChange={(e) => {
+                        // Hanya angka dan simbol (tidak menerima huruf alfabet a-z / A-Z)
+                        const filtered = e.target.value.replace(/[a-zA-Z]/g, '').slice(0, 10)
+                        setDocVoucherInput(filtered)
+                      }}
                       placeholder={nextDocVoucher ? `Contoh: ${nextDocVoucher}` : "Contoh: 1900009386"}
                       maxLength={10}
                       required={!isNonPayment}

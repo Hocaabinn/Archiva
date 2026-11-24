@@ -1373,20 +1373,30 @@ export default function DetailDokumenPage({ params }: PageProps) {
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
-                      <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">No. Payment / PPL</label>
+                      <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">No. Payment / PPL (10 Digit)</label>
                       <input
                         type="text"
                         value={editNomorPpl}
-                        onChange={(e) => setEditNomorPpl(e.target.value)}
+                        onChange={(e) => {
+                          const filtered = e.target.value.replace(/[a-zA-Z]/g, '').slice(0, 10)
+                          setEditNomorPpl(filtered)
+                        }}
+                        maxLength={10}
+                        placeholder="Contoh: 1500013765"
                         className={`${fieldInput} font-mono`}
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">Doc Voucher</label>
+                      <label className="mb-1.5 block text-sm font-medium text-[#1F2333]">Doc Voucher (10 Digit)</label>
                       <input
                         type="text"
                         value={editNomorDokumen}
-                        onChange={(e) => setEditNomorDokumen(e.target.value)}
+                        onChange={(e) => {
+                          const filtered = e.target.value.replace(/[a-zA-Z]/g, '').slice(0, 10)
+                          setEditNomorDokumen(filtered)
+                        }}
+                        maxLength={10}
+                        placeholder="Contoh: 1900009386"
                         className={`${fieldInput} font-mono`}
                       />
                     </div>
