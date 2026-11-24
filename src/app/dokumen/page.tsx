@@ -1027,11 +1027,15 @@ function DaftarDokumenContent() {
         {role === 'superadmin' && (
           <button
             type="button"
-            disabled={!hasApprovalHapus}
             onClick={() => {
               if (hasApprovalHapus) {
                 setSuperadminDeletingDoc(doc)
                 setSuperadminDeleteReason('')
+              } else {
+                showToast(
+                  'error',
+                  'Hapus permanen dibatasi: Memerlukan pencatatan persetujuan_hapus resmi dari Atasan di log aktivitas.'
+                )
               }
             }}
             title={
@@ -1042,7 +1046,7 @@ function DaftarDokumenContent() {
             className={`rounded-md p-1.5 transition-colors ${
               hasApprovalHapus
                 ? 'text-[#D64545] hover:bg-[#FDECEC] hover:text-[#991B1B] cursor-pointer'
-                : 'text-[#CBD5E1] cursor-not-allowed opacity-40'
+                : 'text-[#94A3B8] hover:text-[#D64545] hover:bg-[#FDECEC]'
             }`}
           >
             <Trash2 className="h-4 w-4" />
